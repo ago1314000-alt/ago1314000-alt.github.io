@@ -236,6 +236,45 @@ const SPELLS = [
 {n:"Water Breathing",l:3,c:["Druid","Ranger","Sorcerer","Wizard"],d:"Up to 10 creatures breathe underwater for 24 hours. Ritual."}
 ];
 
+// What a spell lets you roll. Derived from its description, with explicit
+// overrides where the wording doesn't parse cleanly.
+const DMG_TYPES = "acid|bludgeoning|cold|fire|force|lightning|necrotic|piercing|poison|psychic|radiant|slashing|thunder";
+const SPELL_ROLLS = {
+  "Magic Missile": { dmg:"3d4+3 force", note:"Three darts, each 1d4+1; they hit automatically" },
+  "Spiritual Weapon": { atk:true, dmg:"1d8 force", note:"Add your spellcasting modifier to the damage" },
+  "False Life": { heal:"2d4+4", note:"Temporary Hit Points, not healing" },
+  "Goodberry": { note:"Each berry restores 1 HP" },
+  "Sleep": { note:"5d8 HP of creatures fall unconscious, not damage" },
+  "Aid": { note:"Raises HP maximum and current by 5" },
+  "Spike Growth": { dmg:"2d4 piercing", note:"Per 5 feet of movement through the area" },
+  "Call Lightning": { dmg:"3d10 lightning" },
+  "Moonbeam": { dmg:"2d10 radiant" },
+  "Flaming Sphere": { dmg:"2d6 fire" },
+  "Hellish Rebuke": { dmg:"2d10 fire" },
+  "Divine Favor": { dmg:"1d4 radiant" },
+  "Hunter's Mark": { dmg:"1d6 force" },
+  "Guidance": { dmg:"1d4", note:"Add to one ability check" },
+  "Resistance": { dmg:"1d4", note:"Add to one saving throw" },
+  "Bless": { dmg:"1d4", note:"Add to attack rolls and saving throws" },
+  "Bane": { dmg:"1d4", note:"Subtract from the target's attacks and saves" }
+};
+function spellRolls(s) {
+  const o = SPELL_ROLLS[s.n] || {};
+  const atk = o.atk !== undefined ? o.atk : /\b(ranged|melee) spell attack\b/i.test(s.d);
+  const save = o.save !== undefined ? o.save : (s.d.match(/\b(STR|DEX|CON|INT|WIS|CHA)\s+sav/i)||[])[1] || null;
+  let dmg = o.dmg;
+  if (dmg === undefined) {
+    const m = s.d.match(new RegExp(`(\\d+d\\d+)(?:\\s*\\+\\s*[\\w]+)?\\s+(${DMG_TYPES})`, "i"));
+    dmg = m ? `${m[1]} ${m[2].toLowerCase()}` : null;
+  }
+  let heal = o.heal;
+  if (heal === undefined) {
+    const m = s.d.match(/(?:restore|regain)s?\s+(\d+d\d+)/i);
+    heal = m ? m[1] : null;
+  }
+  return { atk, save, dmg: dmg||null, heal: heal||null, note: o.note||null };
+}
+
 // Random tables for personality (autoroll style)
 const RP_TABLES = {
   traits: ["I always have a plan for what to do when things go wrong.","I am incredibly slow to trust, but fiercely loyal once I do.","I quote sacred texts and proverbs in almost every situation.","Nothing can shake my optimistic attitude.","I face problems head-on; the simplest solution is a straight line.","I enjoy being strong and like breaking things.","I use polysyllabic words that convey the impression of great erudition.","I've read every book in the world's greatest libraries, or I like to boast that I have."],

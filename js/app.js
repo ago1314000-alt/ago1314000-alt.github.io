@@ -7,7 +7,7 @@ const state = {
   traits:"", ideals:"", bonds:"", flaws:"", notes:"",
   tempHp:0, inspiration:false, deathS:0, deathF:0,
   slotsUsed:{}, hdUsed:0, stable:false, retired:false,
-  resUsed:{}, conc:null
+  resUsed:{}, conc:null, gear:[]
 };
 let sheetTargetId = "sheet";
 
@@ -318,7 +318,7 @@ document.getElementById("charName").addEventListener("input", e=>{ state.name=e.
   document.getElementById(id).addEventListener("change", e=>{
     const key = {selClass:"cls",selSpecies:"species",selBackground:"background",selAlignment:"alignment"}[id];
     state[key] = e.target.value;
-    if (id==="selClass") { state.skills=[]; state.spells=[]; state.level=1; state.dieRolls=[]; state.slotsUsed={}; state.hdUsed=0; state.resUsed={}; state.conc=null; renderSkillChoices(); renderSpellChoices(); }
+    if (id==="selClass") { state.skills=[]; state.spells=[]; state.level=1; state.dieRolls=[]; state.slotsUsed={}; state.hdUsed=0; state.resUsed={}; state.conc=null; state.gear=[]; renderSkillChoices(); renderSpellChoices(); }
     if (id==="selBackground") {
       // Free up any class pick the new background already grants, so the
       // player keeps their full allotment of distinct proficiencies
@@ -335,7 +335,7 @@ document.getElementById("btnRandomAll").addEventListener("click", ()=>{
   state.tempHp=0; state.inspiration=false; state.deathS=0; state.deathF=0;
   state.slotsUsed={}; state.hdUsed=0; state.stable=false; state.retired=false;
   // Fresh heroes arrive fully rested: force HP to recompute from scratch
-  state.maxHp=null; state.curHp=null; state.resUsed={}; state.conc=null;
+  state.maxHp=null; state.curHp=null; state.resUsed={}; state.conc=null; state.gear=[];
   Object.values(randomizers).forEach(f=>f());
   setScores(ABILITIES.map(()=>roll4d6()));
   optimizeForClass();
@@ -355,7 +355,7 @@ function clearCreator() {
   state.traits=""; state.ideals=""; state.bonds=""; state.flaws=""; state.notes="";
   state.tempHp=0; state.inspiration=false; state.deathS=0; state.deathF=0;
   state.slotsUsed={}; state.hdUsed=0; state.stable=false; state.retired=false;
-  state.resUsed={}; state.conc=null;
+  state.resUsed={}; state.conc=null; state.gear=[];
   ABILITIES.forEach(a=>{ state.scores[a]=null; document.getElementById("ab_"+a).value=""; });
   document.getElementById("charName").value="";
   ["selClass","selSpecies","selBackground","selAlignment"].forEach(id=>document.getElementById(id).value="");
@@ -384,6 +384,7 @@ function renderSheet() {
   ["btnSave","btnSaveTop"].forEach(id=>{ const b = document.getElementById(id); if (b) b.textContent = saveLabel; });
   computeHp();
   try { localStorage.setItem("dnd-srd-current", JSON.stringify(state)); } catch(e) {}
+  persistLoaded();   // every change that redraws the sheet is written through to the saved copy
   const el = document.getElementById(sheetTargetId);
   if (!el) { renderDownOverlay(); return; }
   const haveScores = ABILITIES.every(a=>state.scores[a]!=null);
@@ -434,7 +435,7 @@ function renderSheet() {
     return `<li ${roll}>${isProf?'<span class="prof">●</span>':'○'} ${s} <small style="color:var(--muted)">(${ab})</small> ${m!=null?fmtMod(m):"--"}</li>`;
   }).join("");
 
-  const equipment = [...(c?c.equipment:[]), ...(bg?bg.equipment:[])];
+  const equipment = [...(c?c.equipment:[]), ...(bg?bg.equipment:[]), ...(state.gear||[])];
   const features = [...(c?c.features.map(f=>allDice(scaleFeature(state.cls,f,state.level))):[]), ...(bg?["Origin Feat: "+bg.feat]:[])];
   if (c && CLASS_LEVELS[state.cls]) {
     for (let lv=2; lv<=state.level; lv++) {
@@ -451,7 +452,7 @@ function renderSheet() {
   const attacks = [];
   if (c) {
     const seen = new Set();
-    [...c.equipment, ...(bg?bg.equipment:[])].forEach(item=>{
+    [...c.equipment, ...(bg?bg.equipment:[]), ...(state.gear||[])].forEach(item=>{
       Object.keys(WEAPONS).forEach(w=>{
         if (item.includes(w) && !seen.has(w)) {
           seen.add(w);
@@ -594,16 +595,34 @@ function renderSheet() {
           <li><b>Tools:</b> ${bg?bg.tool:"--"}</li>
         </ul>
         <h3 class="section">Equipment</h3>
-        <ul class="clean">${equipment.map(e=>`<li class="rollable" onclick="refLookup('${escQ(eqTermFrom(e))}')" title="Click for details">${e}</li>`).join("") || "<li>--</li>"}</ul>
+        <ul class="clean">${equipment.map(e=>{
+          const own = (state.gear||[]).includes(e);
+          return `<li class="rollable" onclick="refLookup('${escQ(eqTermFrom(e))}')" title="Click for details">${e}${
+            own?` <button style="float:right;padding:0 .35rem;font-size:.75rem" title="Remove"
+                    onclick="event.stopPropagation();removeGear('${escQ(e)}')">✕</button>`:""}</li>`;
+        }).join("") || "<li>--</li>"}</ul>
+        ${canAct?`<button onclick="openGear()" style="margin-top:.4rem;font-size:.85rem">➕ Add Equipment</button>`:""}
       </div>
     </div>
     ${rpBlock}
+    <h3 class="section">Notes</h3>
+    <textarea id="sheetNotes" rows="3" placeholder="Session notes, loot, leads, NPC names...">${(state.notes||"").replace(/</g,"&lt;")}</textarea>
     <h3 class="section" style="cursor:pointer;user-select:none" onclick="toggleRollLog()" title="Rolls, level-ups, edits, rests, and status changes">📜 History ${showRollLog?"▾":"▸"} <small style="color:var(--muted)">(${histLog.length})</small></h3>
     ${showRollLog ? `
       <ul class="clean">${histLog.length ? histLog.map(r=>
         `<li>${HIST_ICONS[r.type]||"·"} ${r.text}${r.who?` <small style="color:var(--muted)">· ${r.who}</small>`:""} <small style="color:var(--muted)">${r.at}</small></li>`).join("")
         : '<li style="color:var(--muted)">Nothing yet: rolls, level-ups, rests, edits, and dramatic events will be recorded here.</li>'}</ul>
       ${histLog.length?`<button onclick="clearRollLog()" style="margin-top:.4rem;font-size:.8rem">Clear history</button>`:""}` : ""}`;
+
+  // Notes save as you type, without redrawing the sheet out from under the cursor
+  const notesEl = el.querySelector("#sheetNotes");
+  if (notesEl) notesEl.addEventListener("input", e=>{
+    state.notes = e.target.value;
+    const creatorNotes = document.getElementById("rpNotes");
+    if (creatorNotes) creatorNotes.value = state.notes;
+    try { localStorage.setItem("dnd-srd-current", JSON.stringify(state)); } catch(err) {}
+    persistLoaded();
+  });
   renderDownOverlay();
 }
 
@@ -616,10 +635,16 @@ document.querySelectorAll(".tabs button").forEach(b=>{
     document.getElementById("tab-"+b.dataset.tab).classList.add("active");
     if (b.dataset.tab==="saved") renderSavedList();
     if (b.dataset.tab==="create") {
-      // Leaving a saved-character view: give the creator a fresh start
+      // Leaving a saved-character view: give the creator a fresh start and drop
+      // the old sheet, which would otherwise sit there looking live while its
+      // buttons act on cleared state
       const wasViewing = sheetTargetId === "savedSheet";
       sheetTargetId = "sheet";
-      if (wasViewing) clearCreator(); else renderSheet();
+      if (wasViewing) {
+        const ss = document.getElementById("savedSheet");
+        ss.style.display = "none"; ss.innerHTML = "";
+        clearCreator();
+      } else renderSheet();
     }
   });
 });
@@ -699,6 +724,7 @@ function applyCharacter(ch) {
   state.slotsUsed = {...(ch.slotsUsed||{})}; state.hdUsed = ch.hdUsed||0; state.stable = !!ch.stable;
   state.retired = !!ch.retired;
   state.resUsed = {...(ch.resUsed||{})}; state.conc = ch.conc || null;
+  state.gear = [...(ch.gear||[])];
   document.getElementById("rpTraits").value = state.traits;
   document.getElementById("rpIdeals").value = state.ideals;
   document.getElementById("rpBonds").value = state.bonds;
@@ -841,7 +867,7 @@ let toastTimer = null;
 let histLog = [];
 try { histLog = JSON.parse(localStorage.getItem("dnd-srd-history")) || []; } catch(e) {}
 let showRollLog = false;
-const HIST_ICONS = { roll:"🎲", level:"⬆️", edit:"✏️", rest:"⛺", longrest:"🌙", status:"💀", heal:"❤️", cast:"✨", resource:"🔆" };
+const HIST_ICONS = { roll:"🎲", level:"⬆️", edit:"✏️", rest:"⛺", longrest:"🌙", status:"💀", heal:"❤️", cast:"✨", resource:"🔆", gear:"🎒" };
 function logEvent(type, text) {
   histLog.unshift({type, text, who: state.name || "", at: new Date().toLocaleString()});
   if (histLog.length > 200) histLog.length = 200;
@@ -1113,6 +1139,70 @@ function lvlConfirm() {
 // Close the modal from the backdrop or Escape (same as Cancel: nothing applied)
 document.getElementById("lvlOverlay").addEventListener("click", e=>{ if (e.target.id==="lvlOverlay") lvlCancel(); });
 document.addEventListener("keydown", e=>{ if (e.key==="Escape" && pendingLvl) lvlCancel(); });
+
+// ---------- EQUIPMENT THE PLAYER PICKS UP ----------
+function openGear() {
+  document.getElementById("gearSearch") && (gearFilter = "");
+  renderGearModal();
+  document.getElementById("gearOverlay").classList.add("open");
+}
+let gearFilter = "";
+function renderGearModal() {
+  const q = gearFilter.toLowerCase();
+  const weapons = Object.keys(WEAPONS);
+  const others = Object.keys(EQUIPMENT_DEFS).filter(n=>!weapons.includes(n));
+  const match = n => !q || n.toLowerCase().includes(q);
+  const row = n => `<div class="chooser-row" onclick="addGear('${escQ(n)}')" title="Add ${n}">
+      <div><b>${n}</b>${WEAPONS[n]?` <small style="color:var(--accent)">weapon</small>`:""}</div>
+      <div style="font-size:.85rem;color:var(--muted)">${allDice(WEAPONS[n] ? `${WEAPONS[n].dmg} damage${WEAPONS[n].fin?", Finesse":""}${WEAPONS[n].rng?", Ranged":""}` : (EQUIPMENT_DEFS[n]||""))}</div>
+    </div>`;
+  const w = weapons.filter(match), o = others.filter(match);
+  document.getElementById("gearModal").innerHTML = `
+    <h3>➕ Add Equipment</h3>
+    <div style="color:var(--muted);font-style:italic">Anything you add shows up in Equipment. Weapons also appear under Attacks with their bonus worked out.</div>
+    <div class="lvl-step">
+      <div class="k">Write it in</div>
+      <div class="row">
+        <input type="text" id="gearCustom" placeholder="e.g. Potion of Healing, +1 Longsword, map to the vault">
+        <button onclick="addCustomGear()">Add</button>
+      </div>
+    </div>
+    <div class="lvl-step">
+      <div class="k">Or pick from the SRD</div>
+      <input type="text" id="gearSearch" placeholder="Filter equipment..." value="${gearFilter.replace(/"/g,'&quot;')}" style="margin-bottom:.4rem">
+      <div class="picker-box">
+        ${w.length?`<div class="spell-lvl-h">Weapons</div>${w.map(row).join("")}`:""}
+        ${o.length?`<div class="spell-lvl-h">Gear</div>${o.map(row).join("")}`:""}
+        ${!w.length && !o.length?`<div style="color:var(--muted)">Nothing matches. Use "Write it in" above.</div>`:""}
+      </div>
+    </div>
+    <div class="lvl-actions"><button onclick="gearClose()">Close</button></div>`;
+  const s = document.getElementById("gearSearch");
+  if (s) s.addEventListener("input", e=>{ gearFilter = e.target.value; renderGearModal(); document.getElementById("gearSearch").focus(); });
+  const cu = document.getElementById("gearCustom");
+  if (cu) cu.addEventListener("keydown", e=>{ if (e.key==="Enter") addCustomGear(); });
+}
+function addGear(name) {
+  state.gear = [...(state.gear||[]), name];
+  logEvent("gear", `Picked up <b>${name}</b>${WEAPONS[name]?" (added to Attacks)":""}`);
+  renderSheet(); persistLoaded();
+  gearClose();
+}
+function addCustomGear() {
+  const el = document.getElementById("gearCustom");
+  const v = (el.value||"").trim();
+  if (!v) return;
+  addGear(v);
+}
+function removeGear(name) {
+  const i = (state.gear||[]).indexOf(name);
+  if (i < 0) return;
+  state.gear.splice(i,1);
+  logEvent("gear", `Dropped <b>${name}</b>`);
+  renderSheet(); persistLoaded();
+}
+function gearClose() { document.getElementById("gearOverlay").classList.remove("open"); }
+document.addEventListener("click", e=>{ if (e.target.id==="gearOverlay") gearClose(); });
 
 // ---------- CLASS RESOURCES ----------
 // Resources this character has at their current level, with computed maximums
@@ -1546,6 +1636,14 @@ document.addEventListener("click", e=>{ if (e.target.id==="refOverlay") refClose
 // ---------- ATTACK OVERLAY (attack roll + secondary damage roll) ----------
 let atkState = null;
 
+// Damage- or healing-only roll: same overlay, no attack line
+function rollDamageOnly(name, dice, type, label) {
+  atkState = { name, bonus:null, d20:null, total:null, dice, type, dmgMod:0,
+               dmgResult:null, extra:[], noAttack:true, label: label||"Damage" };
+  renderAtkModal();
+  document.getElementById("atkOverlay").classList.add("open");
+}
+
 function attackRoll(name, bonus, dice, type, dmgMod) {
   const r = d20Roll();
   const d = r.v;
@@ -1564,17 +1662,18 @@ function renderAtkModal() {
   const grand = (a.dmgResult!=null ? a.dmgResult : 0) + extraSum;
   document.getElementById("atkModal").innerHTML = `
     <h3>${a.name}</h3>
+    ${a.noAttack ? "" : `
     <div class="lvl-step">
       <div class="k">Attack Roll · vs target's AC${a.mode?` · ${a.mode}`:""}</div>
       <div style="font-size:1.6rem"><b style="${crit?"color:var(--good)":fumble?"color:var(--accent2)":""}">${a.total}</b>
         <small style="color:var(--muted)">${a.detail}</small></div>
       ${crit?'<b style="color:var(--good)">NATURAL 20 · Critical Hit! Roll the damage dice twice.</b>':fumble?'<b style="color:var(--accent2)">Natural 1 · automatic miss.</b>':""}
-    </div>
+    </div>`}
     <div class="lvl-step">
-      <div class="k">Damage${a.type && a.type!=="spell"?` · ${a.type}`:""}</div>
+      <div class="k">${a.label||"Damage"}${a.type && a.type!=="spell"?` · ${a.type}`:""}</div>
       ${a.dice
         ? (a.dmgResult==null
-          ? `<button onclick="atkDamage()">🎲 Roll damage (${crit?"2×":""}${allDice(a.dice)}${a.dmgMod?` ${a.dmgMod>0?"+":""}${a.dmgMod}`:""})</button>`
+          ? `<button onclick="atkDamage()">🎲 Roll ${(a.label||"damage").toLowerCase()} (${crit?"2×":""}${allDice(a.dice)}${a.dmgMod?` ${a.dmgMod>0?"+":""}${a.dmgMod}`:""})</button>`
           : `<div style="font-size:1.4rem"><b>${a.dmgResult}</b> <small style="color:var(--muted)">${diceHtml(a.dmgDetail)}</small></div>`)
         : (a.type==="spell"
           ? `<div style="color:var(--muted);font-size:.85rem;margin-bottom:.3rem">Roll your spell's damage dice${crit?" twice (crit!)":""}:</div>`
@@ -1591,12 +1690,16 @@ function renderAtkModal() {
 
 function atkDamage() {
   const a = atkState;
-  const [n, sides] = a.dice.split("d").map(Number);
+  // dice may carry a flat bonus, e.g. "3d4+3"
+  const [dicePart, flatPart] = a.dice.split("+");
+  const flat = flatPart ? parseInt(flatPart,10) : 0;
+  const [n, sides] = dicePart.trim().split("d").map(Number);
   const count = a.d20===20 ? n*2 : n;
   const rolls = Array.from({length:count}, ()=>1+Math.floor(Math.random()*sides));
-  a.dmgResult = Math.max(0, rolls.reduce((s,v)=>s+v,0) + a.dmgMod);
-  a.dmgDetail = `${count}d${sides} (${rolls.join(", ")})${a.dmgMod?` ${a.dmgMod>0?"+":""}${a.dmgMod}`:""}${a.type?` ${a.type}`:""}`;
-  logRoll(`${a.name} Damage`, a.dmgDetail, a.dmgResult);
+  const bonus = a.dmgMod + (a.d20===20 ? flat*2 : flat);
+  a.dmgResult = Math.max(0, rolls.reduce((s,v)=>s+v,0) + bonus);
+  a.dmgDetail = `${count}d${sides} (${rolls.join(", ")})${bonus?` ${bonus>0?"+":""}${bonus}`:""}${a.type&&a.type!=="spell"?` ${a.type}`:""}`;
+  logRoll(`${a.name} ${a.label||"Damage"}`, a.dmgDetail, a.dmgResult);
   renderAtkModal();
 }
 
@@ -1621,10 +1724,22 @@ function spellDetail(name) {
     const left = r.total - (state.slotsUsed[r.lv]||0);
     return `<button onclick="castSpell('${escQ(s.n)}',${r.lv})" ${left<=0?"disabled style='opacity:.45'":""}>✨ Cast with Level ${r.lv} slot (${left} left)</button>`;
   }).join(" ");
+  const roll = spellRolls(s);
+  const prof = 2 + Math.floor((state.level-1)/4);
+  const castAb = state.cls ? CLASSES[state.cls].spellcaster : null;
+  const castMod = castAb && state.scores[castAb]!=null ? mod(state.scores[castAb]) : 0;
+  const spellAtk = prof + castMod;
+  const rollBtns = [
+    roll.atk ? `<button onclick="attackRoll('${escQ(s.n)}',${spellAtk},${roll.dmg?`'${roll.dmg.split(" ")[0]}'`:"null"},'${roll.dmg?roll.dmg.split(" ").slice(1).join(" "):"spell"}',0)">🎯 Spell attack ${fmtMod(spellAtk)}</button>` : "",
+    (!roll.atk && roll.dmg) ? `<button onclick="rollDamageOnly('${escQ(s.n)}','${roll.dmg.split(" ")[0]}','${roll.dmg.split(" ").slice(1).join(" ")}','Damage')">💥 Roll ${allDice(roll.dmg)}</button>` : "",
+    roll.heal ? `<button onclick="rollDamageOnly('${escQ(s.n)}','${roll.heal}','','Healing')">❤️ Roll healing (${allDice(roll.heal)})</button>` : ""
+  ].filter(Boolean).join(" ");
+
   document.getElementById("spellModal").innerHTML = `
     <h3>${s.n}</h3>
-    <div style="color:var(--muted);font-style:italic;margin-bottom:.5rem">${s.l===0?"Cantrip":"Level "+s.l} · ${s.c.join(", ")}</div>
-    <div class="lvl-step">${allDice(s.d)}</div>
+    <div style="color:var(--muted);font-style:italic;margin-bottom:.5rem">${s.l===0?"Cantrip":"Level "+s.l} · ${s.c.join(", ")}${roll.save?` · ${ABILITY_NAMES[roll.save.toUpperCase()]||roll.save} save vs DC ${8+spellAtk}`:""}</div>
+    <div class="lvl-step">${allDice(s.d)}${roll.note?`<div style="margin-top:.3rem;color:var(--muted);font-size:.85rem">${roll.note}</div>`:""}</div>
+    ${rollBtns?`<div class="lvl-step"><div class="k">Rolls</div>${rollBtns}</div>`:""}
     <div class="lvl-step"><div class="k">Cast</div>
       ${s.l===0 ? `<button onclick="castSpell('${escQ(s.n)}',0)">✨ Cast cantrip</button>` : (rows || '<span style="color:var(--muted)">No spell slots of this level.</span>')}
     </div>
