@@ -40,7 +40,6 @@
   body.dark .panel, body.dark .rule-card, body.dark .saved-card, body.dark .lvl-modal { border-radius: 12px; }
   body.dark .stat { border-color: var(--line); border-width: 1px; border-radius: 12px; }
   body.dark .stat.rollable:hover { border-color: var(--accent); }
-  body.dark .tabs button.active { color: #06230f; }
   body.dark #btnRandomAll { color: #06230f; }
   body.dark #btnRandomAll:hover { background: #2ee06f; border-color: #2ee06f; }
   body.dark .qr-banner { color: #06230f; }
@@ -151,13 +150,26 @@
   .footer-note { color: var(--muted); font-size: .8rem; margin-top: 1.5rem; text-align: center; }
 
   /* Tabs */
-  .tabs { display: flex; gap: .4rem; max-width: 1400px; margin: 0 auto 1rem; }
-  .tabs button {
-    padding: .6rem 1.2rem; font-weight: bold; font-size: 1rem;
-    border-radius: 8px 8px 0 0; border-bottom: none; background: var(--tab-bg);
+  /* App shell: sidebar navigation on desktop and tablet */
+  .app { display: flex; gap: 1.5rem; max-width: 1500px; margin: 0 auto; align-items: flex-start; }
+  .content { flex: 1; min-width: 0; }
+  .tabs {
+    display: flex; flex-direction: column; gap: .3rem;
+    width: 215px; flex-shrink: 0; position: sticky; top: 1rem;
   }
-  .tabs button.gear { margin-left: auto; }
-  .tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .brand { display: flex; align-items: center; gap: .6rem; font-weight: bold; font-size: 1.05rem; padding: .3rem .4rem 1rem; color: var(--ink); }
+  .brand-logo { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: var(--accent); font-size: 1.05rem; flex-shrink: 0; }
+  .tabs button {
+    display: flex; align-items: center; gap: .7rem; width: 100%; text-align: left;
+    padding: .6rem .8rem; border: none; border-radius: 10px; background: transparent;
+    font-weight: 600; font-size: .95rem; color: var(--muted);
+  }
+  .tabs button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+  .tabs button:hover:not(.active) { background: var(--tab-hover); color: var(--ink); }
+  .tabs button.active { background: var(--tab-bg); color: var(--ink); }
+  .tabs button.active svg { stroke: var(--accent); }
+  /* The sidebar brand replaces the page heading on larger screens */
+  h1, .sub { display: none; }
   .tabpage { display: none; }
   .tabpage.active { display: block; }
   .maxw { max-width: 1400px; margin: 0 auto; }
@@ -248,16 +260,28 @@
   .hp-dmg { color: var(--accent2); }
   .hp-heal { color: #2f5d3a; }
 
-  /* Mobile */
-  .tabs { flex-wrap: wrap; }
+  /* Mobile: fixed bottom navigation bar */
   @media (max-width: 600px) {
-    body { padding: .6rem; }
-    h1 { font-size: 1.5rem; }
+    body { padding: .6rem; padding-bottom: 5rem; }
+    h1 { display: block; font-size: 1.4rem; margin-bottom: .75rem; }
+    .app { display: block; }
     .layout { gap: .8rem; }
     .panel { padding: .85rem; }
-    .tabs { gap: .25rem; }
-    .tabs button { padding: .5rem .7rem; font-size: .85rem; flex: 1 1 auto; }
-    .tabs button.gear { flex: 0 0 auto; }
+    .brand { display: none; }
+    .tabs {
+      position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 90;
+      flex-direction: row; width: auto; gap: 0; margin: 0;
+      background: var(--panel); border-top: 1px solid var(--line);
+      padding: .3rem .2rem calc(.3rem + env(safe-area-inset-bottom, 0px));
+      box-shadow: 0 -2px 10px var(--shadow);
+    }
+    .tabs button {
+      flex: 1; flex-direction: column; gap: .2rem; justify-content: center;
+      padding: .3rem 0; font-size: .62rem; font-weight: 600; border-radius: 8px;
+    }
+    .tabs button svg { width: 22px; height: 22px; }
+    .tabs button:hover:not(.active) { background: transparent; }
+    .tabs button.active { background: transparent; color: var(--accent); }
     .statgrid { gap: .4rem; }
     .vitals { gap: .4rem; }
     .vital { min-width: 0; flex: 1 1 28%; padding: .4rem .3rem; }
