@@ -593,6 +593,20 @@ function viewCharacter(id) {
   document.getElementById("savedSheet").scrollIntoView({behavior:"smooth", block:"start"});
 }
 
+function resurrectCharacter(id) {
+  const list = loadStore();
+  const ch = list.find(c=>c.id===id);
+  if (!ch || !ch.retired) return;
+  ch.retired = false; ch.curHp = 1; ch.deathS = 0; ch.deathF = 0; ch.stable = false;
+  saveStore(list);
+  logEvent("heal", `<b>${ch.name || "Unnamed Hero"} resurrected</b>: called back from beyond the veil with 1 HP`);
+  if (state.loadedId === id) {
+    state.retired = false; state.curHp = 1; state.deathS = 0; state.deathF = 0; state.stable = false;
+    renderSheet();
+  }
+  renderSavedList();
+}
+
 function deleteCharacter(id) {
   const ch = loadStore().find(c=>c.id===id);
   if (!ch || !confirm(`Delete "${ch.name || "Unnamed Hero"}"? This cannot be undone.`)) return;
@@ -611,6 +625,7 @@ function renderSavedList() {
       <div class="who"><b>${ch.name || "Unnamed Hero"}</b>${ch.retired?' <span title="Laid to rest">🪦</span>':""}<br>
         <small>Level ${ch.level||1} ${ch.species} ${ch.cls} · ${ch.background || "no background"}${ch.retired?" · <b>dead</b>":""} · saved ${ch.savedAt}</small></div>
       <div class="btns">
+        ${ch.retired?`<button onclick="resurrectCharacter(${ch.id})" title="Powerful magic calls them back with 1 HP">✨ Resurrect</button>`:""}
         <button onclick="viewCharacter(${ch.id})">View</button>
         <button onclick="loadCharacter(${ch.id})">Edit</button>
         <button class="btn-danger" onclick="deleteCharacter(${ch.id})">Delete</button>
