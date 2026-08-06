@@ -672,7 +672,8 @@ const CLASS_LEVELS = {
   "Rogue": {2:["Cunning Action (Dash, Disengage, Hide as Bonus Action)"],3:["Subclass: Thief (Fast Hands, Second-Story Work)","Steady Aim","Sneak Attack 2d6"],5:["Cunning Strike","Uncanny Dodge","Sneak Attack 3d6"],7:["Evasion","Reliable Talent","Sneak Attack 4d6"],9:["Sneak Attack 5d6"],11:["Improved Cunning Strike","Sneak Attack 6d6"],13:["Sneak Attack 7d6"],14:["Devious Strikes"],15:["Slippery Mind","Sneak Attack 8d6"],17:["Sneak Attack 9d6"],18:["Elusive"],19:["Sneak Attack 10d6"],20:["Stroke of Luck"]},
   "Sorcerer": {2:["Font of Magic (Sorcery Points)","Metamagic (2 options)"],3:["Subclass: Draconic Sorcery"],5:["Sorcerous Restoration"],7:["Sorcery Incarnate"],10:["Metamagic (3rd option)"],17:["Metamagic (4th option)"],20:["Arcane Apotheosis"]},
   "Warlock": {2:["Magical Cunning"],3:["Subclass: Fiend Patron (Dark One's Blessing)"],5:["Pact Boon improvements, 3rd-level slots"],9:["Contact Patron"],11:["Mystic Arcanum (6th level)"],13:["Mystic Arcanum (7th level)"],15:["Mystic Arcanum (8th level)"],17:["Mystic Arcanum (9th level)"],20:["Eldritch Master"]},
-  "Wizard": {2:["Scholar (Expertise in one INT skill)"],3:["Subclass: Evoker (Potent Cantrip)"],5:["Memorize Spell"],10:["Empowered Evocation (Evoker)"],18:["Spell Mastery"],20:["Signature Spells"]}
+  // Subclass features live in SUBCLASSES, not here, so they aren't listed twice
+  "Wizard": {2:["Scholar (Expertise in one INT skill)"],3:["Subclass: Evoker (Potent Cantrip)"],5:["Memorize Spell"],18:["Spell Mastery"],20:["Signature Spells"]}
 };
 const ASI_LEVELS = { default:[4,8,12,16,19], Fighter:[4,6,8,12,14,16,19], Rogue:[4,8,10,12,16,19] };
 
@@ -1086,3 +1087,261 @@ const ALIGNMENT_DEFS = {
 Object.entries(ALIGNMENT_DEFS).forEach(([t,d])=>RULES.push({c:"Alignment", t, d}));
 // Every weapon gets an entry from its stats
 Object.entries(WEAPONS).forEach(([t,w])=>RULES.push({c:"Equipment", t, d:`Weapon: ${w.dmg} damage${w.fin?"; Finesse (use STR or DEX for attack and damage)":""}${w.rng?"; Ranged (uses DEX; requires ammunition)":""}. Attack: d20 + ability modifier + Proficiency Bonus vs. AC.`}));
+
+
+// ---------- CONDITION MECHANICS ----------
+// How each condition changes the numbers, so the sheet can apply them to rolls.
+// dis/adv keys: atk = attack rolls, chk = ability checks, sav = saving throws.
+const CONDITIONS = {
+  "Blinded":      { dis:{atk:1}, note:"Auto-fail any check that needs sight; attacks against you have Advantage." },
+  "Charmed":      { note:"You can't attack the charmer; they have Advantage on social checks with you." },
+  "Deafened":     { note:"Auto-fail any check that needs hearing." },
+  "Frightened":   { dis:{atk:1,chk:1}, note:"While the source is in sight, and you can't move closer to it." },
+  "Grappled":     { dis:{atk:1}, speed0:true, note:"Disadvantage applies only against targets other than the grappler." },
+  "Incapacitated":{ incap:true, note:"No action, Bonus Action, or Reaction; Concentration broken." },
+  "Invisible":    { adv:{atk:1}, note:"Attacks against you have Disadvantage. Ends when you attack or cast with a verbal component." },
+  "Paralyzed":    { incap:true, speed0:true, autoFail:["STR","DEX"], note:"Attacks against you have Advantage and crit from within 5 feet." },
+  "Petrified":    { incap:true, speed0:true, autoFail:["STR","DEX"], note:"Resistance to all damage; immune to Poison." },
+  "Poisoned":     { dis:{atk:1,chk:1} },
+  "Prone":        { dis:{atk:1}, note:"Attacks against you have Advantage within 5 feet, Disadvantage beyond." },
+  "Restrained":   { dis:{atk:1}, saveDis:["DEX"], speed0:true, note:"Attacks against you have Advantage." },
+  "Stunned":      { incap:true, speed0:true, autoFail:["STR","DEX"], note:"Attacks against you have Advantage." },
+  "Unconscious":  { incap:true, speed0:true, autoFail:["STR","DEX"], note:"You drop what you hold and fall Prone; hits from within 5 feet are Critical." }
+};
+const CONDITION_NAMES = Object.keys(CONDITIONS);
+
+// ---------- EXPERIENCE ----------
+// XP needed to reach each level (index 0 = level 1), SRD 5.2
+const XP_THRESHOLDS = [0,300,900,2700,6500,14000,23000,34000,48000,64000,85000,100000,120000,140000,165000,195000,225000,265000,305000,355000];
+function levelForXp(xp) {
+  let lv = 1;
+  for (let i = 0; i < XP_THRESHOLDS.length; i++) if (xp >= XP_THRESHOLDS[i]) lv = i + 1;
+  return lv;
+}
+
+// ---------- CURRENCY ----------
+// Value of each coin in copper, for conversions and totals
+const COINS = [
+  {k:"pp", n:"Platinum", cp:1000},
+  {k:"gp", n:"Gold",     cp:100},
+  {k:"ep", n:"Electrum", cp:50},
+  {k:"sp", n:"Silver",   cp:10},
+  {k:"cp", n:"Copper",   cp:1}
+];
+
+// ---------- SUBCLASSES ----------
+// SRD 5.2 publishes one subclass per class; each is chosen at level 3 and
+// brings its own features at set levels.
+const SUBCLASS_LEVEL = 3;
+const SUBCLASSES = {
+  "Barbarian": { "Path of the Berserker": { d:"Rage becomes a weapon in itself: you strike again in a frenzy and shrug off attempts to calm you.",
+    f:{3:["Frenzy (extra 1d6 damage per Rage die on your first hit each turn)"],6:["Mindless Rage (immune to Charmed and Frightened while raging)"],10:["Retaliation (Reaction melee attack when damaged within 5 ft)"],14:["Intimidating Presence (frighten creatures in a 30-ft cone)"]} } },
+  "Bard": { "College of Lore": { d:"You collect secrets and turn them on your enemies, cutting them down with a well-timed word.",
+    f:{3:["Bonus Proficiencies (three skills)","Cutting Words (spend Bardic Inspiration to reduce a foe's roll)"],6:["Magical Discoveries (two spells from any class list)"],14:["Peerless Skill (spend Bardic Inspiration to boost your own d20 test)"]} } },
+  "Cleric": { "Life Domain": { d:"Your healing runs deeper than anyone else's: every spell you cast to mend wounds mends a little more.",
+    f:{3:["Disciple of Life (healing spells restore extra HP)","Preserve Life (Channel Divinity: restore 5x level HP, split among creatures)","Life Domain Spells (always prepared)"],6:["Blessed Healer (you heal too when you heal others)"],17:["Supreme Healing (maximise your healing dice)"]} } },
+  "Druid": { "Circle of the Land": { d:"You draw on the magic of a chosen landscape, and the land gives your spells back to you.",
+    f:{3:["Land's Aid (Magic action: 2d6 damage in a 10-ft sphere and heal an ally)","Circle Spells (always prepared, by terrain)"],6:["Natural Recovery (recover spell slots on a Short Rest, cast a circle spell free once per Long Rest)"],10:["Nature's Ward (immune to Poisoned, resistance to your circle's damage type)"],14:["Nature's Sanctuary (Magic action: a spirit shields an area)"]} } },
+  "Fighter": { "Champion": { d:"A pure fighter: you crit more often, hit harder, and simply refuse to go down.",
+    f:{3:["Improved Critical (crit on 19-20)","Remarkable Athlete (Advantage on Initiative and Athletics; extra jump distance)"],7:["Additional Fighting Style"],10:["Heroic Warrior (Heroic Inspiration during combat)"],15:["Superior Critical (crit on 18-20)"],18:["Survivor (Advantage on death saves; regain HP each turn while bloodied)"]} } },
+  "Monk": { "Warrior of the Open Hand": { d:"Your unarmed strikes knock foes flat, push them back, or stop them cold.",
+    f:{3:["Open Hand Technique (Flurry of Blows can also topple, push, or block Reactions)"],6:["Wholeness of Body (Bonus Action self-heal, uses Focus)"],11:["Fleet Step (Step of the Wind alongside another Bonus Action)"],17:["Quivering Palm (set lethal vibrations in a creature you hit)"]} } },
+  "Paladin": { "Oath of Devotion": { d:"The classic knight: an oath of honesty, courage, and mercy, backed by radiant power.",
+    f:{3:["Sacred Weapon (Channel Divinity: add CHA to attack rolls, weapon sheds light)","Oath Spells (always prepared)"],7:["Aura of Devotion (you and allies in your aura can't be Charmed)"],15:["Smite of Protection (Divine Smite also grants Half Cover to allies)"],20:["Holy Nimbus (radiant aura, Advantage on saves vs. spells from Fiends and Undead)"]} } },
+  "Ranger": { "Hunter": { d:"A specialist in bringing down dangerous prey, whether it comes alone or in a horde.",
+    f:{3:["Hunter's Lore (know a marked creature's immunities, resistances, and vulnerabilities)","Hunter's Prey (Colossus Slayer or Horde Breaker)"],7:["Defensive Tactics (Escape the Horde or Multiattack Defense)"],11:["Superior Hunter's Prey (Hunter's Mark damage splashes to a second creature)"],15:["Superior Hunter's Defense (Reaction to halve damage taken)"]} } },
+  "Rogue": { "Thief": { d:"A burglar's skill set: quick hands, quick climbs, and the nerve to use anything you find.",
+    f:{3:["Fast Hands (Sleight of Hand, Utilize, or Search as a Bonus Action)","Second-Story Work (climb at your Speed; longer running jumps)"],9:["Supreme Sneak (Cunning Action Stealth with Advantage; stay hidden)"],13:["Use Magic Device (attune to four items; use any spell scroll or charged item)"],17:["Thief's Reflexes (two turns in the first round of combat)"]} } },
+  "Sorcerer": { "Draconic Sorcery": { d:"Draconic blood: tougher skin, fiercer elemental magic, and eventually wings.",
+    f:{3:["Draconic Resilience (+HP per level, unarmored AC 10 + DEX + CHA)","Draconic Spells (always prepared)"],6:["Elemental Affinity (add CHA to one damage roll of your chosen type; spend a slot for resistance)"],14:["Dragon Wings (Bonus Action: fly at your Speed)"],18:["Dragon Companion (summon a dragon, and calm dragons with your presence)"]} } },
+  "Warlock": { "Fiend Patron": { d:"A pact with a devil or demon: their power feeds on the deaths you cause and shields you from harm.",
+    f:{3:["Dark One's Blessing (temp HP when you drop a foe)","Fiend Spells (always prepared)"],6:["Dark One's Own Luck (add 1d10 to a d20 test)"],10:["Fiendish Resilience (choose a damage resistance after each rest)"],14:["Hurl Through Hell (send a creature through the Lower Planes for 8d10 psychic)"]} } },
+  "Wizard": { "Evoker": { d:"You shape raw elemental force, and you learn to carve your allies out of the blast.",
+    f:{3:["Evocation Savant (copy evocation spells faster and cheaper)","Potent Cantrip (targets take half damage even on a successful save)"],6:["Sculpt Spells (choose allies to auto-succeed and take no damage)"],10:["Empowered Evocation (add INT to one damage roll per evocation spell)"],14:["Overchannel (maximise a spell's damage, at a cost in necrotic damage)"]} } }
+};
+// Every subclass feature the character has earned by their current level
+function subclassFeatures(cls, sub, level) {
+  const sc = SUBCLASSES[cls] && SUBCLASSES[cls][sub];
+  if (!sc) return [];
+  const out = [];
+  Object.keys(sc.f).map(Number).sort((a,b)=>a-b).forEach(lv=>{
+    if (level >= lv) sc.f[lv].forEach(f=>out.push({lv, f}));
+  });
+  return out;
+}
+
+// ---------- FEATS ----------
+// SRD 5.2 feats. kind: "origin" (backgrounds, level 1), "general" (instead of an
+// Ability Score Improvement at ASI levels), "style" (Fighting Style feats),
+// "boon" (Epic Boons at level 19). `pre` is the prerequisite, if any.
+const FEATS = {
+  "Alert":{kind:"origin",d:"Add your Proficiency Bonus to Initiative, and swap Initiative with a willing ally."},
+  "Crafter":{kind:"origin",d:"Tool proficiencies, a 20% discount on nonmagical gear, and faster crafting."},
+  "Healer":{kind:"origin",d:"Use a Healer's Kit as a Utilize action to heal 1d6 + 4 + the target's Hit Dice number."},
+  "Lucky":{kind:"origin",d:"Luck Points equal to your Proficiency Bonus: spend one for Advantage on a d20 test, or to impose Disadvantage on an attack against you."},
+  "Magic Initiate":{kind:"origin",d:"Two cantrips and one level 1 spell from a chosen class list; cast the spell once per Long Rest for free, or with a slot."},
+  "Musician":{kind:"origin",d:"Instrument proficiencies, and grant Heroic Inspiration to allies after a rest."},
+  "Savage Attacker":{kind:"origin",d:"Once per turn, reroll a melee weapon's damage dice and use either total."},
+  "Skilled":{kind:"origin",d:"Proficiency in any three skills or tools."},
+  "Tavern Brawler":{kind:"origin",d:"Unarmed Strikes deal 1d4, reroll a 1 on damage, push on a hit, and improvised weapons count as proficient."},
+  "Tough":{kind:"origin",d:"Your hit point maximum increases by 2 per character level."},
+
+  "Ability Score Improvement":{kind:"general",d:"Increase one ability score by 2, or two scores by 1 each, to a maximum of 20."},
+  "Actor":{kind:"general",pre:"CHA 13+",d:"+1 CHA, Advantage on Deception and Performance when passing as someone else, and mimic speech."},
+  "Athlete":{kind:"general",pre:"STR or DEX 13+",d:"+1 STR or DEX, stand from Prone using less movement, and climb at full Speed."},
+  "Charger":{kind:"general",pre:"STR or DEX 13+",d:"+1 STR or DEX, and a Dash followed by an attack deals extra damage or shoves 10 feet."},
+  "Chef":{kind:"general",d:"+1 CON or WIS, cook meals that grant temporary HP on a Short Rest, and treats that grant temporary HP."},
+  "Crossbow Expert":{kind:"general",pre:"DEX 13+",d:"+1 DEX, ignore Loading, no Disadvantage in melee, and a Bonus Action hand crossbow attack."},
+  "Crusher":{kind:"general",pre:"STR or CON 13+",d:"+1 STR or CON, push a target 5 feet on bludgeoning damage, and grant Advantage after a critical hit."},
+  "Defensive Duelist":{kind:"general",pre:"DEX 13+",d:"+1 DEX, and a Reaction to add your Proficiency Bonus to AC against one melee attack."},
+  "Dual Wielder":{kind:"general",pre:"DEX 13+",d:"+1 STR or DEX, draw two weapons at once, and use non-Light weapons for two-weapon fighting."},
+  "Durable":{kind:"general",pre:"CON 13+",d:"+1 CON, and spend Hit Dice at the start of your turn to heal without a rest."},
+  "Elemental Adept":{kind:"general",pre:"Spellcasting",d:"+1 to a spellcasting ability, ignore Resistance to a chosen damage type, and treat 1s on those damage dice as 2s."},
+  "Fey-Touched":{kind:"general",pre:"Spellcasting",d:"+1 INT, WIS, or CHA, plus Misty Step and one level 1 divination or enchantment spell, free once per Long Rest."},
+  "Grappler":{kind:"general",pre:"STR 13+",d:"+1 STR, Advantage on attacks against creatures you grapple, and move a grappled creature with you."},
+  "Great Weapon Master":{kind:"general",pre:"STR 13+",d:"+1 STR, bonus damage equal to your Proficiency Bonus with heavy weapons, and a Bonus Action attack after a crit or kill."},
+  "Heavily Armored":{kind:"general",pre:"Medium armor proficiency",d:"+1 STR or CON and proficiency with Heavy armor."},
+  "Heavy Armor Master":{kind:"general",pre:"Heavy armor proficiency",d:"+1 STR or CON, and reduce bludgeoning, piercing, and slashing damage by your Proficiency Bonus."},
+  "Inspiring Leader":{kind:"general",pre:"CHA 13+",d:"+1 WIS or CHA, and grant temporary HP to allies with a rousing speech."},
+  "Keen Mind":{kind:"general",pre:"INT 13+",d:"+1 INT, the Study action as a Bonus Action, and perfect recall of the last month."},
+  "Lightly Armored":{kind:"general",d:"+1 STR or DEX and proficiency with Light armor and Shields."},
+  "Mage Slayer":{kind:"general",pre:"Level 4+",d:"+1 STR or DEX, Advantage on saves against spells cast within 30 feet, and punish concentrating casters."},
+  "Martial Weapon Training":{kind:"general",d:"+1 STR or DEX and proficiency with Martial weapons."},
+  "Medium Armor Master":{kind:"general",pre:"Medium armor proficiency",d:"+1 STR or DEX, no Stealth Disadvantage, and add up to 3 DEX to AC in Medium armor."},
+  "Moderately Armored":{kind:"general",pre:"Light armor proficiency",d:"+1 STR or DEX and proficiency with Medium armor."},
+  "Mounted Combatant":{kind:"general",pre:"Level 4+",d:"+1 STR, DEX, or WIS, Advantage on attacks against smaller unmounted creatures, and redirect attacks aimed at your mount."},
+  "Observant":{kind:"general",pre:"INT or WIS 13+",d:"+1 INT or WIS, the Search action as a Bonus Action, and keener senses at a distance."},
+  "Piercer":{kind:"general",pre:"STR or DEX 13+",d:"+1 STR or DEX, reroll one piercing damage die per turn, and an extra die on a critical hit."},
+  "Poisoner":{kind:"general",d:"+1 DEX or INT, ignore poison Resistance, and coat weapons with potent poison as a Bonus Action."},
+  "Polearm Master":{kind:"general",pre:"STR or DEX 13+",d:"+1 STR or DEX, a Bonus Action butt-end attack, and Opportunity Attacks when foes enter your reach."},
+  "Resilient":{kind:"general",d:"+1 to a chosen ability and proficiency in that ability's saving throws."},
+  "Ritual Caster":{kind:"general",pre:"INT, WIS, or CHA 13+",d:"+1 INT, WIS, or CHA, and a ritual book you can cast from and add to."},
+  "Sentinel":{kind:"general",pre:"STR or DEX 13+",d:"+1 STR or DEX, stop a creature you hit with an Opportunity Attack, and attack foes who ignore you."},
+  "Shadow Touched":{kind:"general",pre:"Spellcasting",d:"+1 INT, WIS, or CHA, plus Invisibility and one level 1 illusion or necromancy spell, free once per Long Rest."},
+  "Sharpshooter":{kind:"general",pre:"DEX 13+",d:"+1 DEX, bonus damage equal to your Proficiency Bonus at range, ignore Half and Three-Quarters Cover, and no long-range Disadvantage."},
+  "Shield Master":{kind:"general",pre:"STR 13+",d:"+1 STR, shove with your shield as a Bonus Action, and use your shield to help on DEX saves."},
+  "Skill Expert":{kind:"general",d:"+1 to any ability, proficiency in one skill, and Expertise in one skill."},
+  "Skulker":{kind:"general",pre:"DEX 13+",d:"+1 DEX, Hide as a Bonus Action, and no Disadvantage on ranged attacks in dim light."},
+  "Slasher":{kind:"general",pre:"STR or DEX 13+",d:"+1 STR or DEX, reduce a target's Speed on slashing damage, and impose Disadvantage after a critical hit."},
+  "Speedy":{kind:"general",pre:"DEX 13+",d:"+1 DEX, Dash makes difficult terrain cost nothing, and you avoid Opportunity Attacks after Dashing."},
+  "Spell Sniper":{kind:"general",pre:"Spellcasting",d:"+1 INT, WIS, or CHA, double the range of your attack spells, ignore Cover, and learn an attack cantrip."},
+  "Telekinetic":{kind:"general",pre:"Spellcasting",d:"+1 INT, WIS, or CHA, the Mage Hand cantrip cast without components, and a Bonus Action telekinetic shove."},
+  "Telepathic":{kind:"general",pre:"Spellcasting",d:"+1 INT, WIS, or CHA, speak telepathically within 60 feet, and cast Detect Thoughts once per Long Rest."},
+  "War Caster":{kind:"general",pre:"Spellcasting",d:"+1 INT, WIS, or CHA, Advantage on Concentration saves, cast with your hands full, and cast as an Opportunity Attack."},
+  "Weapon Master":{kind:"general",d:"+1 STR or DEX, and the Weapon Mastery property of two more weapons."},
+
+  "Archery":{kind:"style",d:"Fighting Style: +2 to attack rolls with ranged weapons."},
+  "Blind Fighting":{kind:"style",d:"Fighting Style: Blindsight out to 10 feet."},
+  "Defense":{kind:"style",d:"Fighting Style: +1 AC while wearing armor."},
+  "Dueling":{kind:"style",d:"Fighting Style: +2 damage when wielding a single one-handed melee weapon and no other weapon."},
+  "Great Weapon Fighting":{kind:"style",d:"Fighting Style: treat 1s and 2s on two-handed melee damage dice as 3s."},
+  "Interception":{kind:"style",d:"Fighting Style: Reaction to reduce damage to a nearby creature by 1d10 + your Proficiency Bonus."},
+  "Protection":{kind:"style",d:"Fighting Style: Reaction to impose Disadvantage on an attack against a creature within 5 feet."},
+  "Thrown Weapon Fighting":{kind:"style",d:"Fighting Style: draw a thrown weapon as part of the attack and deal +2 damage."},
+  "Two-Weapon Fighting":{kind:"style",d:"Fighting Style: add your ability modifier to the damage of your second attack."},
+  "Unarmed Fighting":{kind:"style",d:"Fighting Style: Unarmed Strikes deal 1d6 (1d8 with both hands free) and damage grappled creatures."},
+
+  "Boon of Combat Prowess":{kind:"boon",pre:"Level 19",d:"Epic Boon: +1 to an ability (max 30), and turn a miss into a hit once per turn."},
+  "Boon of Dimensional Travel":{kind:"boon",pre:"Level 19",d:"Epic Boon: +1 to an ability (max 30), and teleport 30 feet after taking the Attack or Magic action."},
+  "Boon of Fate":{kind:"boon",pre:"Level 19",d:"Epic Boon: +1 to an ability (max 30), and add 2d4 to another creature's d20 test."},
+  "Boon of Irresistible Offense":{kind:"boon",pre:"Level 19",d:"Epic Boon: +1 to STR or DEX (max 30), and your damage ignores Resistance and adds your ability score on a natural 20."},
+  "Boon of Recovery":{kind:"boon",pre:"Level 19",d:"Epic Boon: +1 to an ability (max 30), and heal to half your maximum instead of dropping to 0."},
+  "Boon of Skill":{kind:"boon",pre:"Level 19",d:"Epic Boon: +1 to an ability (max 30), and proficiency plus Expertise in every skill."},
+  "Boon of Speed":{kind:"boon",pre:"Level 19",d:"Epic Boon: +1 to an ability (max 30), +30 feet of Speed, and Disengage as a Bonus Action."},
+  "Boon of Spell Recall":{kind:"boon",pre:"Level 19",d:"Epic Boon: +1 to an ability (max 30), and cast your level 1-4 spells without expending slots."},
+  "Boon of the Night Spirit":{kind:"boon",pre:"Level 19",d:"Epic Boon: +1 to an ability (max 30), and become Invisible and resistant in dim light or darkness."},
+  "Boon of Truesight":{kind:"boon",pre:"Level 19",d:"Epic Boon: +1 to an ability (max 30), and Truesight out to 60 feet."}
+};
+const FEAT_NAMES = Object.keys(FEATS);
+// The feats offered instead of an Ability Score Improvement at a given level
+function featsAvailableAt(level) {
+  return FEAT_NAMES.filter(n=>{
+    const k = FEATS[n].kind;
+    if (k === "boon") return level >= 19;
+    return k === "general" || k === "style";
+  });
+}
+
+// ---------- MAGIC ITEMS ----------
+// A selection from SRD 5.2. att:true means the item requires Attunement.
+const MAGIC_ITEMS = {
+  "Potion of Healing":{d:"Drink as a Bonus Action to regain 2d4 + 2 hit points."},
+  "Potion of Greater Healing":{d:"Drink as a Bonus Action to regain 4d4 + 4 hit points."},
+  "Potion of Superior Healing":{d:"Drink as a Bonus Action to regain 8d4 + 8 hit points."},
+  "Potion of Fire Breath":{d:"For 1 hour you can exhale fire as a Bonus Action: 4d6 fire damage, DEX save for half."},
+  "Elixir of Health":{d:"Cures Blinded, Deafened, Paralyzed, Poisoned, and any disease, and removes Exhaustion."},
+  "Oil of Slipperiness":{d:"Coats a creature or object with the effect of Freedom of Movement for 8 hours."},
+  "Dust of Disappearance":{d:"Throw it to make you and everyone within 10 feet Invisible for 2d4 minutes."},
+  "+1 Weapon":{d:"+1 bonus to attack and damage rolls made with this magic weapon."},
+  "+1 Armor":{d:"+1 bonus to Armor Class while wearing this armor."},
+  "+1 Shield":{d:"+1 bonus to Armor Class beyond the shield's normal bonus."},
+  "Flame Tongue":{att:true,d:"Bonus Action to ignite the blade: +2d6 fire damage on a hit, and it sheds bright light."},
+  "Sun Blade":{att:true,d:"A blade of pure radiance: Finesse, radiant damage, +2d8 against Undead, sheds sunlight."},
+  "Javelin of Lightning":{d:"Hurl it to become a lightning bolt: 4d6 lightning damage, DEX save for half."},
+  "Wand of Magic Missiles":{d:"7 charges: expend 1 or more to cast Magic Missile at a higher level."},
+  "Wand of Fireballs":{att:true,d:"7 charges: expend 1 or more to cast Fireball at level 3 or higher."},
+  "Wand of Web":{att:true,d:"7 charges: expend 1 to cast Web (save DC 15)."},
+  "Staff of Healing":{att:true,d:"10 charges: cast Cure Wounds, Lesser Restoration, or Mass Cure Wounds."},
+  "Pearl of Power":{att:true,d:"Once per day, regain one expended spell slot of level 3 or lower."},
+  "Bag of Holding":{d:"Holds 500 pounds in an extradimensional space, but always weighs 15 pounds."},
+  "Immovable Rod":{d:"Press the button to fix the rod in place, holding up to 8,000 pounds."},
+  "Alchemy Jug":{d:"Produces acid, mayonnaise, oil, vinegar, water, beer, honey, or wine each day."},
+  "Decanter of Endless Water":{d:"Pours out fresh or salt water: a stream, a fountain, or a 30-foot geyser."},
+  "Driftglobe":{d:"A floating globe that casts Light or Daylight and follows you."},
+  "Rope of Climbing":{d:"60 feet of rope that animates, knots itself, and holds 3,000 pounds."},
+  "Cloak of Protection":{att:true,d:"+1 bonus to Armor Class and to all saving throws."},
+  "Ring of Protection":{att:true,d:"+1 bonus to Armor Class and to all saving throws."},
+  "Cloak of Elvenkind":{att:true,d:"Advantage on Stealth checks, and Disadvantage on Perception checks to see you."},
+  "Boots of Elvenkind":{d:"Your steps make no sound; Advantage on Stealth checks that rely on moving quietly."},
+  "Winged Boots":{att:true,d:"Fly at your walking Speed for up to 4 hours per day."},
+  "Boots of Speed":{att:true,d:"Bonus Action to double your Speed and deny Opportunity Attacks, up to 10 minutes per day."},
+  "Slippers of Spider Climbing":{att:true,d:"Walk on walls and ceilings with your hands free, at your Speed."},
+  "Bracers of Defense":{att:true,d:"+2 Armor Class while wearing no armor and no shield."},
+  "Amulet of Health":{att:true,d:"Your Constitution score becomes 19 unless it is already higher."},
+  "Gauntlets of Ogre Power":{att:true,d:"Your Strength score becomes 19 unless it is already higher."},
+  "Headband of Intellect":{att:true,d:"Your Intelligence score becomes 19 unless it is already higher."},
+  "Belt of Giant Strength":{att:true,d:"Your Strength score becomes a set value (21-29) depending on the kind of giant."},
+  "Eyes of the Eagle":{att:true,d:"Advantage on Perception checks that rely on sight; make out fine detail a mile away."},
+  "Goggles of Night":{d:"Darkvision out to 60 feet, or +60 feet if you already have it."},
+  "Gloves of Missile Snaring":{att:true,d:"Reaction to reduce ranged weapon damage by 1d10 + DEX, and catch the missile if reduced to 0."},
+  "Periapt of Wound Closure":{att:true,d:"Stabilize automatically when dying, and double the HP regained from Hit Dice."},
+  "Ring of Free Action":{att:true,d:"Difficult terrain costs no extra movement, and magic can't reduce your Speed or Paralyze you."},
+  "Ring of Swimming":{d:"You have a Swim Speed of 40 feet."},
+  "Stone of Good Luck":{att:true,d:"+1 bonus to ability checks and saving throws."},
+  "Mithral Armor":{d:"Medium or heavy armor that imposes no Disadvantage on Stealth and has no Strength requirement."}
+};
+const ATTUNEMENT_MAX = 3;
+
+// ---------- REFERENCE ENTRIES FOR THE NEW CONTENT ----------
+Object.entries(FEATS).forEach(([t,f])=>RULES.push({
+  c:"Feat · "+({origin:"Origin",general:"General",style:"Fighting Style",boon:"Epic Boon"}[f.kind]),
+  t, d:`${f.d}${f.pre?` Prerequisite: ${f.pre}.`:""}`
+}));
+Object.entries(SUBCLASSES).forEach(([cls,subs])=>{
+  Object.entries(subs).forEach(([name,sc])=>{
+    const byLevel = Object.keys(sc.f).map(Number).sort((a,b)=>a-b)
+      .map(lv=>`Level ${lv}: ${sc.f[lv].join("; ")}`).join(". ");
+    RULES.push({c:"Subclass", t:name, d:`${cls} subclass, chosen at level ${SUBCLASS_LEVEL}. ${sc.d} ${byLevel}.`});
+    Object.entries(sc.f).forEach(([lv,list])=>list.forEach(f=>{
+      const title = f.split(" (")[0];
+      // A few subclass features share a name with a class feature already defined
+      if (RULES.some(r=>r.c==="Feature" && r.t===title)) return;
+      const detail = f.includes(" (") ? f.slice(f.indexOf(" (")+2, f.length-1) : "";
+      RULES.push({c:"Feature", t:title, d:`${name} feature (${cls}, level ${lv}).${detail?" "+detail.charAt(0).toUpperCase()+detail.slice(1)+".":""}`});
+    }));
+  });
+});
+Object.entries(MAGIC_ITEMS).forEach(([t,m])=>RULES.push({
+  c:"Magic Item", t, d:`${m.d}${m.att?" Requires Attunement.":""}`
+}));
+RULES.push(
+  {c:"Rules",t:"Attunement",d:"Some magic items only work for you once you attune to them: a Short Rest spent focused on the item, which you can't share with anything else. You can be attuned to at most 3 items at a time, and you must end an attunement before starting a new one. Ending it takes another Short Rest, or happens automatically if the item is more than 100 feet away for 24 hours, if you die, or if another creature attunes to it."},
+  {c:"Rules",t:"Experience Points",d:"XP is awarded for defeating monsters and overcoming challenges. Reaching a threshold raises your level: 300 XP for level 2, 900 for 3, 2,700 for 4, 6,500 for 5, and on up to 355,000 for level 20. Many tables use milestone advancement instead, where the DM simply says when you level up."},
+  {c:"Rules",t:"Coins and Currency",d:"The standard coin is the gold piece (gp). 1 gp = 2 electrum (ep) = 10 silver (sp) = 100 copper (cp), and 1 platinum (pp) = 10 gp. Fifty coins weigh a pound."},
+  {c:"Combat",t:"Rounds and Turns",d:"Combat runs in rounds of 6 seconds. Every creature acts once per round on its turn, in Initiative order. On your turn you can move up to your Speed and take one action, plus a Bonus Action and one Reaction per round if you have them. Effects that last until the end of your next turn, or for a number of rounds, are tracked from the turn they began."},
+  {c:"Character",t:"Passive Investigation",d:"How much you notice about clues and hidden mechanisms without searching: 10 + your Intelligence (Investigation) modifier."},
+  {c:"Character",t:"Passive Insight",d:"How well you read people without probing: 10 + your Wisdom (Insight) modifier. The DM compares it against a liar's Deception check."},
+  {c:"Rules",t:"Conditions",d:"A condition is a temporary state that changes what you can do: Blinded, Charmed, Deafened, Exhaustion, Frightened, Grappled, Incapacitated, Invisible, Paralyzed, Petrified, Poisoned, Prone, Restrained, Stunned, and Unconscious. Conditions don't stack with themselves: having the same one twice changes nothing. Each one says how it ends, and most say it lasts until a specific event or a successful save."},
+  {c:"Rules",t:"Feat",d:"A special talent taken at character creation (an Origin feat from your background) or in place of an Ability Score Improvement at levels 4, 8, 12, 16, and 19. Categories: Origin feats, General feats, Fighting Style feats, and Epic Boons at level 19. Many General feats also raise an ability score by 1, and some have a prerequisite you must meet."},
+  {c:"Character",t:"Bloodied",d:"A creature is bloodied when it is at or below half its hit point maximum. It carries no rule of its own in SRD 5.2, but many tables and features use it as a marker for when a fight has turned."}
+);

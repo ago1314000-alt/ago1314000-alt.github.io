@@ -204,6 +204,67 @@
   .vital { border: 1px solid var(--line); border-radius: 8px; padding: .5rem .8rem; background: var(--card); text-align: center; min-width: 90px; }
   .vital .v { font-size: 1.3rem; font-weight: bold; }
   .vital .k { font-size: .7rem; color: var(--muted); letter-spacing: 1px; }
+  /* Compact play strip: phones only, pinned to the top of the sheet */
+  .quickbar { display: none; }
+  .quickbar .qb-hp { font-weight: bold; font-size: 1.05rem; white-space: nowrap; }
+  .quickbar .qb-hp.bloodied { color: var(--accent2); }
+  .quickbar .qb-ac { color: var(--muted); font-size: .85rem; white-space: nowrap; }
+  .quickbar button { padding: .25rem .5rem; font-size: .85rem; font-weight: bold; }
+  .quickbar .qb-right { margin-left: auto; display: flex; gap: .3rem; }
+
+  /* Half hit points or less: the number the whole table watches for */
+  .vital.bloodied { border-color: var(--accent2); box-shadow: inset 0 0 0 1px var(--accent2); }
+  .vital.bloodied .v { color: var(--accent2); }
+
+  /* Conditions */
+  .cond-box { border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: .5rem .6rem; margin-bottom: 1rem; }
+  .cond-head {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem;
+    font-size: .7rem; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: .4rem;
+  }
+  .cond-head .exh { display: inline-flex; align-items: center; gap: .3rem; text-transform: none; letter-spacing: 0; }
+  .cond-head .exh b { min-width: 1.1rem; text-align: center; font-size: .95rem; }
+  .cond-head .exh b.lvl-on { color: var(--accent2); }
+  .cond-head .exh small { color: var(--accent2); }
+  .cond-chips { display: flex; flex-wrap: wrap; gap: .3rem; }
+  .cond-chip {
+    border: 1px solid var(--line); border-radius: 999px; padding: .12rem .55rem;
+    font-size: .8rem; cursor: pointer; background: var(--bg); user-select: none;
+  }
+  .cond-chip:hover { border-color: var(--accent); }
+  .cond-chip.on { background: var(--accent2); border-color: var(--accent2); color: #fff; font-weight: bold; }
+  .cond-active { margin-top: .45rem; padding-top: .4rem; border-top: 1px dotted var(--line); font-size: .82rem; color: var(--muted); }
+  .cond-active div { padding: .1rem 0; }
+
+  /* Experience */
+  .xp-box { border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: .45rem .6rem; margin-bottom: 1rem; font-size: .88rem; }
+  .xp-line { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+  .xp-add { margin-left: auto; display: inline-flex; gap: .25rem; align-items: center; }
+  .xp-add input { width: 5.5rem; padding: .2rem .35rem; font-size: .85rem; }
+  .xp-bar { height: 6px; border-radius: 999px; background: var(--line); margin-top: .35rem; overflow: hidden; }
+  .xp-bar span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+  .xp-bar span.ready { background: var(--good); }
+
+  /* Purse */
+  .purse { border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: .4rem .55rem; margin: .3rem 0 .5rem; }
+  .purse-row { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; font-size: .85rem; }
+  .purse-row + .purse-row { margin-top: .35rem; padding-top: .35rem; border-top: 1px dotted var(--line); }
+  .purse-row input { width: 4.5rem; padding: .2rem .35rem; font-size: .85rem; }
+  .coin { font-weight: bold; }
+  .coin small { color: var(--muted); font-weight: normal; }
+  .coin.zero { opacity: .4; font-weight: normal; }
+  .coin-btns { display: inline-flex; }
+  .coin-btns .gear-btn { border-radius: 6px 0 0 6px; padding: .1rem .3rem; font-size: .75rem; }
+  .coin-btns .gear-btn + .gear-btn { border-radius: 0 6px 6px 0; margin-left: -1px; }
+
+  /* Attunement marker on a magic item */
+  .attune-btn {
+    border: 1px solid var(--line); background: var(--bg); color: var(--muted);
+    border-radius: 999px; padding: 0 .35rem; font-size: .8rem; line-height: 1.4; cursor: pointer;
+  }
+  .attune-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+  .attune-btn.on { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+
   .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
   @media (max-width: 700px) { .twocol { grid-template-columns: 1fr; } .statgrid { grid-template-columns: repeat(3, 1fr); } }
   ul.clean { list-style: none; padding: 0; margin: .25rem 0; }
@@ -389,6 +450,7 @@
   /* HP tracker */
   .hp-tracker { display: flex; align-items: center; gap: .35rem; justify-content: center; margin-top: .3rem; flex-wrap: wrap; }
   .hp-tracker button { padding: .15rem .5rem; font-size: .8rem; font-weight: bold; }
+  .hp-tracker input { width: 4rem; padding: .15rem .3rem; font-size: .8rem; text-align: center; }
   .hp-dmg { color: var(--accent2); }
   .hp-heal { color: var(--good); }
 
@@ -440,4 +502,37 @@
     select, input[type=text], input[type=number] { font-size: 16px; }
     /* one checkbox per row for fat-finger-friendly skill picks */
     #skillChoices label { width: 100% !important; padding: .25rem 0; }
+    /* The numbers you touch most stay on screen while you scroll to your spells.
+       The full vitals block is far too tall to pin, so a compact strip stands in. */
+    .quickbar {
+      display: flex; align-items: center; gap: .4rem;
+      position: sticky; top: 0; z-index: 60;
+      background: var(--panel); border-bottom: 1px solid var(--line);
+      margin: 0 -.85rem .8rem; padding: .4rem .85rem;
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+    /* Chips wrap over several rows on a phone; clipping them mid-row looks broken,
+       and the sticky vitals below keep the important numbers reachable anyway */
+    .cond-chip { padding: .18rem .45rem; font-size: .78rem; }
+    .purse-row input, .xp-add input { width: 4rem; }
+  }
+
+  /* Print / save as PDF: a clean paper sheet, no chrome and no controls */
+  @media print {
+    @page { margin: 12mm; }
+    body { background: #fff; color: #000; padding: 0; }
+    .tabs, .brand, h1, .footer-note, .overlay, #rollToast, .quickbar,
+    .no-print, .hp-tracker, .cond-chips, .xp-add, .purse-row + .purse-row,
+    button, .gear-btn, .attune-btn, #sheetSpellFilter,
+    #tab-create .col-left, .tabpage:not(.active) { display: none !important; }
+    .app, .content { display: block; max-width: none; }
+    .panel { border: none; box-shadow: none; padding: 0; background: #fff; }
+    .vitals { position: static; box-shadow: none; margin: 0 0 .5rem; padding: 0; }
+    .vital, .stat, .cond-box, .xp-box, .purse { border: 1px solid #999; background: #fff; break-inside: avoid; }
+    .twocol { grid-template-columns: 1fr 1fr; }
+    ul.clean li { border-bottom: 1px solid #ddd; break-inside: avoid; }
+    .section { break-after: avoid; }
+    a { color: #000; text-decoration: none; }
+    textarea { border: 1px solid #999; background: #fff; color: #000; min-height: 4rem; }
+    .ref-link, .rollable { color: #000 !important; border: none !important; }
   }

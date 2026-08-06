@@ -7,9 +7,12 @@ const state = {
   traits:"", ideals:"", bonds:"", flaws:"", notes:"",
   tempHp:0, inspiration:false, deathS:0, deathF:0,
   slotsUsed:{}, hdUsed:0, stable:false, retired:false,
-  resUsed:{}, conc:null, gear:[], dropped:[]
+  resUsed:{}, conc:null, gear:[], dropped:[],
+  conditions:[], exhaustion:0, coins:{pp:0,gp:0,ep:0,sp:0,cp:0},
+  attuned:[], subclass:"", feats:[], combat:null
 };
 let sheetTargetId = "sheet";
+let sheetSpellFilter = "";
 
 // Inline die icon with the die name inside the shape, like the Dice of Fate
 function dieIcon(sides) {
@@ -36,6 +39,7 @@ function refTermFrom(s) {
     .replace(/^\s*L\d+\s+/,"")          // drop the "L5" tag on features gained after level 1
     .split(" (")[0]
     .replace(/^Origin Feat: /,"")
+    .replace(/^Feat: /,"")
     .replace(/^Subclass: /,"")
     .trim();
 }
@@ -66,6 +70,217 @@ function scaleFeature(cls, f, lvl) {
   }
   return f;
 }
+
+// ---------- CONDITIONS & EXHAUSTION ----------
+// Active conditions change what the dice do, so every d20 test asks these
+// helpers whether it should roll with Advantage or Disadvantage.
+function activeConds() { return (state.conditions||[]).map(n=>CONDITIONS[n]).filter(Boolean); }
+function hasCond(n) { return (state.conditions||[]).includes(n); }
+// Exhaustion is a flat -2 per level on every d20 test (SRD 5.2)
+function exhaustPenalty() { return -2 * (state.exhaustion||0); }
+// kind: "atk" (attack rolls), "chk" (ability checks), "sav" (saving throws).
+// ability narrows save-specific effects like Restrained's Disadvantage on DEX saves.
+function condRollMode(kind, ability) {
+  let adv = null, dis = null;
+  (state.conditions||[]).forEach(n=>{
+    const c = CONDITIONS[n];
+    if (!c) return;
+    if (c.adv && c.adv[kind]) adv = adv || n;
+    if (c.dis && c.dis[kind]) dis = dis || n;
+    if (kind === "sav" && ability && (c.saveDis||[]).includes(ability)) dis = dis || n;
+  });
+  return { adv, dis };
+}
+// Conditions that stop you acting also stop you concentrating
+function condIncapacitated() { return activeConds().some(c=>c.incap); }
+function condSpeed(base) {
+  if (activeConds().some(c=>c.speed0)) return 0;
+  return Math.max(0, base - 5*(state.exhaustion||0));
+}
+
+function toggleCondition(name) {
+  pushUndo(`${hasCond(name)?"clearing":"applying"} ${name}`);
+  const list = state.conditions || (state.conditions = []);
+  const i = list.indexOf(name);
+  if (i >= 0) { list.splice(i,1); logEvent("status", `No longer <b>${name}</b>`); }
+  else {
+    list.push(name);
+    logEvent("status", `Now <b>${name}</b>${CONDITIONS[name].note?` · ${CONDITIONS[name].note}`:""}`);
+    if (CONDITIONS[name].incap && state.conc) dropConc(`${name.toLowerCase()}`);
+  }
+  renderSheet(); persistLoaded();
+}
+function changeExhaustion(delta) {
+  pushUndo("the exhaustion change");
+  const before = state.exhaustion || 0;
+  state.exhaustion = Math.max(0, Math.min(6, before + delta));
+  if (state.exhaustion !== before) {
+    logEvent("status", state.exhaustion === 0
+      ? `<b>Exhaustion</b> shaken off entirely`
+      : `<b>Exhaustion level ${state.exhaustion}</b> · ${fmtMod(-2*state.exhaustion)} to every d20 test, Speed ${-5*state.exhaustion} ft${state.exhaustion>=6?" · this is fatal":""}`);
+    if (state.exhaustion >= 6) { state.curHp = 0; logEvent("status", `<b>Died of exhaustion</b> at level 6`); }
+  }
+  renderSheet(); persistLoaded();
+}
+
+// ---------- UNDO ----------
+// Misclicks happen constantly at the table, so every play-time change stashes
+// the fields it could touch and can be rolled back one step at a time.
+const UNDO_KEYS = ["curHp","tempHp","maxHp","deathS","deathF","stable","slotsUsed","resUsed",
+                   "conditions","exhaustion","hdUsed","conc","coins","attuned","inspiration","gear","dropped"];
+let undoStack = [];
+function pushUndo(label) {
+  const snap = {};
+  UNDO_KEYS.forEach(k=>{ snap[k] = JSON.parse(JSON.stringify(state[k] ?? null)); });
+  undoStack.push({label, snap});
+  if (undoStack.length > 25) undoStack.shift();
+}
+function undoLast() {
+  const step = undoStack.pop();
+  if (!step) return;
+  UNDO_KEYS.forEach(k=>{ if (step.snap[k] !== null) state[k] = step.snap[k]; });
+  logEvent("edit", `<b>Undid</b> ${step.label}`);
+  renderSheet(); persistLoaded();
+}
+
+// ---------- COMBAT ROUNDS ----------
+function startCombat() {
+  state.combat = { round: 1 };
+  logEvent("combat", `<b>Combat begins</b> · Round 1`);
+  renderSheet(); persistLoaded();
+}
+function nextRound() {
+  if (!state.combat) return;
+  state.combat.round++;
+  logEvent("combat", `<b>Round ${state.combat.round}</b>${state.conc?` · still concentrating on ${state.conc}`:""}`);
+  renderSheet(); persistLoaded();
+}
+function endCombat() {
+  if (!state.combat) return;
+  logEvent("combat", `<b>Combat ends</b> after ${state.combat.round} round${state.combat.round===1?"":"s"}`);
+  state.combat = null;
+  renderSheet(); persistLoaded();
+}
+
+// ---------- MONEY ----------
+// Starting coins come from the class and background gear lists ("15 GP"), and
+// state.coins holds everything earned or spent since.
+const COIN_RE = /^(\d+)\s*(PP|GP|EP|SP|CP)$/i;
+function startingCoins() {
+  const out = {pp:0,gp:0,ep:0,sp:0,cp:0};
+  const c = state.cls ? CLASSES[state.cls] : null;
+  const bg = state.background ? BACKGROUNDS[state.background] : null;
+  [...(c?c.equipment:[]), ...(bg?bg.equipment:[])].forEach(e=>{
+    const m = COIN_RE.exec(e.trim());
+    if (m) out[m[2].toLowerCase()] += parseInt(m[1],10);
+  });
+  return out;
+}
+function purse() {
+  const start = startingCoins(), have = state.coins || {};
+  const out = {};
+  COINS.forEach(c=>{ out[c.k] = (start[c.k]||0) + (have[c.k]||0); });
+  return out;
+}
+function purseInCp() {
+  const p = purse();
+  return COINS.reduce((s,c)=>s + p[c.k]*c.cp, 0);
+}
+function changeCoin(k, n) {
+  const p = purse();
+  if (n < 0 && p[k] + n < 0) n = -p[k];      // never go negative in a single coin type
+  if (!n) return;
+  pushUndo(`the ${Math.abs(n)} ${k.toUpperCase()} change`);
+  state.coins = {...(state.coins||{})};
+  state.coins[k] = (state.coins[k]||0) + n;
+  logEvent("gear", `${n>0?"Gained":"Spent"} <b>${Math.abs(n)} ${k.toUpperCase()}</b> · purse now ${COINS.filter(c=>purse()[c.k]).map(c=>`${purse()[c.k]} ${c.k.toUpperCase()}`).join(", ")||"empty"}`);
+  renderSheet(); persistLoaded();
+}
+function coinFromInput(k, sign) {
+  const el = document.getElementById("coinAmt");
+  const n = Math.abs(parseInt(el && el.value, 10) || 0);
+  if (!n) return;
+  changeCoin(k, sign*n);
+}
+
+// ---------- EXPERIENCE ----------
+// The XP field is free text so a table using milestones can write anything in
+// it; anything numeric also drives the progress bar.
+function xpNum() {
+  const n = parseInt(String(state.xp||"").replace(/[^0-9]/g,""), 10);
+  return isNaN(n) ? 0 : n;
+}
+function xpProgress() {
+  const xp = xpNum();
+  if (!xp && !/\d/.test(String(state.xp||""))) return null;
+  const lv = state.level;
+  if (lv >= 20) return { xp, ready:false, max:true };
+  const from = XP_THRESHOLDS[lv-1], to = XP_THRESHOLDS[lv];
+  const earned = levelForXp(xp);
+  return {
+    xp, from, to, next: lv+1,
+    pct: Math.max(0, Math.min(100, Math.round((xp - from) / (to - from) * 100))),
+    ready: earned > lv,
+    behind: earned < lv
+  };
+}
+function addXp() {
+  const el = document.getElementById("xpAmt");
+  const n = parseInt(el && el.value, 10) || 0;
+  if (!n) { if (el) el.focus(); return; }
+  const before = xpNum();
+  state.xp = String(before + n);
+  const f = document.getElementById("xpField");
+  if (f) f.value = state.xp;
+  logEvent("xp", `<b>+${n} XP</b> · ${before} → ${state.xp}${levelForXp(xpNum())>state.level?` · enough for level ${levelForXp(xpNum())}!`:""}`);
+  renderSheet(); persistLoaded();
+}
+
+// ---------- SUBCLASS ----------
+function subclassChoices() { return state.cls ? Object.keys(SUBCLASSES[state.cls]||{}) : []; }
+function subclassDue() { return !!(state.cls && state.level >= SUBCLASS_LEVEL && !state.subclass && subclassChoices().length); }
+function pickSubclass(name) {
+  state.subclass = name;
+  logEvent("level", `<b>Subclass chosen</b>: ${name}`);
+  refClose();
+  renderSheet(); persistLoaded();
+}
+// Overlay for choosing a subclass from the sheet, for heroes who reached
+// level 3 before this existed
+function openSubclassPicker() {
+  const opts = subclassChoices();
+  document.getElementById("refModal").innerHTML = `
+    <h3>Choose your ${state.cls} Subclass</h3>
+    <div class="lvl-step">At level ${SUBCLASS_LEVEL} you commit to a specialty, and it keeps giving you features as you climb.
+      SRD 5.2 publishes one subclass per class, so this is your ${state.cls}'s path.</div>
+    <div class="lvl-step">
+      <div class="k">Options · click one to choose it</div>
+      <div class="picker-box">
+        ${opts.map(n=>{
+          const sc = SUBCLASSES[state.cls][n];
+          const levels = Object.keys(sc.f).map(Number).sort((a,b)=>a-b);
+          return `<div class="chooser-row${state.subclass===n?" current":""}" onclick="pickSubclass('${escQ(n)}')">
+            <div><b>${n}</b>${state.subclass===n?' <small style="color:var(--accent)">· current</small>':""}</div>
+            <div style="font-size:.85rem;color:var(--muted)">${sc.d}</div>
+            <div style="font-size:.8rem;margin-top:.2rem">${levels.map(lv=>`<b>L${lv}</b> ${allDice(sc.f[lv].map(f=>f.split(" (")[0]).join(", "))}`).join(" · ")}</div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>
+    <div class="lvl-actions"><button onclick="refClose()">Close</button></div>`;
+  document.getElementById("refOverlay").classList.add("open");
+}
+
+// ---------- FEATS ----------
+// The background's origin feat is derived rather than stored, so changing
+// background swaps it cleanly; chosen feats live in state.feats.
+function allFeats() {
+  const bg = state.background ? BACKGROUNDS[state.background] : null;
+  const out = bg ? [{ n: bg.feat, at: 1, origin: true }] : [];
+  return [...out, ...(state.feats||[])];
+}
+// A feat name may carry a parenthetical, as in "Magic Initiate (Cleric)"
+function featDef(name) { return FEATS[name] || FEATS[String(name).split(" (")[0]]; }
 
 // ---------- HELPERS ----------
 const rand = arr => arr[Math.floor(Math.random()*arr.length)];
@@ -318,7 +533,7 @@ document.getElementById("charName").addEventListener("input", e=>{ state.name=e.
   document.getElementById(id).addEventListener("change", e=>{
     const key = {selClass:"cls",selSpecies:"species",selBackground:"background",selAlignment:"alignment"}[id];
     state[key] = e.target.value;
-    if (id==="selClass") { state.skills=[]; state.spells=[]; state.level=1; state.dieRolls=[]; state.slotsUsed={}; state.hdUsed=0; state.resUsed={}; state.conc=null; state.gear=[]; state.dropped=[]; renderSkillChoices(); renderSpellChoices(); }
+    if (id==="selClass") { state.skills=[]; state.spells=[]; state.level=1; state.dieRolls=[]; state.slotsUsed={}; state.hdUsed=0; state.resUsed={}; state.conc=null; state.gear=[]; state.dropped=[]; state.subclass=""; state.feats=[]; state.attuned=[]; renderSkillChoices(); renderSpellChoices(); }
     if (id==="selBackground") {
       // Free up any class pick the new background already grants, so the
       // player keeps their full allotment of distinct proficiencies
@@ -336,6 +551,9 @@ document.getElementById("btnRandomAll").addEventListener("click", ()=>{
   state.slotsUsed={}; state.hdUsed=0; state.stable=false; state.retired=false;
   // Fresh heroes arrive fully rested: force HP to recompute from scratch
   state.maxHp=null; state.curHp=null; state.resUsed={}; state.conc=null; state.gear=[]; state.dropped=[];
+  state.conditions=[]; state.exhaustion=0; state.coins={pp:0,gp:0,ep:0,sp:0,cp:0};
+  state.attuned=[]; state.subclass=""; state.feats=[]; state.combat=null;
+  undoStack = [];
   Object.values(randomizers).forEach(f=>f());
   setScores(ABILITIES.map(()=>roll4d6()));
   optimizeForClass();
@@ -356,6 +574,9 @@ function clearCreator() {
   state.tempHp=0; state.inspiration=false; state.deathS=0; state.deathF=0;
   state.slotsUsed={}; state.hdUsed=0; state.stable=false; state.retired=false;
   state.resUsed={}; state.conc=null; state.gear=[]; state.dropped=[];
+  state.conditions=[]; state.exhaustion=0; state.coins={pp:0,gp:0,ep:0,sp:0,cp:0};
+  state.attuned=[]; state.subclass=""; state.feats=[]; state.combat=null;
+  undoStack = [];
   ABILITIES.forEach(a=>{ state.scores[a]=null; document.getElementById("ab_"+a).value=""; });
   document.getElementById("charName").value="";
   ["selClass","selSpecies","selBackground","selAlignment"].forEach(id=>document.getElementById(id).value="");
@@ -377,6 +598,85 @@ function computeHp() {
     state.curHp = state.maxHp==null || state.curHp==null ? hp : Math.max(0, Math.min(hp, state.curHp + Math.max(0,delta)));
     state.maxHp = hp;
   }
+}
+
+// Conditions the character is currently under, as toggles. Active ones say what
+// they actually do to the dice, and the sheet's numbers follow suit.
+function condBlock() {
+  const on = state.conditions || [];
+  const exhaustion = state.exhaustion || 0;
+  const chips = CONDITION_NAMES.map(n=>{
+    const c = CONDITIONS[n];
+    const bits = [];
+    if (c.dis) bits.push("dis. " + Object.keys(c.dis).map(k=>({atk:"attacks",chk:"checks",sav:"saves"}[k])).join(" & "));
+    if (c.adv) bits.push("adv. " + Object.keys(c.adv).map(k=>({atk:"attacks",chk:"checks",sav:"saves"}[k])).join(" & "));
+    if (c.saveDis) bits.push("dis. " + c.saveDis.join("/") + " saves");
+    if (c.speed0) bits.push("Speed 0");
+    if (c.incap) bits.push("incapacitated");
+    return `<span class="cond-chip${on.includes(n)?" on":""}" onclick="toggleCondition('${n}')"
+      title="${(bits.join(", ")||"No direct effect on your own rolls")}${c.note?". "+c.note:""}">${n}</span>`;
+  }).join("");
+  const active = on.map(n=>{
+    const c = CONDITIONS[n];
+    const bits = [];
+    if (c.dis) bits.push("Disadvantage on " + Object.keys(c.dis).map(k=>({atk:"attack rolls",chk:"ability checks",sav:"saving throws"}[k])).join(" and "));
+    if (c.adv) bits.push("Advantage on " + Object.keys(c.adv).map(k=>({atk:"attack rolls",chk:"ability checks",sav:"saving throws"}[k])).join(" and "));
+    if (c.saveDis) bits.push(`Disadvantage on ${c.saveDis.join(" and ")} saves`);
+    if (c.autoFail) bits.push(`${c.autoFail.join(" and ")} saves fail automatically`);
+    if (c.speed0) bits.push("Speed drops to 0");
+    if (c.incap) bits.push("no actions, and Concentration breaks");
+    return `<div><span class="ref-link" onclick="refLookup('${n}')"><b>${n}</b></span>${bits.length?": "+bits.join("; ")+".":""} ${c.note||""}</div>`;
+  }).join("");
+  return `<div class="cond-box">
+    <div class="cond-head"><span class="ref-link" onclick="refLookup('Conditions')">Conditions</span>
+      <span class="exh">
+        <span class="ref-link" onclick="refLookup('Exhaustion')">Exhaustion</span>
+        <button class="gear-btn" onclick="changeExhaustion(-1)" ${exhaustion?"":"disabled"} title="Recover a level">−</button>
+        <b class="${exhaustion?"lvl-on":""}">${exhaustion}</b>
+        <button class="gear-btn" onclick="changeExhaustion(1)" ${exhaustion>=6?"disabled":""} title="Gain a level">+</button>
+        ${exhaustion?`<small>${fmtMod(-2*exhaustion)} to every d20 test, −${5*exhaustion} ft Speed</small>`:""}
+      </span>
+    </div>
+    <div class="cond-chips">${chips}</div>
+    ${active?`<div class="cond-active">${active}</div>`:""}
+  </div>`;
+}
+
+// The purse: starting coins from class and background, plus everything earned
+// or spent since. Amounts are entered once and applied to any coin type.
+function purseBlock(canAct) {
+  const p = purse();
+  const totalGp = Math.round(purseInCp() / 100 * 100) / 100;
+  return `<div class="purse">
+    <div class="purse-row">
+      <span class="ref-link" onclick="refLookup('Coins and Currency')">💰 Purse</span>
+      ${COINS.map(c=>`<span class="coin ${c.k}${p[c.k]?"":" zero"}" title="${c.n}">${p[c.k]} <small>${c.k.toUpperCase()}</small></span>`).join("")}
+      <span style="color:var(--muted);font-size:.8rem">≈ ${totalGp.toLocaleString()} gp</span>
+    </div>
+    ${canAct?`<div class="purse-row">
+      <input type="number" id="coinAmt" min="1" placeholder="10" title="Amount, then pick a coin to gain or spend">
+      ${COINS.map(c=>`<span class="coin-btns"><button class="gear-btn" onclick="coinFromInput('${c.k}',1)" title="Gain ${c.n}">+${c.k.toUpperCase()}</button><button class="gear-btn" onclick="coinFromInput('${c.k}',-1)" title="Spend ${c.n}" ${p[c.k]?"":"disabled"}>−</button></span>`).join("")}
+    </div>`:""}
+  </div>`;
+}
+
+// Experience against the level table, when the player is tracking XP at all
+function xpBlock(canAct) {
+  const p = xpProgress();
+  if (!p) return canAct ? `<div class="xp-box"><span style="color:var(--muted)">No <span class="ref-link" onclick="refLookup('Experience Points')">XP</span> recorded. Add some, or ignore this if your table uses milestones.</span>
+    <span class="xp-add"><input type="number" id="xpAmt" placeholder="250"><button class="gear-btn" onclick="addXp()">+ XP</button></span></div>` : "";
+  if (p.max) return `<div class="xp-box"><b>${p.xp.toLocaleString()} XP</b> · level 20, the top of the table</div>`;
+  return `<div class="xp-box">
+    <div class="xp-line">
+      <b>${p.xp.toLocaleString()} XP</b>
+      <span style="color:var(--muted)">${p.ready
+        ? `enough for <b style="color:var(--good)">level ${levelForXp(p.xp)}</b>`
+        : `${(p.to - p.xp).toLocaleString()} to level ${p.next}`}</span>
+      ${canAct?`<span class="xp-add"><input type="number" id="xpAmt" placeholder="250"><button class="gear-btn" onclick="addXp()">+ XP</button></span>`:""}
+    </div>
+    <div class="xp-bar"><span style="width:${p.ready?100:p.pct}%" class="${p.ready?"ready":""}"></span></div>
+    ${p.ready?`<div style="color:var(--good);font-size:.85rem">You have enough XP to level up.</div>`:""}
+  </div>`;
 }
 
 function renderSheet() {
@@ -402,6 +702,9 @@ function renderSheet() {
   const wisMod = state.scores.WIS!=null ? mod(state.scores.WIS) : 0;
 
   const hp = state.maxHp;
+  const bloodied = hp!=null && state.curHp>0 && state.curHp <= Math.floor(hp/2);
+  const baseSpeed = sp ? sp.speed : 30;
+  const speedNow = condSpeed(baseSpeed);
 
   let ac = 10 + dexMod;
   let acNote = "10 + Dex (unarmored)";
@@ -418,31 +721,43 @@ function renderSheet() {
   const allSkillProfs = new Set(state.skills);
   if (bg) bg.skills.forEach(s=>allSkillProfs.add(s));
 
-  const passivePerception = 10 + wisMod + (allSkillProfs.has("Perception")?profBonus:0);
+  // Exhaustion is a flat penalty on every d20 test, so it is folded into the
+  // numbers shown on the sheet rather than applied invisibly at roll time
+  const exh = exhaustPenalty();
+  const skillMod = s => state.scores[SKILLS[s]]!=null
+    ? mod(state.scores[SKILLS[s]]) + (allSkillProfs.has(s)?profBonus:0) : null;
+  const passive = s => 10 + (skillMod(s) ?? 0) + exh;
+  const passivePerception = passive("Perception");
 
   const saveRows = ABILITIES.map(a=>{
     const isProf = c && c.saves.includes(a);
-    const m = state.scores[a]!=null ? mod(state.scores[a]) + (isProf?profBonus:0) : null;
-    const roll = m!=null ? `class="rollable" onclick="rollD20('${ABILITY_NAMES[a]} Save',${m})" title="Click to roll"` : "";
-    return `<li ${roll}>${isProf?'<span class="prof">●</span>':'○'} ${ABILITY_NAMES[a]} ${m!=null?fmtMod(m):"--"}</li>`;
+    const m = state.scores[a]!=null ? mod(state.scores[a]) + (isProf?profBonus:0) + exh : null;
+    const auto = activeConds().some(x=>(x.autoFail||[]).includes(a));
+    const roll = m!=null ? `class="rollable" onclick="rollD20('${ABILITY_NAMES[a]} Save',${m},'sav','${a}')" title="Click to roll"` : "";
+    return `<li ${roll}>${isProf?'<span class="prof">●</span>':'○'} ${ABILITY_NAMES[a]} ${m!=null?fmtMod(m):"--"}${auto?' <small style="color:var(--accent2)" title="A condition makes this save fail automatically">auto-fail</small>':""}</li>`;
   }).join("");
 
   const skillRows = ALL_SKILLS.map(s=>{
     const ab = SKILLS[s];
     const isProf = allSkillProfs.has(s);
-    const m = state.scores[ab]!=null ? mod(state.scores[ab]) + (isProf?profBonus:0) : null;
-    const roll = m!=null ? `class="rollable" onclick="rollD20('${s}',${m})" title="Click to roll"` : "";
+    const m = state.scores[ab]!=null ? mod(state.scores[ab]) + (isProf?profBonus:0) + exh : null;
+    const roll = m!=null ? `class="rollable" onclick="rollD20('${s}',${m},'chk')" title="Click to roll"` : "";
     return `<li ${roll}>${isProf?'<span class="prof">●</span>':'○'} ${s} <small style="color:var(--muted)">(${ab})</small> ${m!=null?fmtMod(m):"--"}</li>`;
   }).join("");
 
   const equipment = currentEquipment();
-  const features = [...(c?c.features.map(f=>allDice(scaleFeature(state.cls,f,state.level))):[]), ...(bg?["Origin Feat: "+bg.feat]:[])];
+  const features = [...(c?c.features.map(f=>allDice(scaleFeature(state.cls,f,state.level))):[])];
   if (c && CLASS_LEVELS[state.cls]) {
     for (let lv=2; lv<=state.level; lv++) {
       (CLASS_LEVELS[state.cls][lv]||[]).forEach(f=>features.push(`<small style="color:var(--muted)">L${lv}</small> ${allDice(f)}`));
-      if ((ASI_LEVELS[state.cls]||ASI_LEVELS.default).includes(lv)) features.push(`<small style="color:var(--muted)">L${lv}</small> Ability Score Improvement or Feat`);
     }
   }
+  // Subclass features, tagged with the level they arrived at
+  subclassFeatures(state.cls, state.subclass, state.level).forEach(({lv,f})=>
+    features.push(`<small style="color:var(--muted)">L${lv}</small> ${allDice(f)}`));
+  // Feats: the background's origin feat plus anything taken at an ASI level
+  allFeats().forEach(f=>features.push(
+    `<small style="color:var(--muted)">L${f.at}</small> ${f.origin?"Origin Feat: ":"Feat: "}${f.n}`));
   const traits = sp ? sp.traits.map(t=>allDice(t)) : [];
   const canLevel = c && haveScores && state.level < 20 && !state.retired;
   const canAct = c && haveScores && !state.retired;
@@ -459,7 +774,7 @@ function renderSheet() {
           const wd = WEAPONS[w];
           const abMod = wd.rng ? dexMod : wd.fin ? Math.max(strMod,dexMod) : strMod;
           const [die, type] = wd.dmg.split(" ");
-          attacks.push({name:w, bonus:abMod+profBonus, dice:die, type, dmgMod:abMod,
+          attacks.push({name:w, bonus:abMod+profBonus+exh, dice:die, type, dmgMod:abMod,
             dmg:`${wd.dmg}${abMod?` ${abMod>0?"+":""}${abMod}`:""}`});
         }
       });
@@ -467,10 +782,10 @@ function renderSheet() {
     if (state.cls==="Monk") {
       const maMod = Math.max(strMod, dexMod);
       const maDie = SCALING.martialDie(state.level);
-      attacks.push({name:"Unarmed Strike", bonus:maMod+profBonus, dice:`1d${maDie}`, type:"bludgeoning", dmgMod:maMod,
+      attacks.push({name:"Unarmed Strike", bonus:maMod+profBonus+exh, dice:`1d${maDie}`, type:"bludgeoning", dmgMod:maMod,
         dmg:`1d${maDie} bludgeoning${maMod?` ${maMod>0?"+":""}${maMod}`:""}`});
     } else {
-      attacks.push({name:"Unarmed Strike", bonus:strMod+profBonus, dice:null, type:"bludgeoning", dmgMod:Math.max(1,1+strMod), dmg:`${Math.max(1,1+strMod)} bludgeoning`});
+      attacks.push({name:"Unarmed Strike", bonus:strMod+profBonus+exh, dice:null, type:"bludgeoning", dmgMod:Math.max(1,1+strMod), dmg:`${Math.max(1,1+strMod)} bludgeoning`});
     }
   }
 
@@ -518,13 +833,17 @@ function renderSheet() {
     <h3 class="section">Spellcasting (${ABILITY_NAMES[castAb]})</h3>
     ${focusOk ? "" : `<div class="warn-banner">⚠ No spellcasting focus carried. Add a ${refLink("Arcane Focus","focus")}${state.cls==="Wizard"?" or your Spellbook":""} in Equipment to cast spells.</div>`}
     <ul class="clean">
-      <li>Spell Save DC <b>${8+profBonus+castMod}</b> · <span class="rollable" onclick="attackRoll('Spell Attack',${profBonus+castMod},null,'spell',0)" title="Click to roll" style="color:var(--accent)">Spell Attack ${fmtMod(profBonus+castMod)} 🎲</span></li>
+      <li>Spell Save DC <b>${8+profBonus+castMod}</b> · <span class="rollable" onclick="attackRoll('Spell Attack',${profBonus+castMod+exh},null,'spell',0)" title="Click to roll" style="color:var(--accent)">Spell Attack ${fmtMod(profBonus+castMod+exh)} 🎲</span></li>
       ${slotRows}
+      ${chosenSpells.length>8?`<li><input type="text" id="sheetSpellFilter" placeholder="Filter your spells..." value="${sheetSpellFilter.replace(/"/g,'&quot;')}" style="padding:.25rem .4rem;font-size:.85rem"></li>`:""}
       ${SPELL_LEVELS.map(lv=>{
-        const g = chosenSpells.filter(s=>s.l===lv);
+        const g = chosenSpells.filter(s=>s.l===lv && (!sheetSpellFilter ||
+          s.n.toLowerCase().includes(sheetSpellFilter.toLowerCase()) || s.d.toLowerCase().includes(sheetSpellFilter.toLowerCase())));
         return g.length ? `<li><b>${lv===0?"Cantrips":"Level "+lv}:</b> ${g.map(s=>`<span onclick="spellDetail('${escQ(s.n)}')" title="${s.d.replace(/"/g,'&quot;')}" style="border-bottom:1px dotted var(--muted);cursor:pointer">${s.n}</span>`).join(", ")}</li>` : "";
       }).join("")}
       ${!chosenSpells.length ? '<li style="color:var(--muted)">No spells chosen yet: pick them in the Spells list on the left.</li>' : ""}
+      ${chosenSpells.length && sheetSpellFilter && !chosenSpells.some(s=>s.n.toLowerCase().includes(sheetSpellFilter.toLowerCase())||s.d.toLowerCase().includes(sheetSpellFilter.toLowerCase()))
+        ? '<li style="color:var(--muted)">None of your spells match that.</li>' : ""}
     </ul>` : "";
 
   const rp = [["Personality Traits",state.traits],["Ideals",state.ideals],["Bonds",state.bonds],["Flaws",state.flaws],["Backstory & Notes",state.notes]].filter(x=>x[1]);
@@ -540,38 +859,67 @@ function renderSheet() {
         <span style="border:1px solid var(--accent2);color:var(--accent2);border-radius:6px;padding:.3rem .6rem;font-weight:bold" title="This hero has been laid to rest">🪦 Retired · Dead</span>`:""}
         ${canAct?`<button class="roll-mode${rollMode==="adv"?" on":""}" onclick="setRollMode('adv')" title="Roll two d20s and keep the higher on every d20 test">⬆ ADV</button>
         <button class="roll-mode${rollMode==="dis"?" on dis":""}" onclick="setRollMode('dis')" title="Roll two d20s and keep the lower on every d20 test">⬇ DIS</button>
+        ${state.combat
+          ? `<button onclick="nextRound()" title="Advance to the next round of combat">▶ Round ${state.combat.round}</button>
+             <button onclick="endCombat()" title="Combat is over">✖ End Combat</button>`
+          : `<button onclick="startCombat()" title="Start counting rounds; history entries get a round number">⚔ Start Combat</button>`}
         <button onclick="shortRest()" title="1+ hour: spend Hit Dice to heal">⛺ Short Rest</button>
-        <button onclick="longRest()" title="8 hours: restore HP, spell slots, and half your Hit Dice">🌙 Long Rest</button>`:""}
+        <button onclick="longRest()" title="8 hours: restore HP, spell slots, and half your Hit Dice">🌙 Long Rest</button>
+        <button onclick="undoLast()" ${undoStack.length?"":"disabled"} title="${undoStack.length?`Undo ${undoStack[undoStack.length-1].label}`:"Nothing to undo"}">↶ Undo${undoStack.length?` <small>(${undoStack.length})</small>`:""}</button>`:""}
         ${canLevel?`<button onclick="levelUp()" style="font-weight:bold" title="Advance to level ${state.level+1}">⬆ Level Up</button>`:""}
+        <button onclick="window.print()" class="no-print" title="Print this sheet, or save it as a PDF">🖨 Print</button>
       </div>
     </div>
     ${rollModeLabel()?`<div class="mode-banner${rollMode==="dis"?" dis":""}">Rolling with ${rollModeLabel()} · <span onclick="setRollMode('${rollMode}')" style="cursor:pointer;text-decoration:underline">back to normal</span></div>`:""}
-    ${state.conc?`<div class="conc-banner">🌀 Concentrating on <b>${state.conc}</b> <button onclick="dropConc('dropped')" title="Stop concentrating">✕</button></div>`:""}
-    <div class="tagline">Level ${state.level} ${state.species||"?"} ${state.cls||"?"} · ${state.background||"no background"} · ${state.alignment||"unaligned"}${state.playerName?` · played by ${state.playerName.replace(/</g,"&lt;")}`:""}${state.xp?` · ${state.xp.toString().replace(/</g,"&lt;")} XP`:""}</div>
+    ${state.combat?`<div class="mode-banner">⚔️ In combat · <b>Round ${state.combat.round}</b> · <span onclick="nextRound()" style="cursor:pointer;text-decoration:underline">next round</span> · <span onclick="endCombat()" style="cursor:pointer;text-decoration:underline">end</span></div>`:""}
+    ${state.conc?`<div class="conc-banner">🌀 Concentrating on <b>${state.conc}</b>${state.combat?` <small>since round ${state.concRound||state.combat.round}</small>`:""} <button onclick="dropConc('dropped')" title="Stop concentrating">✕</button></div>`:""}
+    ${subclassDue()?`<div class="warn-banner">⚠ You reached level ${SUBCLASS_LEVEL} without choosing a subclass. <span class="ref-link" onclick="openSubclassPicker()">Choose your ${state.cls} subclass</span> to pick up its features.</div>`:""}
+    <div class="tagline">Level ${state.level} ${state.species||"?"} ${state.cls||"?"}${state.subclass?` <span class="ref-link" onclick="refLookup('${escQ(state.subclass)}')">(${state.subclass})</span>`:""} · ${state.background||"no background"} · ${state.alignment||"unaligned"}${state.playerName?` · played by ${state.playerName.replace(/</g,"&lt;")}`:""}</div>
+    ${canAct && hp!=null?`<div class="quickbar">
+      <button class="hp-dmg" onclick="changeHp(-1)" title="Take 1 damage">−</button>
+      <span class="qb-hp${bloodied?" bloodied":""}">${state.curHp}/${hp}${state.tempHp?` +${state.tempHp}`:""}</span>
+      <button class="hp-heal" onclick="changeHp(1)" title="Heal 1" ${state.curHp>=hp?"disabled":""}>+</button>
+      <span class="qb-ac">AC ${ac}${state.combat?` · R${state.combat.round}`:""}</span>
+      <span class="qb-right">
+        <button class="roll-mode${rollMode==="adv"?" on":""}" onclick="setRollMode('adv')" title="Advantage on every d20 test">⬆</button>
+        <button class="roll-mode${rollMode==="dis"?" on dis":""}" onclick="setRollMode('dis')" title="Disadvantage on every d20 test">⬇</button>
+        <button onclick="undoLast()" ${undoStack.length?"":"disabled"} title="${undoStack.length?`Undo ${undoStack[undoStack.length-1].label}`:"Nothing to undo"}">↶</button>
+      </span>
+    </div>`:""}
+    ${xpBlock(canAct)}
+    ${canAct?condBlock():""}
 
     <div class="vitals">
       <div class="vital"><div class="v">${ac}</div><div class="k">ARMOR CLASS</div><div style="font-size:.65rem;color:var(--muted)">${acNote}</div></div>
-      <div class="vital"><div class="v">${hp!=null?`${state.curHp} / ${hp}`:"--"}${state.tempHp?` <small style="color:var(--good)">+${state.tempHp}</small>`:""}</div><div class="k">HIT POINTS${state.tempHp?" + TEMP":""}</div>
-        ${hp!=null?`<div class="hp-tracker"><button class="hp-dmg" onclick="changeHp(-1)" title="Take damage">-1</button><button class="hp-dmg" onclick="changeHp(-5)">-5</button><button class="hp-heal" onclick="changeHp(1)" title="Heal">+1</button><button class="hp-heal" onclick="changeHp(5)">+5</button><button onclick="changeTempHp(1)" title="Add Temporary HP">+Temp</button>${state.tempHp?`<button onclick="changeTempHp(-1)" title="Remove Temporary HP">-Temp</button>`:""}</div>`:""}
+      <div class="vital${bloodied?" bloodied":""}"><div class="v">${hp!=null?`${state.curHp} / ${hp}`:"--"}${state.tempHp?` <small style="color:var(--good)">+${state.tempHp}</small>`:""}</div><div class="k">HIT POINTS${state.tempHp?" + TEMP":bloodied?` · <span class="ref-link" onclick="refLookup('Bloodied')">BLOODIED</span>`:""}</div>
+        ${hp!=null?`<div class="hp-tracker"><button class="hp-dmg" onclick="changeHp(-1)" title="Take damage">-1</button><button class="hp-dmg" onclick="changeHp(-5)">-5</button><button class="hp-heal" onclick="changeHp(1)" title="Heal" ${state.curHp>=hp?"disabled":""}>+1</button><button class="hp-heal" onclick="changeHp(5)" ${state.curHp>=hp?"disabled":""}>+5</button><button onclick="changeTempHp(1)" title="Add Temporary HP">+Temp</button>${state.tempHp?`<button onclick="changeTempHp(-1)" title="Remove Temporary HP">-Temp</button>`:""}</div>
+        <div class="hp-tracker"><input type="number" id="hpAmt" min="1" placeholder="17" title="Type any amount, then hit Damage or Heal">
+          <button class="hp-dmg" onclick="hpFromInput(-1)" title="Take that much damage">💥 Damage</button>
+          <button class="hp-heal" onclick="hpFromInput(1)" title="Heal that much" ${state.curHp>=hp?"disabled":""}>❤️ Heal</button></div>`:""}
         ${hp!=null && state.curHp===0 ? `<div class="death-saves">DEATH SAVES
           <span>✔ ${[1,2,3].map(i=>`<span class="pip" onclick="deathPip('S',${i})">${state.deathS>=i?"●":"○"}</span>`).join("")}</span>
           <span>✘ ${[1,2,3].map(i=>`<span class="pip" onclick="deathPip('F',${i})">${state.deathF>=i?"●":"○"}</span>`).join("")}</span>
           ${state.deathS>=3?"<b style='color:var(--good)'>STABLE</b>":state.deathF>=3?"<b style='color:var(--accent2)'>DEAD</b>":""}
         </div>`:""}
       </div>
-      <div class="vital rollable" onclick="rollD20('Initiative',${dexMod})" title="Click to roll initiative"><div class="v">${fmtMod(dexMod)}</div><div class="k">INITIATIVE 🎲</div></div>
-      <div class="vital"><div class="v">${sp?sp.speed:30} ft</div><div class="k">SPEED</div></div>
+      <div class="vital rollable" onclick="rollD20('Initiative',${dexMod+exh},'chk')" title="Click to roll initiative"><div class="v">${fmtMod(dexMod+exh)}</div><div class="k">INITIATIVE 🎲</div></div>
+      <div class="vital"><div class="v">${speedNow} ft</div><div class="k">SPEED</div>${speedNow!==baseSpeed?`<div style="font-size:.65rem;color:var(--accent2)">was ${baseSpeed} ft</div>`:""}</div>
       <div class="vital"><div class="v">+${profBonus}</div><div class="k">PROF. BONUS</div></div>
-      <div class="vital"><div class="v">${c?`${state.level}× ${dieIcon(c.hitDie)}`:"--"}</div><div class="k">HIT DICE</div></div>
-      <div class="vital"><div class="v">${passivePerception}</div><div class="k">PASSIVE PERC.</div></div>
+      <div class="vital"><div class="v">${c?`${state.level-state.hdUsed}/${state.level}× ${dieIcon(c.hitDie)}`:"--"}</div><div class="k"><span class="ref-link" onclick="refLookup('Hit Point Dice')">HIT DICE</span></div></div>
+      <div class="vital"><div class="v">${passivePerception}</div><div class="k"><span class="ref-link" onclick="refLookup('Passive Perception')">PASSIVE PERC.</span></div></div>
+      <div class="vital"><div class="v">${passive("Investigation")} / ${passive("Insight")}</div><div class="k"><span class="ref-link" onclick="refLookup('Passive Investigation')">PASS. INVEST / INSIGHT</span></div></div>
       <div class="vital rollable" onclick="toggleInspiration()" title="Toggle Heroic Inspiration"><div class="v">${state.inspiration?"★":"☆"}</div><div class="k">INSPIRATION</div></div>
     </div>
 
     <div class="statgrid">
       ${ABILITIES.map(a=>{
         const s = state.scores[a];
-        const roll = s!=null ? `class="stat rollable" onclick="rollD20('${ABILITY_NAMES[a]} Check',${mod(s)})" title="Click to roll"` : 'class="stat"';
-        return `<div ${roll}><div class="nm">${a}</div><div class="mod">${s!=null?fmtMod(mod(s)):"--"}</div><div class="scr">${s!=null?s:"--"}</div></div>`;
+        // The modifier shown is what a check actually rolls with, Exhaustion included
+        const roll = s!=null ? `class="stat rollable" onclick="rollD20('${ABILITY_NAMES[a]} Check',${mod(s)+exh},'chk')" title="Click to roll an ability check${exh?` (includes ${fmtMod(exh)} from Exhaustion)`:""}"` : 'class="stat"';
+        // While exhausted the big number is the check modifier, so the raw ability
+        // modifier (still what damage and AC use) is spelled out underneath
+        return `<div ${roll}><div class="nm">${a}</div><div class="mod">${s!=null?fmtMod(mod(s)+exh):"--"}</div>
+          <div class="scr">${s!=null?s:"--"}${s!=null&&exh?` <span style="color:var(--accent2)">· mod ${fmtMod(mod(s))}</span>`:""}</div></div>`;
       }).join("")}
     </div>
 
@@ -597,11 +945,18 @@ function renderSheet() {
           <li><b>Tools:</b> ${bg?bg.tool:"--"}</li>
         </ul>
         <h3 class="section">Equipment</h3>
-        <ul class="clean">${equipment.map(e=>
-          `<li class="rollable" onclick="refLookup('${escQ(eqTermFrom(e))}')" title="Click for details">${e}${
-            canAct?` <button class="gear-btn" style="float:right" title="Drop ${e.replace(/"/g,"&quot;")}"
-                    onclick="event.stopPropagation();dropItem('${escQ(e)}')">−</button>`:""}</li>`
+        ${purseBlock(canAct)}
+        <ul class="clean">${equipmentStacks().map(({name:e, qty})=>
+          `<li class="rollable" onclick="refLookup('${escQ(eqTermFrom(e))}')" title="Click for details">${e}${qty>1?` <b>×${qty}</b>`:""}${
+            needsAttunement(e)?` <button class="attune-btn${isAttuned(e)?" on":""}" title="${isAttuned(e)?"Attuned: click to end":"Requires Attunement: click to attune"}"
+                    onclick="event.stopPropagation();toggleAttune('${escQ(e)}')">✦</button>`:""}${
+            canAct?` <span style="float:right;white-space:nowrap">
+                    <button class="gear-btn" title="Drop one ${e.replace(/"/g,"&quot;")}"
+                      onclick="event.stopPropagation();dropItem('${escQ(e)}')">−</button>
+                    <button class="gear-btn" title="Add another ${e.replace(/"/g,"&quot;")}"
+                      onclick="event.stopPropagation();addOneMore('${escQ(e)}')">+</button></span>`:""}</li>`
         ).join("") || "<li>--</li>"}</ul>
+        ${(state.attuned||[]).length?`<div style="font-size:.8rem;color:var(--muted)">✦ <span class="ref-link" onclick="refLookup('Attunement')">Attuned</span> to ${state.attuned.length} of ${ATTUNEMENT_MAX}: ${state.attuned.join(", ")}</div>`:""}
         ${canAct?`<button class="gear-btn wide" onclick="openGear()">+ Add Equipment</button>`:""}
       </div>
     </div>
@@ -611,7 +966,7 @@ function renderSheet() {
     <h3 class="section" style="cursor:pointer;user-select:none" onclick="toggleRollLog()" title="Rolls, level-ups, edits, rests, and status changes">📜 History ${showRollLog?"▾":"▸"} <small style="color:var(--muted)">(${histLog.length})</small></h3>
     ${showRollLog ? `
       <ul class="clean">${histLog.length ? histLog.map(r=>
-        `<li>${HIST_ICONS[r.type]||"·"} ${r.text}${r.who?` <small style="color:var(--muted)">· ${r.who}</small>`:""} <small style="color:var(--muted)">${r.at}</small></li>`).join("")
+        `<li>${HIST_ICONS[r.type]||"·"} ${r.text}${r.round?` <small style="color:var(--accent)">· round ${r.round}</small>`:""}${r.who?` <small style="color:var(--muted)">· ${r.who}</small>`:""} <small style="color:var(--muted)">${r.at}</small></li>`).join("")
         : '<li style="color:var(--muted)">Nothing yet: rolls, level-ups, rests, edits, and dramatic events will be recorded here.</li>'}</ul>
       ${histLog.length?`<button onclick="clearRollLog()" style="margin-top:.4rem;font-size:.8rem">Clear history</button>`:""}` : ""}`;
 
@@ -623,6 +978,14 @@ function renderSheet() {
     if (creatorNotes) creatorNotes.value = state.notes;
     try { localStorage.setItem("dnd-srd-current", JSON.stringify(state)); } catch(err) {}
     persistLoaded();
+  });
+  // Filtering your own spell list shouldn't redraw the box out from under you
+  const spellFilterEl = el.querySelector("#sheetSpellFilter");
+  if (spellFilterEl) spellFilterEl.addEventListener("input", e=>{
+    sheetSpellFilter = e.target.value;
+    renderSheet();
+    const again = document.getElementById("sheetSpellFilter");
+    if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
   });
   renderDownOverlay();
 }
@@ -663,7 +1026,7 @@ function updateSavedCount() {
 // Human-readable field-by-field diff for the history log
 function charDiff(o, n) {
   const d = [];
-  const flat = {name:"Name", cls:"Class", species:"Species", background:"Background", alignment:"Alignment", level:"Level", playerName:"Player", xp:"XP"};
+  const flat = {name:"Name", cls:"Class", subclass:"Subclass", species:"Species", background:"Background", alignment:"Alignment", level:"Level", playerName:"Player", xp:"XP"};
   Object.entries(flat).forEach(([k,label])=>{
     if ((o[k]??"") !== (n[k]??"")) d.push(`${label}: ${o[k]||"(blank)"} → ${n[k]||"(blank)"}`);
   });
@@ -678,6 +1041,11 @@ function charDiff(o, n) {
   };
   listDiff("Skills", o.skills, n.skills);
   listDiff("Spells", o.spells, n.spells);
+  listDiff("Equipment", o.gear, n.gear);
+  listDiff("Conditions", o.conditions, n.conditions);
+  listDiff("Attunement", o.attuned, n.attuned);
+  listDiff("Feats", (o.feats||[]).map(f=>f.n), (n.feats||[]).map(f=>f.n));
+  if ((o.exhaustion||0) !== (n.exhaustion||0)) d.push(`Exhaustion: ${o.exhaustion||0} → ${n.exhaustion||0}`);
   ["traits","ideals","bonds","flaws","notes"].forEach(k=>{
     if ((o[k]||"") !== (n[k]||"")) d.push(`${k[0].toUpperCase()+k.slice(1)} edited`);
   });
@@ -726,6 +1094,11 @@ function applyCharacter(ch) {
   state.retired = !!ch.retired;
   state.resUsed = {...(ch.resUsed||{})}; state.conc = ch.conc || null;
   state.gear = [...(ch.gear||[])]; state.dropped = [...(ch.dropped||[])];
+  state.conditions = [...(ch.conditions||[])]; state.exhaustion = ch.exhaustion||0;
+  state.coins = {...{pp:0,gp:0,ep:0,sp:0,cp:0}, ...(ch.coins||{})};
+  state.attuned = [...(ch.attuned||[])]; state.subclass = ch.subclass||"";
+  state.feats = (ch.feats||[]).map(f=>({...f})); state.combat = ch.combat ? {...ch.combat} : null;
+  undoStack = [];
   document.getElementById("rpTraits").value = state.traits;
   document.getElementById("rpIdeals").value = state.ideals;
   document.getElementById("rpBonds").value = state.bonds;
@@ -809,9 +1182,79 @@ function renderSavedList() {
       <div class="btns">
         <button onclick="viewCharacter(${ch.id})">View</button>
         <button onclick="loadCharacter(${ch.id})">Edit</button>
+        <button onclick="duplicateCharacter(${ch.id})" title="Make a copy, handy before a risky level-up">⧉ Copy</button>
+        <button onclick="shareCharacter(${ch.id})" title="Get a link that rebuilds this character in someone else's browser">🔗 Share</button>
         <button class="btn-danger" onclick="deleteCharacter(${ch.id})">Delete</button>
       </div>
     </div>`).join("");
+}
+
+// A copy to fall back on, or a second version of the same hero
+function duplicateCharacter(id) {
+  const list = loadStore();
+  const ch = list.find(c=>c.id===id);
+  if (!ch) return;
+  const copy = JSON.parse(JSON.stringify(ch));
+  copy.id = Date.now();
+  copy.name = `${ch.name || "Unnamed Hero"} (copy)`;
+  copy.savedAt = new Date().toLocaleString();
+  list.push(copy);
+  saveStore(list);
+  logEvent("edit", `<b>Copied</b> ${ch.name || "Unnamed Hero"} to "${copy.name}"`);
+  renderSavedList(); updateSavedCount();
+}
+
+// ---------- SHARE BY LINK ----------
+// The whole character rides in the URL fragment, so nothing is uploaded anywhere.
+function encodeChar(ch) {
+  const json = JSON.stringify(ch);
+  return btoa(unescape(encodeURIComponent(json))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+function decodeChar(s) {
+  const b = s.replace(/-/g,"+").replace(/_/g,"/");
+  return JSON.parse(decodeURIComponent(escape(atob(b))));
+}
+function shareCharacter(id) {
+  const ch = loadStore().find(c=>c.id===id);
+  if (!ch) return;
+  const url = location.origin + location.pathname + "#c=" + encodeChar(ch);
+  document.getElementById("refModal").innerHTML = `
+    <h3>🔗 Share ${ch.name || "Unnamed Hero"}</h3>
+    <div class="lvl-step">Everything about this character is packed into the link itself: nothing is uploaded, and whoever opens it gets their own copy to keep and change.</div>
+    <div class="lvl-step">
+      <div class="k">The link</div>
+      <textarea id="shareUrl" rows="4" readonly style="font-size:.75rem;word-break:break-all">${url}</textarea>
+      <div style="margin-top:.4rem"><button onclick="copyShareUrl()">📋 Copy link</button>
+        <span id="shareCopied" style="color:var(--good);margin-left:.5rem"></span></div>
+      ${url.length>8000?`<div class="warn-banner">This link is very long (${url.length.toLocaleString()} characters) and some chat apps will cut it. Export to a file instead if it doesn't survive the trip.</div>`:""}
+    </div>
+    <div class="lvl-actions"><button onclick="refClose()">Close</button></div>`;
+  document.getElementById("refOverlay").classList.add("open");
+}
+function copyShareUrl() {
+  const el = document.getElementById("shareUrl");
+  el.select();
+  const done = () => { document.getElementById("shareCopied").textContent = "Copied."; };
+  if (navigator.clipboard) navigator.clipboard.writeText(el.value).then(done, ()=>{ document.execCommand("copy"); done(); });
+  else { document.execCommand("copy"); done(); }
+}
+// A shared link opens with the character offered for import, never applied silently
+function checkSharedLink() {
+  const m = /[#&]c=([A-Za-z0-9\-_]+)/.exec(location.hash);
+  if (!m) return;
+  let ch;
+  try { ch = decodeChar(m[1]); } catch(e) { return; }
+  if (!ch || !ch.cls) return;
+  history.replaceState(null, "", location.pathname + location.search);
+  if (!confirm(`Add the shared character "${ch.name || "Unnamed Hero"}" (level ${ch.level||1} ${ch.species||""} ${ch.cls}) to this browser?`)) return;
+  const list = loadStore();
+  ch.id = Date.now();
+  ch.savedAt = new Date().toLocaleString();
+  list.push(ch);
+  saveStore(list);
+  updateSavedCount();
+  document.querySelector('.tabs button[data-tab="saved"]').click();
+  viewCharacter(ch.id);
 }
 
 // Export / import for moving characters between browsers or machines
@@ -887,9 +1330,10 @@ let toastTimer = null;
 let histLog = [];
 try { histLog = JSON.parse(localStorage.getItem("dnd-srd-history")) || []; } catch(e) {}
 let showRollLog = false;
-const HIST_ICONS = { roll:"🎲", level:"⬆️", edit:"✏️", rest:"⛺", longrest:"🌙", status:"💀", heal:"❤️", cast:"✨", resource:"🔆", gear:"🎒" };
+const HIST_ICONS = { roll:"🎲", level:"⬆️", edit:"✏️", rest:"⛺", longrest:"🌙", status:"💀", heal:"❤️", cast:"✨", resource:"🔆", gear:"🎒", combat:"⚔️", xp:"✳️" };
 function logEvent(type, text) {
-  histLog.unshift({type, text, who: state.name || "", at: new Date().toLocaleString()});
+  histLog.unshift({type, text, who: state.name || "",
+    round: state.combat ? state.combat.round : null, at: new Date().toLocaleString()});
   if (histLog.length > 200) histLog.length = 200;
   try { localStorage.setItem("dnd-srd-history", JSON.stringify(histLog)); } catch(e) {}
   if (showRollLog) renderSheet();
@@ -909,14 +1353,26 @@ let rollMode = "normal";
 function setRollMode(m) { rollMode = (rollMode === m) ? "normal" : m; renderSheet(); }
 function rollModeLabel() { return rollMode==="adv" ? "Advantage" : rollMode==="dis" ? "Disadvantage" : null; }
 
-// One d20 test, honouring the current roll mode
-function d20Roll() {
+// One d20 test. The manual Advantage/Disadvantage toggle and anything the
+// character's conditions impose are combined here; per the rules they don't
+// stack, and having both at once cancels out to a single die.
+function d20Roll(kind, ability) {
+  const c = kind ? condRollMode(kind, ability) : { adv:null, dis:null };
+  let adv = rollMode === "adv" || !!c.adv;
+  let dis = rollMode === "dis" || !!c.dis;
+  const why = [];
+  if (adv && dis) {
+    adv = dis = false;
+    why.push("Advantage and Disadvantage cancel");
+  } else if (adv && c.adv) why.push(c.adv);
+  else if (dis && c.dis) why.push(c.dis);
   const a = 1 + Math.floor(Math.random()*20);
-  if (rollMode === "normal") return { v:a, pair:null, mode:null };
+  if (!adv && !dis) return { v:a, pair:null, mode: why.length ? why[0] : null, flat:!!why.length };
   const b = 1 + Math.floor(Math.random()*20);
-  const keep = rollMode==="adv" ? Math.max(a,b) : Math.min(a,b);
-  const drop = rollMode==="adv" ? Math.min(a,b) : Math.max(a,b);
-  return { v:keep, pair:[keep,drop], mode:rollModeLabel() };
+  const keep = adv ? Math.max(a,b) : Math.min(a,b);
+  const drop = adv ? Math.min(a,b) : Math.max(a,b);
+  const label = (adv ? "Advantage" : "Disadvantage") + (why.length ? ` · ${why[0]}` : "");
+  return { v:keep, pair:[keep,drop], mode:label };
 }
 function d20Detail(r, modifier) {
   const sign = modifier>=0 ? "+" : "-", m = Math.abs(modifier);
@@ -925,8 +1381,8 @@ function d20Detail(r, modifier) {
     : allDice(`d20 (${r.v}) ${sign} ${m}`);
 }
 
-function rollD20(what, modifier) {
-  const r = d20Roll();
+function rollD20(what, modifier, kind, ability) {
+  const r = d20Roll(kind, ability);
   const d = r.v;
   const total = d + modifier;
   logRoll(what + (r.mode?` (${r.mode})`:""), d20Detail(r, modifier), total);
@@ -935,8 +1391,13 @@ function rollD20(what, modifier) {
   const totalEl = toast.querySelector(".total");
   totalEl.textContent = total;
   totalEl.className = "total" + (d===20?" crit":d===1?" fumble":"");
+  // A condition can make a save fail no matter what the die says
+  const autoFail = kind === "sav" && ability &&
+    activeConds().some(c=>(c.autoFail||[]).includes(ability));
   toast.querySelector(".detail").innerHTML =
-    allDice(`d20 (${d}) ${modifier>=0?"+":"-"} ${Math.abs(modifier)}`) + (d===20?" · NAT 20!":d===1?" · Nat 1":"");
+    d20Detail(r, modifier) + (r.mode?` · ${r.mode}`:"") +
+    (autoFail ? ` · <b style="color:var(--accent2)">auto-fails while ${state.conditions.filter(n=>(CONDITIONS[n].autoFail||[]).includes(ability)).join(", ")}</b>`
+              : d===20?" · NAT 20!":d===1?" · Nat 1":"");
   toast.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>toast.classList.remove("show"), 3500);
@@ -956,8 +1417,17 @@ function rollDie(sides) {
   toastTimer = setTimeout(()=>toast.classList.remove("show"), 3500);
 }
 
+// Damage or healing typed into the box beside the HP buttons
+function hpFromInput(sign) {
+  const el = document.getElementById("hpAmt");
+  const n = Math.abs(parseInt(el && el.value, 10) || 0);
+  if (!n) { if (el) el.focus(); return; }
+  changeHp(sign * n);
+}
+
 function changeHp(delta) {
   if (state.maxHp==null) return;
+  pushUndo(delta < 0 ? `${-delta} damage` : `${delta} healing`);
   const damageTaken = delta < 0 ? -delta : 0;
   if (delta < 0 && state.tempHp > 0) {
     const absorbed = Math.min(state.tempHp, -delta);
@@ -982,18 +1452,21 @@ function changeHp(delta) {
 }
 
 function changeTempHp(delta) {
+  pushUndo("the temporary HP change");
   state.tempHp = Math.max(0, (state.tempHp||0) + delta);
   renderSheet();
   persistLoaded();
 }
 
 function toggleInspiration() {
+  pushUndo("the Inspiration toggle");
   state.inspiration = !state.inspiration;
   renderSheet();
   persistLoaded();
 }
 
 function deathPip(kind, n) {
+  pushUndo("the death save mark");
   const key = kind === "S" ? "deathS" : "deathF";
   state[key] = state[key] >= n ? n - 1 : n;
   renderSheet();
@@ -1024,6 +1497,10 @@ function levelUp() {
     rolledValue: null, hpMode: null,
     asi: {},
     hasAsi: (ASI_LEVELS[state.cls] || ASI_LEVELS.default).includes(newLevel),
+    asiMode: "asi", feat: null, featFilter: "",
+    // The subclass is chosen the first time you reach the subclass level
+    needSub: newLevel >= SUBCLASS_LEVEL && !state.subclass && subclassChoices().length > 0,
+    sub: null,
     spellMode: CLASSES[state.cls].spellcaster ? "random" : null,
     spells: [...state.spells]
   };
@@ -1051,6 +1528,26 @@ function renderLvlModal() {
 
     ${feats.length?`<div class="lvl-step"><div class="k">New Features</div>${feats.map(f=>`<div>· ${ref(f.split(" (")[0].replace(/^Subclass: /,""))}${f.includes(" (")?" ("+f.split(" (").slice(1).join(" ("):""}</div>`).join("")}</div>`:""}
 
+    ${pendingLvl.needSub?`<div class="lvl-step">
+      <div class="k">Subclass · required</div>
+      <div style="font-size:.85rem;color:var(--muted);margin-bottom:.35rem">At level ${SUBCLASS_LEVEL} you commit to a specialty that keeps giving you features as you climb. SRD 5.2 publishes one subclass per class.</div>
+      ${subclassChoices().map(n=>{
+        const sc = SUBCLASSES[state.cls][n];
+        const lvls = Object.keys(sc.f).map(Number).sort((a,b)=>a-b);
+        return `<div class="chooser-row${pendingLvl.sub===n?" current":""}" onclick="lvlSub('${escQ(n)}')">
+          <div><b>${n}</b>${pendingLvl.sub===n?' <small style="color:var(--accent)">· chosen</small>':""}</div>
+          <div style="font-size:.85rem;color:var(--muted)">${sc.d}</div>
+          <div style="font-size:.8rem;margin-top:.2rem">${lvls.map(lv=>`<b>L${lv}</b> ${allDice(sc.f[lv].map(x=>x.split(" (")[0]).join(", "))}`).join(" · ")}</div>
+        </div>`;
+      }).join("")}
+    </div>`:""}
+    ${(!pendingLvl.needSub && subclassFeatures(state.cls, state.subclass, pendingLvl.newLevel)
+        .filter(x=>x.lv===pendingLvl.newLevel).length)?`<div class="lvl-step">
+      <div class="k">${state.subclass} Features</div>
+      ${subclassFeatures(state.cls, state.subclass, pendingLvl.newLevel).filter(x=>x.lv===pendingLvl.newLevel)
+        .map(x=>`<div>· ${ref(x.f.split(" (")[0])}${x.f.includes(" (")?" ("+x.f.split(" (").slice(1).join(" ("):""}</div>`).join("")}
+    </div>`:""}
+
     <div class="lvl-step">
       <div class="k">${ref("Hit Points")} · ${dieIcon(c.hitDie)} + CON</div>
       <span class="asi-chip ${pendingLvl.hpMode==="roll"?"picked":""}" onclick="lvlHp('roll')">${pendingLvl.rolledValue!=null?`${dieIcon(c.hitDie)} Rolled: ${pendingLvl.rolledValue}`:`Roll the ${dieIcon(c.hitDie)}`}</span>
@@ -1074,18 +1571,70 @@ function renderLvlModal() {
     })():""}
 
     ${pendingLvl.hasAsi?`<div class="lvl-step">
-      <div class="k">${ref("Ability Score Improvement")} · ${2-asiTotal} point${2-asiTotal===1?"":"s"} left</div>
-      <div style="font-size:.85rem;color:var(--muted);margin-bottom:.3rem">Tap an ability to add +1 (twice for +2). Tap again to remove. Leave unspent to take a feat instead and adjust manually later.</div>
-      ${ABILITIES.map(a=>{
-        const n = pendingLvl.asi[a]||0;
-        const capped = (state.scores[a]||10) + n >= 20;
-        return `<span class="asi-chip ${n?"picked":""}" onclick="lvlAsi('${a}')" title="${capped?"At the 20 cap":""}">${a} ${state.scores[a]||"--"}${n?` → ${state.scores[a]+n}`:""}</span>`;
-      }).join("")}
+      <div class="k">${ref("Ability Score Improvement")} or a ${ref("Feat","Feat")}</div>
+      <span class="asi-chip ${pendingLvl.asiMode==="asi"?"picked":""}" onclick="lvlAsiMode('asi')">💪 Raise ability scores</span>
+      <span class="asi-chip ${pendingLvl.asiMode==="feat"?"picked":""}" onclick="lvlAsiMode('feat')">🏅 Take a feat instead</span>
+      ${pendingLvl.asiMode==="asi" ? `
+        <div style="font-size:.85rem;color:var(--muted);margin:.35rem 0 .3rem">${2-asiTotal} point${2-asiTotal===1?"":"s"} left. Tap an ability to add +1 (twice for +2). Tap again to remove.</div>
+        ${ABILITIES.map(a=>{
+          const n = pendingLvl.asi[a]||0;
+          const capped = (state.scores[a]||10) + n >= 20;
+          return `<span class="asi-chip ${n?"picked":""}" onclick="lvlAsi('${a}')" title="${capped?"At the 20 cap":""}">${a} ${state.scores[a]||"--"}${n?` → ${state.scores[a]+n}`:""}</span>`;
+        }).join("")}`
+      : featPickerHtml()}
     </div>`:""}
 
     <div class="lvl-actions">
       <button onclick="lvlCancel()">Cancel</button>
-      <button class="lvl-confirm" onclick="lvlConfirm()" ${gain==null?"disabled":""}>Confirm Level ${pendingLvl.newLevel}</button>
+      <button class="lvl-confirm" onclick="lvlConfirm()" ${lvlBlocker()?`disabled title="${lvlBlocker()}"`:""}>Confirm Level ${pendingLvl.newLevel}</button>
+    </div>
+    ${lvlBlocker()?`<div style="text-align:right;color:var(--muted);font-size:.85rem;margin-top:.2rem">${lvlBlocker()}</div>`:""}`;
+  bindLvlInputs();
+}
+
+// Keep the feat filter usable across the modal's redraws
+function bindLvlInputs() {
+  const f = document.getElementById("featFilter");
+  if (!f) return;
+  f.addEventListener("input", e=>{
+    pendingLvl.featFilter = e.target.value;
+    renderLvlModal();
+    const again = document.getElementById("featFilter");
+    if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
+  });
+}
+
+// What still has to be decided before the level can be confirmed
+function lvlBlocker() {
+  if (!pendingLvl) return "";
+  if (lvlHpGain() == null) return "Choose how to gain hit points first.";
+  if (pendingLvl.needSub && !pendingLvl.sub) return "Choose a subclass first.";
+  if (pendingLvl.hasAsi && pendingLvl.asiMode === "feat" && !pendingLvl.feat) return "Pick a feat, or switch back to ability scores.";
+  return "";
+}
+
+function featPickerHtml() {
+  const q = (pendingLvl.featFilter||"").toLowerCase();
+  // "Ability Score Improvement" is the other chip, and a feat can only be taken once
+  const taken = new Set((state.feats||[]).map(f=>f.n));
+  const pool = featsAvailableAt(pendingLvl.newLevel)
+    .filter(n=>n!=="Ability Score Improvement" && !taken.has(n));
+  const groups = [["general","General Feats"],["style","Fighting Style Feats"],["boon","Epic Boons"]];
+  const shown = pool.filter(n=>!q || n.toLowerCase().includes(q) || FEATS[n].d.toLowerCase().includes(q));
+  return `
+    <div style="font-size:.85rem;color:var(--muted);margin:.35rem 0 .3rem">A feat replaces the two ability points. Feats with a prerequisite are marked; the app doesn't enforce them, so check with your DM.</div>
+    <input type="text" id="featFilter" placeholder="Filter feats..." value="${(pendingLvl.featFilter||"").replace(/"/g,'&quot;')}" style="margin-bottom:.4rem">
+    <div class="picker-box">
+      ${groups.map(([kind,label])=>{
+        const g = shown.filter(n=>FEATS[n].kind===kind);
+        if (!g.length) return "";
+        return `<div class="spell-lvl-h">${label}</div>` + g.map(n=>`
+          <div class="chooser-row${pendingLvl.feat===n?" current":""}" onclick="lvlFeat('${escQ(n)}')">
+            <div><b>${n}</b>${pendingLvl.feat===n?' <small style="color:var(--accent)">· chosen</small>':""}</div>
+            <div style="font-size:.85rem;color:var(--muted)">${FEATS[n].d}${FEATS[n].pre?` <b>Prerequisite: ${FEATS[n].pre}</b>`:""}</div>
+          </div>`).join("");
+      }).join("")}
+      ${!shown.length?`<div style="color:var(--muted)">${pool.length?"No feat matches that.":"You've already taken every feat available at this level."}</div>`:""}
     </div>`;
 }
 
@@ -1100,6 +1649,13 @@ function lvlHp(mode) {
 }
 
 function lvlSpellMode(m) { pendingLvl.spellMode = m; renderLvlModal(); }
+function lvlSub(name) { pendingLvl.sub = pendingLvl.sub === name ? null : name; renderLvlModal(); }
+function lvlAsiMode(m) {
+  pendingLvl.asiMode = m;
+  if (m === "asi") pendingLvl.feat = null; else pendingLvl.asi = {};
+  renderLvlModal();
+}
+function lvlFeat(name) { pendingLvl.feat = pendingLvl.feat === name ? null : name; renderLvlModal(); }
 
 function lvlAsi(ab) {
   const cur = pendingLvl.asi[ab]||0;
@@ -1117,7 +1673,7 @@ function lvlCancel() {
 
 function lvlConfirm() {
   const gain = lvlHpGain();
-  if (!pendingLvl || gain==null) return;
+  if (!pendingLvl || lvlBlocker()) return;
   state.level = pendingLvl.newLevel;
   state.dieRolls.push(gain);
   const asiText = Object.entries(pendingLvl.asi).map(([ab,n])=>`${ab} +${n}`).join(", ");
@@ -1125,6 +1681,20 @@ function lvlConfirm() {
     state.scores[ab] = Math.min(20, (state.scores[ab]||10) + n);
     document.getElementById("ab_"+ab).value = state.scores[ab];
   });
+  // Subclass chosen at this level, and its features from here on
+  let subText = "";
+  if (pendingLvl.needSub && pendingLvl.sub) {
+    state.subclass = pendingLvl.sub;
+    subText = pendingLvl.sub;
+  }
+  const subFeats = subclassFeatures(state.cls, state.subclass, state.level)
+    .filter(x=>x.lv===state.level).map(x=>x.f).join(", ");
+  // A feat taken in place of the ability points
+  let featText = "";
+  if (pendingLvl.hasAsi && pendingLvl.asiMode === "feat" && pendingLvl.feat) {
+    state.feats = [...(state.feats||[]), { n: pendingLvl.feat, at: state.level }];
+    featText = pendingLvl.feat;
+  }
   const mode = pendingLvl.hpMode;
   const newFeats = (CLASS_LEVELS[state.cls][state.level]||[]).join(", ");
   // New spells at the new level: auto-pick or leave to the player
@@ -1141,7 +1711,7 @@ function lvlConfirm() {
     if (dropped.length) learned.push(...dropped.map(n=>`(swapped out ${n})`));
     renderSpellChoices();
   }
-  logEvent("level", `<b>Level ${state.level}</b> ${state.cls}: +${gain} HP die (${mode==="roll"?"rolled":"average"})${asiText?` · ASI: ${asiText}`:""}${newFeats?` · gained: ${newFeats}`:""}${learned.length?` · learned: ${learned.join(", ")}`:""}`);
+  logEvent("level", `<b>Level ${state.level}</b> ${state.cls}: +${gain} HP die (${mode==="roll"?"rolled":"average"})${subText?` · subclass: ${subText}`:""}${asiText?` · ASI: ${asiText}`:""}${featText?` · feat: ${featText}`:""}${newFeats?` · gained: ${newFeats}`:""}${subFeats?` · ${state.subclass}: ${subFeats}`:""}${learned.length?` · learned: ${learned.join(", ")}`:""}`);
   lvlCancel();
   renderSheet();
   persistLoaded();
@@ -1150,7 +1720,7 @@ function lvlConfirm() {
   const totalEl = toast.querySelector(".total");
   totalEl.textContent = "Level " + state.level;
   totalEl.className = "total crit";
-  toast.querySelector(".detail").textContent = `+${gain} HP${mode==="roll"?" (rolled)":""}${learned.length?` · learned ${learned.join(", ")}`:""}${manualSpells?" · pick your new spells in the Spells list":""}${newFeats?" · "+newFeats:""}`;
+  toast.querySelector(".detail").textContent = `+${gain} HP${mode==="roll"?" (rolled)":""}${subText?` · ${subText}`:""}${featText?` · ${featText}`:""}${learned.length?` · learned ${learned.join(", ")}`:""}${manualSpells?" · pick your new spells in the Spells list":""}${newFeats?" · "+newFeats:""}`;
   toast.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>toast.classList.remove("show"), 6000);
@@ -1166,7 +1736,8 @@ document.addEventListener("keydown", e=>{ if (e.key==="Escape" && pendingLvl) lv
 function currentEquipment() {
   const c = state.cls ? CLASSES[state.cls] : null;
   const bg = state.background ? BACKGROUNDS[state.background] : null;
-  const base = [...(c?c.equipment:[]), ...(bg?bg.equipment:[])];
+  // Starting coins are counted in the purse instead of sitting in the pack
+  const base = [...(c?c.equipment:[]), ...(bg?bg.equipment:[])].filter(e=>!COIN_RE.test(e.trim()));
   const pending = [...(state.dropped||[])];
   const kept = [];
   base.forEach(item=>{
@@ -1176,6 +1747,38 @@ function currentEquipment() {
   });
   return [...kept, ...(state.gear||[])];
 }
+// Identical entries collapse into one row with a count, so twenty arrows are
+// one line rather than twenty
+function equipmentStacks() {
+  const out = [], idx = {};
+  currentEquipment().forEach(name=>{
+    if (idx[name] != null) out[idx[name]].qty++;
+    else { idx[name] = out.length; out.push({name, qty:1}); }
+  });
+  return out;
+}
+
+// ---------- ATTUNEMENT ----------
+function needsAttunement(name) { return !!(MAGIC_ITEMS[name] && MAGIC_ITEMS[name].att); }
+function isAttuned(name) { return (state.attuned||[]).includes(name); }
+function toggleAttune(name) {
+  const list = state.attuned || (state.attuned = []);
+  const i = list.indexOf(name);
+  if (i >= 0) {
+    pushUndo(`unattuning ${name}`);
+    list.splice(i,1);
+    logEvent("gear", `Ended attunement to <b>${name}</b>`);
+  } else {
+    if (list.length >= ATTUNEMENT_MAX) {
+      alert(`You can be attuned to at most ${ATTUNEMENT_MAX} items. End one attunement first.`);
+      return;
+    }
+    pushUndo(`attuning to ${name}`);
+    list.push(name);
+    logEvent("gear", `Attuned to <b>${name}</b> (${list.length} of ${ATTUNEMENT_MAX})`);
+  }
+  renderSheet(); persistLoaded();
+}
 // A caster needs a focus (or spellbook) in hand to cast
 const FOCUS_RE = /holy symbol|druidic focus|arcane focus|spellbook|component pouch/i;
 function hasSpellFocus() { return currentEquipment().some(e=>FOCUS_RE.test(e)); }
@@ -1183,10 +1786,17 @@ function isCaster() { return !!(state.cls && CLASSES[state.cls].spellcaster); }
 
 // Drop an item: added gear leaves state.gear, starting gear is recorded as dropped
 function dropItem(name) {
+  pushUndo(`dropping ${name}`);
   const i = (state.gear||[]).indexOf(name);
   if (i >= 0) state.gear.splice(i,1);
   else state.dropped = [...(state.dropped||[]), name];
-  logEvent("gear", `Dropped <b>${name}</b>${FOCUS_RE.test(name)?" · spellcasting focus lost":""}`);
+  // Attunement ends with the last copy of the item
+  let unattuned = false;
+  if (isAttuned(name) && !currentEquipment().includes(name)) {
+    state.attuned = state.attuned.filter(n=>n!==name);
+    unattuned = true;
+  }
+  logEvent("gear", `Dropped <b>${name}</b>${FOCUS_RE.test(name)?" · spellcasting focus lost":""}${unattuned?" · attunement ended":""}`);
   renderSheet(); persistLoaded();
 }
 
@@ -1201,12 +1811,13 @@ function renderGearModal() {
   const q = gearFilter.toLowerCase();
   const weapons = Object.keys(WEAPONS);
   const others = Object.keys(EQUIPMENT_DEFS).filter(n=>!weapons.includes(n));
+  const magic = Object.keys(MAGIC_ITEMS);
   const match = n => !q || n.toLowerCase().includes(q);
   const row = n => `<div class="chooser-row" onclick="addGear('${escQ(n)}')" title="Add ${n}">
-      <div><b>${n}</b>${WEAPONS[n]?` <small style="color:var(--accent)">weapon</small>`:""}</div>
-      <div style="font-size:.85rem;color:var(--muted)">${allDice(WEAPONS[n] ? `${WEAPONS[n].dmg} damage${WEAPONS[n].fin?", Finesse":""}${WEAPONS[n].rng?", Ranged":""}` : (EQUIPMENT_DEFS[n]||""))}</div>
+      <div><b>${n}</b>${WEAPONS[n]?` <small style="color:var(--accent)">weapon</small>`:""}${needsAttunement(n)?` <small style="color:var(--accent2)">attunement</small>`:""}</div>
+      <div style="font-size:.85rem;color:var(--muted)">${allDice(WEAPONS[n] ? `${WEAPONS[n].dmg} damage${WEAPONS[n].fin?", Finesse":""}${WEAPONS[n].rng?", Ranged":""}` : (MAGIC_ITEMS[n] ? MAGIC_ITEMS[n].d : EQUIPMENT_DEFS[n]||""))}</div>
     </div>`;
-  const w = weapons.filter(match), o = others.filter(match);
+  const w = weapons.filter(match), o = others.filter(match), mi = magic.filter(match);
   document.getElementById("gearModal").innerHTML = `
     <h3>Add Equipment</h3>
     <div style="color:var(--muted);font-style:italic">Anything you add shows up in Equipment. Weapons also appear under Attacks with their bonus worked out.</div>
@@ -1223,7 +1834,8 @@ function renderGearModal() {
       <div class="picker-box">
         ${w.length?`<div class="spell-lvl-h">Weapons</div>${w.map(row).join("")}`:""}
         ${o.length?`<div class="spell-lvl-h">Gear</div>${o.map(row).join("")}`:""}
-        ${!w.length && !o.length?`<div style="color:var(--muted)">Nothing matches. Use "Write it in" above.</div>`:""}
+        ${mi.length?`<div class="spell-lvl-h">Magic Items</div>${mi.map(row).join("")}`:""}
+        ${!w.length && !o.length && !mi.length?`<div style="color:var(--muted)">Nothing matches. Use "Write it in" above.</div>`:""}
       </div>
     </div>
     <div class="lvl-actions"><button onclick="gearClose()">Close</button></div>`;
@@ -1232,12 +1844,15 @@ function renderGearModal() {
   const cu = document.getElementById("gearCustom");
   if (cu) cu.addEventListener("keydown", e=>{ if (e.key==="Enter") addCustomGear(); });
 }
-function addGear(name) {
+function addGear(name, quiet) {
+  pushUndo(`picking up ${name}`);
   state.gear = [...(state.gear||[]), name];
-  logEvent("gear", `Picked up <b>${name}</b>${WEAPONS[name]?" (added to Attacks)":""}`);
+  logEvent("gear", `Picked up <b>${name}</b>${WEAPONS[name]?" (added to Attacks)":""}${needsAttunement(name)?" · requires Attunement":""}`);
   renderSheet(); persistLoaded();
-  gearClose();
+  if (!quiet) gearClose();
 }
+// The "+" beside an equipment row: one more of the same thing
+function addOneMore(name) { addGear(name, true); }
 function addCustomGear() {
   const el = document.getElementById("gearCustom");
   const v = (el.value||"").trim();
@@ -1263,11 +1878,15 @@ function resourcesFor() {
 function spendRes(name, n) {
   const r = resourcesFor().find(x=>x.name===name);
   if (!r) return;
+  if ((state.resUsed[name]||0) + n > r.max) return;   // nothing left to spend
+  pushUndo(`spending ${name}`);
   state.resUsed[name] = Math.min(r.max, (state.resUsed[name]||0) + n);
   logEvent("resource", `Spent ${n>1?n+" ":""}<b>${name}</b> (${r.max - state.resUsed[name]} of ${r.max} left)`);
   renderSheet(); persistLoaded();
 }
 function restoreRes(name, n) {
+  if (!(state.resUsed[name]||0)) return;
+  pushUndo(`restoring ${name}`);
   state.resUsed[name] = Math.max(0, (state.resUsed[name]||0) - (n||9999));
   renderSheet(); persistLoaded();
 }
@@ -1291,6 +1910,7 @@ function startConcentration(spellName) {
     logEvent("cast", `Concentration on <b>${state.conc}</b> ends (started ${spellName})`);
   }
   state.conc = spellName;
+  state.concRound = state.combat ? state.combat.round : null;
 }
 function dropConc(reason) {
   if (!state.conc) return;
@@ -1308,7 +1928,7 @@ function concCheck(damage) {
 function concSaveMod() {
   const c = state.cls ? CLASSES[state.cls] : null;
   const prof = 2 + Math.floor((state.level-1)/4);
-  return (state.scores.CON!=null ? mod(state.scores.CON) : 0) + (c && c.saves.includes("CON") ? prof : 0);
+  return (state.scores.CON!=null ? mod(state.scores.CON) : 0) + (c && c.saves.includes("CON") ? prof : 0) + exhaustPenalty();
 }
 function renderConcModal() {
   if (!pendingConc) return;
@@ -1333,7 +1953,7 @@ function renderConcModal() {
 }
 function concRoll() {
   const m = concSaveMod();
-  const r = d20Roll();
+  const r = d20Roll("sav", "CON");
   const total = r.v + m;
   const ok = total >= pendingConc.dc;
   const spell = state.conc;
@@ -1354,10 +1974,12 @@ document.addEventListener("click", e=>{ if (e.target.id==="concOverlay") concClo
 function spendSlot(lv) {
   const row = getSlotRows().find(r=>r.lv===lv);
   if (!row) return;
+  pushUndo(`the level ${lv} slot`);
   state.slotsUsed[lv] = Math.min(row.total, (state.slotsUsed[lv]||0) + 1);
   renderSheet(); persistLoaded();
 }
 function restoreSlot(lv) {
+  pushUndo(`the level ${lv} slot restore`);
   state.slotsUsed[lv] = Math.max(0, (state.slotsUsed[lv]||0) - 1);
   renderSheet(); persistLoaded();
 }
@@ -1385,7 +2007,12 @@ function renderRestModal() {
     <div class="lvl-step">
       <div class="k">${refLink("Hit Point Dice")} · ${hdLeft} of ${state.level} d${c.hitDie} remaining</div>
       ${pendingRest.rolls.length ? pendingRest.rolls.map(r=>`<div>· ${dieIcon(c.hitDie)} (${r.roll}) ${conMod>=0?"+":"-"} ${Math.abs(conMod)} = <b>${r.gain}</b> HP</div>`).join("") : `<div style="color:var(--muted)">No dice spent yet.</div>`}
-      ${hdLeft>0 ? `<button onclick="restRollHd()" style="margin-top:.4rem">🎲 Spend a Hit Die (${dieIcon(c.hitDie)} ${conMod>=0?"+":"-"} ${Math.abs(conMod)})</button>` : `<div style="color:var(--muted);margin-top:.3rem">No Hit Dice left.</div>`}
+      ${hdLeft<=0
+        ? `<div style="color:var(--muted);margin-top:.3rem">No Hit Dice left. They come back on a ${refLink("Long Rest")}.</div>`
+        : cap - healed <= 0
+          ? `<button disabled title="You're already at full hit points" style="margin-top:.4rem">🎲 Spend a Hit Die</button>
+             <div style="color:var(--good);margin-top:.3rem">${healed?"That takes you to full HP":`Already at full HP (${state.maxHp}/${state.maxHp})`}, so there's nothing left to heal. Save your dice.</div>`
+          : `<button onclick="restRollHd()" style="margin-top:.4rem">🎲 Spend a Hit Die (${dieIcon(c.hitDie)} ${conMod>=0?"+":"-"} ${Math.abs(conMod)})</button>`}
     </div>
     <div class="lvl-step"><div class="k">${refLink("Healing")}</div>
       Recover <b>${Math.min(healed,cap)}</b> HP (${state.curHp} → ${Math.min(state.maxHp, state.curHp+healed)} of ${state.maxHp})${state.cls==="Warlock"?` · ${refLink("Pact Magic","Pact spell slots")} refresh on a Short Rest.`:""}
@@ -1450,6 +2077,7 @@ function longRest() {
       <div>· ${refLink("Hit Points")} restored to maximum${healed?` (<b>+${healed}</b>, back to ${state.maxHp})`:" (already full)"}${state.tempHp?`, Temporary HP fades`:""}</div>
       ${isCaster?`<div>· All ${refLink("Spell Slots")} refreshed</div>`:""}
       <div>· ${refLink("Hit Point Dice")}: regain half your total (min 1)${state.hdUsed?` · recovers <b>${hdBack}</b> of your ${state.hdUsed} spent`:" · none spent"}</div>
+      ${state.exhaustion?`<div>· One level of ${refLink("Exhaustion")} lifts (${state.exhaustion} → ${state.exhaustion-1})</div>`:""}
       ${(state.deathS||state.deathF)?`<div>· ${refLink("Death Saving Throws")} reset</div>`:""}
       <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem">Only one Long Rest per 24 hours. An hour of combat or strenuous activity causes a ${refLink("Rest Interruption")}.</div>
     </div>
@@ -1483,18 +2111,21 @@ function longRestConfirm() {
   state.deathS = 0; state.deathF = 0; state.stable = false;
   const resBack = refillResources("long");
   if (state.conc) { state.conc = null; }
+  // A full night's rest lifts one level of Exhaustion (SRD 5.2)
+  const exhBefore = state.exhaustion || 0;
+  if (exhBefore) state.exhaustion = exhBefore - 1;
   let spellNote = resBack.length ? `, restored ${resBack.join(", ")}` : "";
+  if (exhBefore) spellNote += `, Exhaustion down to ${state.exhaustion}`;
   if (pendingLR && pendingLR.spellMode === "random") {
     randomizeSpells();
-    spellNote = `, prepared a new set of spells (${state.spells.join(", ")})`;
+    spellNote += `, prepared a new set of spells (${state.spells.join(", ")})`;
   } else if (pendingLR && pendingLR.spellMode === "manual") {
     const added = pendingLR.spells.filter(n=>!state.spells.includes(n));
     const removed = state.spells.filter(n=>!pendingLR.spells.includes(n));
     state.spells = [...pendingLR.spells];
     renderSpellChoices();
-    spellNote = (added.length||removed.length)
-      ? `, prepared ${added.join(", ")||"no new spells"}${removed.length?` (dropped ${removed.join(", ")})`:""}`
-      : "";
+    if (added.length||removed.length)
+      spellNote += `, prepared ${added.join(", ")||"no new spells"}${removed.length?` (dropped ${removed.join(", ")})`:""}`;
   }
   logEvent("longrest", `<b>Long Rest</b>: HP fully restored${healed?` (+${healed})`:""}, spell slots refreshed${hdBack?`, recovered ${hdBack} Hit ${hdBack===1?"Die":"Dice"}`:""}${spellNote}`);
   pendingLR = null;
@@ -1566,11 +2197,16 @@ function renderDownOverlay() {
 }
 
 function rollDeathSave() {
-  const d = 1 + Math.floor(Math.random()*20);
-  logRoll("Death Save", `d20 (${d})`, d);
+  pushUndo("the death saving throw");
+  const r = d20Roll("sav");
+  const d = r.v;
+  // Exhaustion penalises every d20 test, death saves included
+  const pen = exhaustPenalty();
+  const total = d + pen;
+  logRoll(`Death Save${r.mode?` (${r.mode})`:""}`, d20Detail(r, pen), total);
   if (d === 20) { revive(1, "a natural 20 on the Death Save"); return; }
   if (d === 1) state.deathF = Math.min(3, state.deathF + 2);
-  else if (d >= 10) state.deathS = Math.min(3, state.deathS + 1);
+  else if (total >= 10) state.deathS = Math.min(3, state.deathS + 1);
   else state.deathF = Math.min(3, state.deathF + 1);
   if (state.deathS >= 3) { state.stable = true; logEvent("status", `<b>Stabilized</b>: three Death Save successes`); }
   if (state.deathF >= 3) logEvent("status", `<b>Died</b>: three Death Save failures`);
@@ -1688,7 +2324,7 @@ function rollDamageOnly(name, dice, type, label) {
 }
 
 function attackRoll(name, bonus, dice, type, dmgMod) {
-  const r = d20Roll();
+  const r = d20Roll("atk");
   const d = r.v;
   logRoll(`${name}${r.mode?` (${r.mode})`:""}`, d20Detail(r, bonus), d + bonus);
   atkState = { name, bonus, d20: d, total: d + bonus, dice, type, dmgMod, dmgResult: null, extra: [],
@@ -1808,8 +2444,9 @@ function castSpell(name, lv) {
     const row = getSlotRows().find(r=>r.lv===lv);
     const left = row ? row.total - (state.slotsUsed[lv]||0) : 0;
     if (left <= 0) return;
+    pushUndo(`casting ${name}`);
     state.slotsUsed[lv] = (state.slotsUsed[lv]||0) + 1;
-  }
+  } else pushUndo(`casting ${name}`);
   const spell = SPELLS.find(s=>s.n===name);
   // the duration field is authoritative; some summaries word it loosely
   const needsConc = spell && /concentration/i.test(spellMeta(spell).dur);
@@ -1842,6 +2479,7 @@ try {
 } catch(e) {}
 
 updateSavedCount();
+checkSharedLink();
 renderRuleCats();
 renderRules("");
 renderSkillChoices();
