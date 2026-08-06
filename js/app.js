@@ -156,7 +156,7 @@ function spellPickerHtml(ctx, counts) {
   let html = `<div style="font-size:.85rem;margin:.2rem 0 .35rem">
     ${counts.cant?`Cantrips <b>${have0}/${counts.cant}</b> · `:""}Spells <b>${have1}/${counts.prep}</b>
     ${todo?`<span style="color:var(--accent)">· choose ${todo}</span>`
-          :`<span style="color:#4ade80">· ready</span>`}
+          :`<span style="color:var(--good)">· ready</span>`}
     ${(left0<0||left1<0)?`<span style="color:var(--accent2)">· over the limit, uncheck some</span>`:""}
   </div><div class="picker-box">`;
   [0,1,2,3].forEach(lv=>{
@@ -515,12 +515,12 @@ function renderSheet() {
 
     <div class="vitals">
       <div class="vital"><div class="v">${ac}</div><div class="k">ARMOR CLASS</div><div style="font-size:.65rem;color:var(--muted)">${acNote}</div></div>
-      <div class="vital"><div class="v">${hp!=null?`${state.curHp} / ${hp}`:"--"}${state.tempHp?` <small style="color:#7bc98b">+${state.tempHp}</small>`:""}</div><div class="k">HIT POINTS${state.tempHp?" + TEMP":""}</div>
+      <div class="vital"><div class="v">${hp!=null?`${state.curHp} / ${hp}`:"--"}${state.tempHp?` <small style="color:var(--good)">+${state.tempHp}</small>`:""}</div><div class="k">HIT POINTS${state.tempHp?" + TEMP":""}</div>
         ${hp!=null?`<div class="hp-tracker"><button class="hp-dmg" onclick="changeHp(-1)" title="Take damage">-1</button><button class="hp-dmg" onclick="changeHp(-5)">-5</button><button class="hp-heal" onclick="changeHp(1)" title="Heal">+1</button><button class="hp-heal" onclick="changeHp(5)">+5</button><button onclick="changeTempHp(1)" title="Add Temporary HP">+Temp</button>${state.tempHp?`<button onclick="changeTempHp(-1)" title="Remove Temporary HP">-Temp</button>`:""}</div>`:""}
         ${hp!=null && state.curHp===0 ? `<div class="death-saves">DEATH SAVES
           <span>✔ ${[1,2,3].map(i=>`<span class="pip" onclick="deathPip('S',${i})">${state.deathS>=i?"●":"○"}</span>`).join("")}</span>
           <span>✘ ${[1,2,3].map(i=>`<span class="pip" onclick="deathPip('F',${i})">${state.deathF>=i?"●":"○"}</span>`).join("")}</span>
-          ${state.deathS>=3?"<b style='color:#7bc98b'>STABLE</b>":state.deathF>=3?"<b style='color:var(--accent2)'>DEAD</b>":""}
+          ${state.deathS>=3?"<b style='color:var(--good)'>STABLE</b>":state.deathF>=3?"<b style='color:var(--accent2)'>DEAD</b>":""}
         </div>`:""}
       </div>
       <div class="vital rollable" onclick="rollD20('Initiative',${dexMod})" title="Click to roll initiative"><div class="v">${fmtMod(dexMod)}</div><div class="k">INITIATIVE 🎲</div></div>
@@ -1396,9 +1396,9 @@ function renderAtkModal() {
     <h3>${a.name}</h3>
     <div class="lvl-step">
       <div class="k">Attack Roll · vs target's AC</div>
-      <div style="font-size:1.6rem"><b style="${crit?"color:#7bc98b":fumble?"color:var(--accent2)":""}">${a.total}</b>
+      <div style="font-size:1.6rem"><b style="${crit?"color:var(--good)":fumble?"color:var(--accent2)":""}">${a.total}</b>
         <small style="color:var(--muted)">${allDice(`d20 (${a.d20}) ${a.bonus>=0?"+":"-"} ${Math.abs(a.bonus)}`)}</small></div>
-      ${crit?'<b style="color:#7bc98b">NATURAL 20 · Critical Hit! Roll the damage dice twice.</b>':fumble?'<b style="color:var(--accent2)">Natural 1 · automatic miss.</b>':""}
+      ${crit?'<b style="color:var(--good)">NATURAL 20 · Critical Hit! Roll the damage dice twice.</b>':fumble?'<b style="color:var(--accent2)">Natural 1 · automatic miss.</b>':""}
     </div>
     <div class="lvl-step">
       <div class="k">Damage${a.type && a.type!=="spell"?` · ${a.type}`:""}</div>

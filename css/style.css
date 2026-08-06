@@ -5,7 +5,7 @@
     --accent: #7a1f1f;
     --accent2: #a33c2f;
     --line: #d8cdb8;
-    --muted: #7a6f5d;
+    --muted: #6b6152;   /* darkened so muted text clears WCAG AA on the page background */
     --card: #ffffff;
     --btn-hover: #f3ead8;
     --tab-bg: #e9e1d0;
@@ -15,6 +15,7 @@
     --toast-bg: #2b2118;
     --toast-ink: #ffffff;
     --shadow: rgba(0,0,0,.06);
+    --good: #2f6b3a;
   }
   body.dark {
     --bg: #0e0f11;
@@ -33,6 +34,7 @@
     --toast-bg: #050506;
     --toast-ink: #e8eaed;
     --shadow: rgba(0,0,0,.5);
+    --good: #4ade80;
   }
   /* Dark mode goes modern: sans type, softer corners, green accent */
   body.dark { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
@@ -48,7 +50,6 @@
   body.dark .qr-dice svg:hover text { fill: #06230f; }
   body.dark #btnSave, body.dark #btnSaveTop, body.dark .lvl-confirm { background: var(--accent); border-color: var(--accent); color: #06230f; }
   body.dark #btnSave:hover, body.dark #btnSaveTop:hover, body.dark .lvl-confirm:hover { background: #2ee06f; border-color: #2ee06f; }
-  body.dark .hp-heal { color: #4ade80; }
   * { box-sizing: border-box; }
   body {
     margin: 0; padding: 1.5rem;
@@ -341,7 +342,7 @@
   .hp-tracker { display: flex; align-items: center; gap: .35rem; justify-content: center; margin-top: .3rem; flex-wrap: wrap; }
   .hp-tracker button { padding: .15rem .5rem; font-size: .8rem; font-weight: bold; }
   .hp-dmg { color: var(--accent2); }
-  .hp-heal { color: #2f5d3a; }
+  .hp-heal { color: var(--good); }
 
   /* Mobile: fixed bottom navigation bar */
   @media (max-width: 600px) {
@@ -368,7 +369,8 @@
     .tabs button.active { background: transparent; color: var(--accent); }
     .statgrid { gap: .4rem; }
     .vitals { gap: .4rem; }
-    .vital { min-width: 0; flex: 1 1 28%; padding: .4rem .3rem; }
+    /* Fixed thirds so a lone card keeps its size instead of stretching the row */
+    .vital { min-width: 0; flex: 0 1 calc((100% - .8rem) / 3); padding: .4rem .3rem; }
     .vital:has(.hp-tracker) { flex: 1 1 100%; }
     .hp-tracker button { padding: .45rem .6rem; font-size: .9rem; }
     button.dice { padding: .55rem .7rem; }
@@ -382,6 +384,9 @@
       bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
       min-width: 0; text-align: center; z-index: 95;
     }
+    /* Keep modals clear of the fixed bottom nav so their actions stay reachable */
+    .overlay { padding: .6rem .6rem calc(4.9rem + env(safe-area-inset-bottom, 0px)); }
+    .lvl-modal { max-height: calc(100vh - 7rem); }
     /* 16px inputs stop iOS Safari from auto-zooming on focus */
     select, input[type=text], input[type=number] { font-size: 16px; }
     /* one checkbox per row for fat-finger-friendly skill picks */
