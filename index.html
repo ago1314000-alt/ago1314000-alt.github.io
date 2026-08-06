@@ -4,23 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Auto Character Generator (D&D SRD 5.2)</title>
-<link rel="stylesheet" href="css/style.css?v=26">
+<link rel="stylesheet" href="css/style.css?v=27">
 </head>
 <body>
 <div class="app">
 <nav class="tabs">
   <div class="brand">
     <span class="brand-logo" aria-hidden="true">
+      <!-- paired with the copy in the mobile <h1>; keep both in sync -->
       <svg viewBox="0 0 40 40">
         <mask id="d20Knockout">
           <rect width="40" height="40" fill="#fff"/>
-          <g fill="none" stroke="#000" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round">
-            <polygon points="20,6 32.1,13 32.1,27 20,34 7.9,27 7.9,13"/>
-            <path d="M20 6 L13 16.8 L27 16.8 Z"/>
-            <path d="M13 16.8 L20 34 L27 16.8"/>
-            <path d="M13 16.8 L7.9 13 M27 16.8 L32.1 13"/>
-            <path d="M13 16.8 L7.9 27 M27 16.8 L32.1 27"/>
-          </g>
+          <polygon points="20,6 32.1,13 32.1,27 20,34 7.9,27 7.9,13"
+                   fill="none" stroke="#000" stroke-width="2.4" stroke-linejoin="round"/>
         </mask>
         <circle cx="20" cy="20" r="19" fill="currentColor" mask="url(#d20Knockout)"/>
       </svg>
@@ -39,7 +35,15 @@
     <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="7" cy="17" r="2"/></svg><span class="tab-label">Settings</span></button>
 </nav>
 <main class="content">
-<h1>Auto Character Generator</h1>
+<h1><span class="brand-logo" aria-hidden="true">
+  <svg viewBox="0 0 40 40">
+    <mask id="d20KnockoutMobile">
+      <rect width="40" height="40" fill="#fff"/>
+      <polygon points="20,6 32.1,13 32.1,27 20,34 7.9,27 7.9,13"
+               fill="none" stroke="#000" stroke-width="2.4" stroke-linejoin="round"/>
+    </mask>
+    <circle cx="20" cy="20" r="19" fill="currentColor" mask="url(#d20KnockoutMobile)"/>
+  </svg></span>Auto Character Generator</h1>
 <div class="sub">Based on the System Reference Document 5.2 (D&D 2024 rules, CC-BY-4.0). Levels 1-20. Data is saved in your browser.</div>
 
 <div class="tabpage active" id="tab-create">
@@ -262,7 +266,7 @@
 
 <div id="rollToast"><div class="what"></div><div class="total"></div><div class="detail"></div></div>
 
-<script src="js/data.js?v=26"></script>
-<script src="js/app.js?v=26"></script>
+<script src="js/data.js?v=27"></script>
+<script src="js/app.js?v=27"></script>
 </body>
 </html>

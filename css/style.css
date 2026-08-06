@@ -341,7 +341,8 @@
   /* Mobile: fixed bottom navigation bar */
   @media (max-width: 600px) {
     body { padding: .6rem; padding-bottom: 5rem; }
-    h1 { display: block; font-size: 1.4rem; margin-bottom: .75rem; }
+    h1 { display: flex; align-items: center; gap: .5rem; font-size: 1.3rem; margin-bottom: .75rem; }
+    h1 .brand-logo { width: 30px; height: 30px; }
     .app { display: block; }
     .layout { gap: .8rem; }
     .panel { padding: .85rem; }
