@@ -31,7 +31,12 @@ function diceHtml(dice) { return allDice(dice); }
 
 // Reduce a sheet line to a term the reference lookup can resolve
 function refTermFrom(s) {
-  return String(s).replace(/<[^>]*>/g,"").split(" (")[0].replace(/^Origin Feat: /,"").replace(/^Subclass: /,"").trim();
+  return String(s).replace(/<[^>]*>/g,"")
+    .replace(/^\s*L\d+\s+/,"")          // drop the "L5" tag on features gained after level 1
+    .split(" (")[0]
+    .replace(/^Origin Feat: /,"")
+    .replace(/^Subclass: /,"")
+    .trim();
 }
 // Equipment lines: drop counts, parentheticals, and trailing lists ("4 Handaxes", "Longbow, 20 Arrows, Quiver")
 function eqTermFrom(s) {
