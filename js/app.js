@@ -10,6 +10,24 @@ const state = {
 };
 let sheetTargetId = "sheet";
 
+// Small inline die icon matching the Dice of Fate shapes
+function dieIcon(sides) {
+  const shapes = {
+    4:'<polygon points="32,8 58,54 6,54"/>',
+    6:'<rect x="13" y="13" width="38" height="38"/>',
+    8:'<polygon points="32,5 59,32 32,59 5,32"/>',
+    10:'<polygon points="32,5 57,25 49,57 15,57 7,25"/>',
+    12:'<polygon points="32,7 58,26 48,58 16,58 6,26"/>',
+    20:'<polygon points="32,8 53,20 53,44 32,56 11,44 11,20"/>'
+  };
+  return `<svg class="die-ico" viewBox="0 0 64 64" aria-hidden="true">${shapes[sides]||shapes[20]}</svg>`;
+}
+// Prepend the matching die icon to a dice-notation string like "d20 (13) + 4" or "2d6 (3, 5)"
+function diceHtml(dice) {
+  const m = String(dice).match(/d(\d+)/);
+  return m ? `${dieIcon(+m[1])} ${dice}` : dice;
+}
+
 // Rewrite level-1 feature text with level-appropriate numbers
 function scaleFeature(cls, f, lvl) {
   const cant = CANTRIPS_KNOWN[cls] ? CANTRIPS_KNOWN[cls][lvl-1] : null;
@@ -593,6 +611,12 @@ function viewCharacter(id) {
   document.getElementById("savedSheet").scrollIntoView({behavior:"smooth", block:"start"});
 }
 
+// One-click random hero from the Saved tab: randomize the creator, save, and show the result
+function addRandomCharacter() {
+  document.getElementById("btnRandomAll").click();
+  saveCharacter();
+}
+
 function resurrectCharacter(id) {
   const list = loadStore();
   const ch = list.find(c=>c.id===id);
@@ -695,7 +719,7 @@ function logEvent(type, text) {
   if (showRollLog) renderSheet();
 }
 function logRoll(what, dice, result) {
-  logEvent("roll", `<b>${what}</b> · ${dice} = <b style="color:var(--accent)">${result}</b>`);
+  logEvent("roll", `<b>${what}</b> · ${diceHtml(dice)} = <b style="color:var(--accent)">${result}</b>`);
 }
 function toggleRollLog() { showRollLog = !showRollLog; renderSheet(); }
 function clearRollLog() {
@@ -713,8 +737,8 @@ function rollD20(what, modifier) {
   const totalEl = toast.querySelector(".total");
   totalEl.textContent = total;
   totalEl.className = "total" + (d===20?" crit":d===1?" fumble":"");
-  toast.querySelector(".detail").textContent =
-    `d20 (${d}) ${modifier>=0?"+":"-"} ${Math.abs(modifier)}` + (d===20?" · NAT 20!":d===1?" · Nat 1":"");
+  toast.querySelector(".detail").innerHTML =
+    `${dieIcon(20)} d20 (${d}) ${modifier>=0?"+":"-"} ${Math.abs(modifier)}` + (d===20?" · NAT 20!":d===1?" · Nat 1":"");
   toast.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>toast.classList.remove("show"), 3500);
@@ -724,7 +748,7 @@ function rollDie(sides) {
   const d = 1 + Math.floor(Math.random()*sides);
   logRoll("d"+sides, `d${sides} (${d})`, d);
   const toast = document.getElementById("rollToast");
-  toast.querySelector(".what").textContent = "d" + sides;
+  toast.querySelector(".what").innerHTML = `${dieIcon(sides)} d${sides}`;
   const totalEl = toast.querySelector(".total");
   totalEl.textContent = d;
   totalEl.className = "total" + (sides===20 && d===20 ? " crit" : sides===20 && d===1 ? " fumble" : "");
@@ -825,7 +849,7 @@ function renderLvlModal() {
 
     <div class="lvl-step">
       <div class="k">${ref("Hit Points")} · d${c.hitDie} + CON</div>
-      <span class="asi-chip ${pendingLvl.hpMode==="roll"?"picked":""}" onclick="lvlHp('roll')">🎲 ${pendingLvl.rolledValue!=null?`Rolled: ${pendingLvl.rolledValue}`:`Roll the d${c.hitDie}`}</span>
+      <span class="asi-chip ${pendingLvl.hpMode==="roll"?"picked":""}" onclick="lvlHp('roll')">${dieIcon(c.hitDie)} ${pendingLvl.rolledValue!=null?`Rolled: ${pendingLvl.rolledValue}`:`Roll the d${c.hitDie}`}</span>
       <span class="asi-chip ${pendingLvl.hpMode==="avg"?"picked":""}" onclick="lvlHp('avg')">Take average (${avg})</span>
       ${gain!=null?`<div style="margin-top:.4rem">Will gain <b>+${gain}</b> on the die, + CON modifier, when you confirm.</div>`:""}
     </div>
@@ -935,7 +959,7 @@ function renderRestModal() {
     <div style="color:var(--muted);font-style:italic">At least 1 hour of light activity. Spend ${refLink("Hit Point Dice")} to recover HP.</div>
     <div class="lvl-step">
       <div class="k">${refLink("Hit Point Dice")} · ${hdLeft} of ${state.level} d${c.hitDie} remaining</div>
-      ${pendingRest.rolls.length ? pendingRest.rolls.map(r=>`<div>· d${c.hitDie} (${r.roll}) ${conMod>=0?"+":"-"} ${Math.abs(conMod)} = <b>${r.gain}</b> HP</div>`).join("") : `<div style="color:var(--muted)">No dice spent yet.</div>`}
+      ${pendingRest.rolls.length ? pendingRest.rolls.map(r=>`<div>· ${dieIcon(c.hitDie)} d${c.hitDie} (${r.roll}) ${conMod>=0?"+":"-"} ${Math.abs(conMod)} = <b>${r.gain}</b> HP</div>`).join("") : `<div style="color:var(--muted)">No dice spent yet.</div>`}
       ${hdLeft>0 ? `<button onclick="restRollHd()" style="margin-top:.4rem">🎲 Spend a Hit Die (d${c.hitDie} ${conMod>=0?"+":"-"} ${Math.abs(conMod)})</button>` : `<div style="color:var(--muted);margin-top:.3rem">No Hit Dice left.</div>`}
     </div>
     <div class="lvl-step"><div class="k">${refLink("Healing")}</div>
@@ -1166,7 +1190,7 @@ function renderAtkModal() {
     <div class="lvl-step">
       <div class="k">Attack Roll · vs target's AC</div>
       <div style="font-size:1.6rem"><b style="${crit?"color:#7bc98b":fumble?"color:var(--accent2)":""}">${a.total}</b>
-        <small style="color:var(--muted)">d20 (${a.d20}) ${a.bonus>=0?"+":"-"} ${Math.abs(a.bonus)}</small></div>
+        <small style="color:var(--muted)">${dieIcon(20)} d20 (${a.d20}) ${a.bonus>=0?"+":"-"} ${Math.abs(a.bonus)}</small></div>
       ${crit?'<b style="color:#7bc98b">NATURAL 20 · Critical Hit! Roll the damage dice twice.</b>':fumble?'<b style="color:var(--accent2)">Natural 1 · automatic miss.</b>':""}
     </div>
     <div class="lvl-step">
@@ -1174,14 +1198,14 @@ function renderAtkModal() {
       ${a.dice
         ? (a.dmgResult==null
           ? `<button onclick="atkDamage()">🎲 Roll damage (${crit?"2×":""}${a.dice}${a.dmgMod?` ${a.dmgMod>0?"+":""}${a.dmgMod}`:""})</button>`
-          : `<div style="font-size:1.4rem"><b>${a.dmgResult}</b> <small style="color:var(--muted)">${a.dmgDetail}</small></div>`)
+          : `<div style="font-size:1.4rem"><b>${a.dmgResult}</b> <small style="color:var(--muted)">${diceHtml(a.dmgDetail)}</small></div>`)
         : (a.type==="spell"
           ? `<div style="color:var(--muted);font-size:.85rem;margin-bottom:.3rem">Roll your spell's damage dice${crit?" twice (crit!)":""}:</div>`
           : `<div style="font-size:1.4rem"><b>${a.dmgMod}</b> <small style="color:var(--muted)">flat</small></div>`)}
       <div style="margin-top:.4rem">
         <span style="color:var(--muted);font-size:.8rem">Extra dice:</span>
         ${[4,6,8,10,12].map(s=>`<button style="padding:.25rem .5rem;font-size:.8rem" onclick="atkExtra(${s})">+d${s}</button>`).join(" ")}
-        ${a.extra.length?`<div style="margin-top:.3rem">${a.extra.map(r=>`d${r.s} (${r.v})`).join(" + ")} = <b>${extraSum}</b></div>`:""}
+        ${a.extra.length?`<div style="margin-top:.3rem">${a.extra.map(r=>`${dieIcon(r.s)} d${r.s} (${r.v})`).join(" + ")} = <b>${extraSum}</b></div>`:""}
       </div>
       ${grand && (a.dmgResult!=null || a.extra.length) ? `<div style="margin-top:.4rem;border-top:1px solid var(--line);padding-top:.3rem">Total damage: <b style="font-size:1.2rem">${grand}</b></div>` : ""}
     </div>

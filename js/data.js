@@ -345,6 +345,7 @@ const RULES = [
 {c:"Action",t:"Shove (unarmed strike)",d:"Instead of damage, an Unarmed Strike can Shove: the target must be no more than one size larger and must succeed on a Strength or Dexterity saving throw (DC 8 + your STR modifier + Proficiency Bonus) or be pushed 5 feet away or knocked Prone."},
 {c:"Action",t:"Two-Weapon Fighting (Light property)",d:"When you take the Attack action and attack with a weapon that has the Light property, you can make one extra attack as a Bonus Action with a different Light weapon. You don't add your ability modifier to the extra attack's damage unless the modifier is negative."},
 // Combat core
+{c:"Combat",t:"Bonus Action",d:"A quicker extra action you can take on your turn, but only when a feature or spell says so: examples include a Rogue's Cunning Action, casting Healing Word, the extra attack from Two-Weapon Fighting, or drinking a Potion of Healing. Maximum one Bonus Action per turn."},
 {c:"Combat",t:"Advantage and Disadvantage",d:"Roll two d20s. Advantage: use the higher roll. Disadvantage: use the lower. Multiple sources don't stack; if you have both Advantage and Disadvantage, they cancel and you roll one d20."},
 {c:"Combat",t:"Critical Hit",d:"A natural 20 on an attack roll always hits and is a Critical Hit: roll all the attack's damage dice twice and add them together, then add modifiers."},
 {c:"Combat",t:"Initiative",d:"At the start of combat, everyone rolls Initiative: a Dexterity check. Combatants act in initiative order each round. A round is about 6 seconds."},

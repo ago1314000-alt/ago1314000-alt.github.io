@@ -174,6 +174,12 @@
   .tabpage.active { display: block; }
   .maxw { max-width: 1400px; margin: 0 auto; }
 
+  /* Inline die icons */
+  .die-ico {
+    width: .95em; height: .95em; vertical-align: -.12em; display: inline-block;
+    fill: none; stroke: currentColor; stroke-width: 6; stroke-linejoin: round;
+  }
+
   /* Rules reference */
   #rulesSearch { width: 100%; padding: .7rem; font-size: 1.05rem; margin-bottom: 1rem; border: 1px solid var(--line); border-radius: 6px; font-family: inherit; }
   .rule-card { border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: .8rem 1rem; margin-bottom: .7rem; }

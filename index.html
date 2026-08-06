@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>D&D Character Sheet Generator (SRD 5.2)</title>
-<link rel="stylesheet" href="css/style.css?v=8">
+<link rel="stylesheet" href="css/style.css?v=9">
 </head>
 <body>
 <div class="app">
@@ -137,6 +137,7 @@
     </div>
     <div style="color:var(--muted);font-size:.8rem;margin:.3rem 0 .8rem">Characters are stored in this browser and survive restarts. Use Export / Import to move them to another browser or computer.</div>
     <div id="savedList"></div>
+    <button onclick="addRandomCharacter()" style="width:100%;margin-top:.8rem;padding:.6rem;font-weight:bold" title="Roll up a complete random hero and save them">🎲 Add Random Character</button>
   </div>
   <div class="panel sheet" id="savedSheet" style="margin-top:1rem;display:none"></div>
 </div>
@@ -155,37 +156,37 @@
 
     <div style="text-align:center;font-variant:small-caps;letter-spacing:1px;margin-bottom:.5rem;color:var(--muted)">Know these three numbers on your sheet</div>
     <div class="qr-three">
-      <div class="qr-num"><span class="abbr">AC</span><span><b>Armor Class</b><small>How hard you are to hit</small></span></div>
-      <div class="qr-num"><span class="abbr">HP</span><span><b>Hit Points</b><small>Your health: at 0, you fall</small></span></div>
-      <div class="qr-num"><span class="abbr">SPD</span><span><b>Speed</b><small>How far you move each turn</small></span></div>
+      <div class="qr-num"><span class="abbr">AC</span><span><b class="ref-link" onclick="refLookup('Armor Class')">Armor Class</b><small>How hard you are to hit</small></span></div>
+      <div class="qr-num"><span class="abbr">HP</span><span><b class="ref-link" onclick="refLookup('Hit Points and Hit Point Dice')">Hit Points</b><small>Your health: at 0, you fall</small></span></div>
+      <div class="qr-num"><span class="abbr">SPD</span><span><b class="ref-link" onclick="refLookup('Speed')">Speed</b><small>How far you move each turn</small></span></div>
     </div>
 
     <div class="twocol">
       <div class="qr-sec">
         <div class="qr-h">At Any Time</div>
-        <h4>Ability Checks</h4>
-        <p>The DM says <i>"make a Perception check."</i> Roll the <b>d20</b>, add the number next to that skill on your sheet. Higher is better. A natural <b>20</b> is glorious; a natural <b>1</b> is trouble.</p>
-        <h4>Saving Throws</h4>
+        <h4><span class="ref-link" onclick="refLookup('Ability Checks')">Ability Checks</span></h4>
+        <p>The DM says <i>"make a <span class="ref-link" onclick="refLookup('Skills (all 18)')">Perception</span> check."</i> Roll the <b>d20</b>, add the number next to that skill on your sheet. Higher is better. A natural <b>20</b> is glorious; a natural <b>1</b> is trouble.</p>
+        <h4><span class="ref-link" onclick="refLookup('Saving Throws')">Saving Throws</span></h4>
         <p>Same deal, but <i>reacting</i> to danger: dodging a trap, resisting a spell. <b>d20 + the save number.</b> The DM will tell you which one.</p>
-        <h4>Advantage &amp; Disadvantage</h4>
+        <h4><span class="ref-link" onclick="refLookup('Advantage and Disadvantage')">Advantage &amp; Disadvantage</span></h4>
         <p><b>Advantage:</b> roll two d20s, keep the <b>higher</b>.<br><b>Disadvantage:</b> roll two, keep the <b>lower</b>.</p>
-        <h4>Spellcasters</h4>
-        <p>Your spells say what to roll. When in doubt, read the spell aloud; the DM will sort it out.</p>
+        <h4><span class="ref-link" onclick="refLookup('Spellcasting Basics')">Spellcasters</span></h4>
+        <p>Your spells say what to roll. When in doubt, read the spell aloud; the DM will sort it out. See also <span class="ref-link" onclick="refLookup('Concentration')">Concentration</span> and <span class="ref-link" onclick="refLookup('Spell Slots')">Spell Slots</span>.</p>
       </div>
       <div class="qr-sec">
         <div class="qr-h">In Combat</div>
-        <h4>Initiative</h4>
+        <h4><span class="ref-link" onclick="refLookup('Initiative')">Initiative</span></h4>
         <p>Combat starts? Roll <b>d20 + your Initiative number</b>. That sets the turn order.</p>
         <h4>Your Turn, in Three Steps</h4>
         <ol>
-          <li><b>MOVE</b>: up to your Speed, before, after, or split around your action.</li>
-          <li><b>ACTION</b>: pick one: <b>Attack</b> · <b>Cast a Spell</b> · <b>Dash</b> · <b>Hide</b> · or try something creative, just ask!</li>
-          <li><b>BONUS ACTION</b>: only if your sheet says you have one.</li>
+          <li><b class="ref-link" onclick="refLookup('Speed')">MOVE</b>: up to your Speed, before, after, or split around your action.</li>
+          <li><b>ACTION</b>: pick one: <b class="ref-link" onclick="refLookup('Attack (action)')">Attack</b> · <b class="ref-link" onclick="refLookup('Magic (action)')">Cast a Spell</b> · <b class="ref-link" onclick="refLookup('Dash')">Dash</b> · <b class="ref-link" onclick="refLookup('Hide')">Hide</b> · or try something creative, just ask!</li>
+          <li><b class="ref-link" onclick="refLookup('Bonus Action')">BONUS ACTION</b>: only if your sheet says you have one.</li>
         </ol>
-        <h4>Making an Attack</h4>
-        <p>Roll <b>d20 + attack bonus</b> vs. their <b>AC</b>. If you meet or beat it, roll your <b>damage die</b>. Done.</p>
-        <h4>At 0 Hit Points</h4>
-        <p>You fall unconscious, <i>not dead</i>. The DM will walk you through what happens next.</p>
+        <h4><span class="ref-link" onclick="refLookup('Attack (action)')">Making an Attack</span></h4>
+        <p>Roll <b>d20 + attack bonus</b> vs. their <b class="ref-link" onclick="refLookup('Armor Class')">AC</b>. If you meet or beat it, roll your <b class="ref-link" onclick="refLookup('Weapon Properties')">damage die</b>. Done. A natural 20 is a <span class="ref-link" onclick="refLookup('Critical Hit')">Critical Hit</span>!</p>
+        <h4><span class="ref-link" onclick="refLookup('Death Saving Throws')">At 0 Hit Points</span></h4>
+        <p>You fall <span class="ref-link" onclick="refLookup('Unconscious')">unconscious</span>, <i>not dead</i>. The DM will walk you through <span class="ref-link" onclick="refLookup('Death Saving Throws')">what happens next</span>.</p>
       </div>
     </div>
 
@@ -248,7 +249,7 @@
 
 <div id="rollToast"><div class="what"></div><div class="total"></div><div class="detail"></div></div>
 
-<script src="js/data.js?v=8"></script>
-<script src="js/app.js?v=8"></script>
+<script src="js/data.js?v=9"></script>
+<script src="js/app.js?v=9"></script>
 </body>
 </html>
