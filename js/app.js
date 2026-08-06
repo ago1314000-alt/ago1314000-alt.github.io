@@ -313,7 +313,13 @@ document.getElementById("charName").addEventListener("input", e=>{ state.name=e.
     const key = {selClass:"cls",selSpecies:"species",selBackground:"background",selAlignment:"alignment"}[id];
     state[key] = e.target.value;
     if (id==="selClass") { state.skills=[]; state.spells=[]; state.level=1; state.dieRolls=[]; state.slotsUsed={}; state.hdUsed=0; renderSkillChoices(); renderSpellChoices(); }
-    if (id==="selBackground") renderSkillChoices();
+    if (id==="selBackground") {
+      // Free up any class pick the new background already grants, so the
+      // player keeps their full allotment of distinct proficiencies
+      const granted = state.background ? BACKGROUNDS[state.background].skills : [];
+      state.skills = state.skills.filter(s=>!granted.includes(s));
+      renderSkillChoices();
+    }
     renderSheet();
   });
 });
