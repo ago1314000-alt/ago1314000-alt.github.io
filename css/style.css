@@ -47,8 +47,8 @@
   body.dark .qr-h { color: #06230f; }
   body.dark .asi-chip.picked { color: #06230f; }
   body.dark .qr-dice svg:hover text { fill: #06230f; }
-  body.dark #btnSave, body.dark .lvl-confirm { background: var(--accent); border-color: var(--accent); color: #06230f; }
-  body.dark #btnSave:hover, body.dark .lvl-confirm:hover { background: #2ee06f; border-color: #2ee06f; }
+  body.dark #btnSave, body.dark #btnSaveTop, body.dark .lvl-confirm { background: var(--accent); border-color: var(--accent); color: #06230f; }
+  body.dark #btnSave:hover, body.dark #btnSaveTop:hover, body.dark .lvl-confirm:hover { background: #2ee06f; border-color: #2ee06f; }
   body.dark .hp-heal { color: #4ade80; }
   * { box-sizing: border-box; }
   body {
@@ -175,8 +175,9 @@
   .saved-card .who b { font-size: 1.05rem; color: var(--accent); }
   .saved-card .btns { display: flex; gap: .4rem; }
   .btn-danger { color: #fff; background: var(--accent2); border-color: var(--accent2); }
-  #btnSave { background: #2f5d3a; color: #fff; border-color: #2f5d3a; font-weight: bold; width: 100%; padding: .6rem; margin-top: .8rem; }
-  #btnSave:hover { background: #3d7a4c; }
+  #btnSave, #btnSaveTop { background: #2f5d3a; color: #fff; border-color: #2f5d3a; font-weight: bold; width: 100%; padding: .6rem; margin-top: .8rem; }
+  #btnSave:hover, #btnSaveTop:hover { background: #3d7a4c; }
+  #btnSaveTop { margin: 0 0 .9rem; }
 
   /* Interactivity polish */
   button, select, .stat, .rule-card, .saved-card, ul.clean li.rollable, .vital { transition: all .15s ease; }

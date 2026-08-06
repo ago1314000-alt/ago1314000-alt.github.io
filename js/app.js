@@ -261,8 +261,8 @@ function clearCreator() {
 
 // ---------- SHEET RENDER ----------
 function renderSheet() {
-  const btnSaveEl = document.getElementById("btnSave");
-  btnSaveEl.textContent = state.loadedId ? "💾 Update Character" : "💾 Save Character";
+  const saveLabel = state.loadedId ? "💾 Update Character" : "💾 Save Character";
+  ["btnSave","btnSaveTop"].forEach(id=>{ const b = document.getElementById(id); if (b) b.textContent = saveLabel; });
   try { localStorage.setItem("dnd-srd-current", JSON.stringify(state)); } catch(e) {}
   const el = document.getElementById(sheetTargetId);
   if (!el) return;
@@ -518,7 +518,7 @@ function charDiff(o, n) {
   return d;
 }
 
-document.getElementById("btnSave").addEventListener("click", ()=>{
+function saveCharacter() {
   if (!state.cls || !state.species) { alert("Pick at least a class and species before saving."); return; }
   const list = loadStore();
   const snapshot = JSON.parse(JSON.stringify(state));
@@ -529,22 +529,20 @@ document.getElementById("btnSave").addEventListener("click", ()=>{
     const diffs = charDiff(list[existingIdx], snapshot);
     if (diffs.length) logEvent("edit", `<b>Edited</b>: ${diffs.join("; ")}`);
     list[existingIdx] = snapshot;
-    saveStore(list);
-    updateSavedCount();
-    // Return to the Saved tab showing this character, with a fresh creator form
-    const id = snapshot.id;
-    clearCreator();
-    document.querySelector('.tabs button[data-tab="saved"]').click();
-    viewCharacter(id);
   } else {
     snapshot.id = Date.now();
-    state.loadedId = snapshot.id;
     list.push(snapshot);
-    saveStore(list);
-    updateSavedCount(); renderSheet();
-    alert(`Saved ${snapshot.name || "Unnamed Hero"}.`);
   }
-});
+  saveStore(list);
+  updateSavedCount();
+  // Show the saved character on the Saved tab, leaving a fresh creator form
+  const id = snapshot.id;
+  clearCreator();
+  document.querySelector('.tabs button[data-tab="saved"]').click();
+  viewCharacter(id);
+}
+document.getElementById("btnSave").addEventListener("click", saveCharacter);
+document.getElementById("btnSaveTop").addEventListener("click", saveCharacter);
 
 function applyCharacter(ch) {
   state.name = ch.name; state.cls = ch.cls; state.species = ch.species;
