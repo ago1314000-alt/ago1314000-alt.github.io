@@ -2,47 +2,48 @@
 
 **▶️ Play it now: [auto-character-generator.github.io](https://auto-character-generator.github.io/)**
 
-A complete D&D character builder, live character sheet, and rules companion in a single HTML file, built on the System Reference Document 5.2 (D&D 2024 rules). No server, no account, no build step: your characters live in your browser.
+A complete D&D character builder, live character sheet, and rules companion for **levels 1–20**, built on the System Reference Document 5.2 (D&D 2024 rules). Plain HTML, CSS, and vanilla JavaScript: no server, no account, no build step. Your characters live in your browser.
 
 ---
 
 ## ⚔️ Build a Hero
 
-- 🎲 **Randomize everything** with one click, roll individual choices with per-field dice buttons, or pick it all by hand
+- 🎲 **Randomize everything** with one click (always fully rested), roll individual choices with per-field dice buttons, or pick it all by hand — or use **Add Random Character** on the Characters tab for an instant saved hero
 - 🛡️ All **12 classes**, **9 species**, and **4 backgrounds** from the SRD
 - 💪 Ability scores via 4d6-drop-lowest, standard array, or one-click **optimize for class**
-- ✨ Full **spell picker** for casters: SRD spells from cantrips through level 3, with class-filtered lists and random selection
+- ✨ Full **spell picker** for casters: SRD spells from cantrips through level 3, with class-filtered lists, level-scaled known/prepared counts, and random selection
 - 📜 Personality traits, ideals, bonds, and flaws, hand-written or rolled from tables, plus freeform backstory notes
 
 ## 🗡️ Play at the Table
 
 The sheet is a live play surface, not a printout:
 
-- **Click anything to roll it**: abilities, saves, skills, initiative, weapon attacks, spell attacks
+- **Click anything to roll it**: abilities, saves, skills, initiative, weapon attacks, spell attacks — results show the matching die icon in the toast and history
 - ⚔️ Attack overlay rolls to-hit and damage (crits double your dice automatically), with extra-dice buttons for Sneak Attack and friends
-- ✨ **Cast spells** from the sheet: slots are tracked as clickable pips (full, half, and pact casters all supported)
+- ✨ **Cast spells** from the sheet: click a spell for details and cast options; slots are tracked as clickable pips (full, half, and pact casters all supported)
 - ❤️ Hit point, temp HP, and Heroic Inspiration tracking
-- ⛺ **Short and Long Rest buttons** that spend hit dice, restore HP, and refresh spell slots correctly
-- ⬆️ **Level up to 20** through an in-page flow: per-class features, rolled or average HP, tap-to-assign ability score improvements, cancel anytime
-- 💀 At 0 HP the sheet locks into a **dying overlay**: automated death saves, stabilization, resurrection, or an honorable 🪦 retirement
-- 📖 **History log** of every roll, rest, level-up, edit, and near-death experience
+- ⛺🌙 **Short and Long Rest overlays** that spend hit dice, restore HP and spell slots, and handle interruptions — nothing applies until you confirm
+- ⬆️ **Level up to 20** through an in-page flow: per-class features that scale correctly (Rage, Sneak Attack, Martial Arts, spell counts...), rolled or average HP, tap-to-assign ability score improvements, cancel anytime
+- 💀 At 0 HP the sheet locks into a **dying overlay**: automated death saves, stabilization, resurrection, or an honorable 🪦 retirement — and dead heroes can be ✨ resurrected later from their sheet
+- 📖 **History log** of every roll, rest, cast, level-up, edit, and near-death experience
 
 ## 📚 Look Anything Up
 
-- 🔍 **348 searchable reference entries**: conditions, combat actions, spellcasting, rests, equipment, every class feature, and every included spell
-- 🧭 A beginner-friendly **Quick Reference** tab (the whole game on one page, with clickable dice)
-- ℹ️ Reference terms throughout the app open definition overlays in place
+- 🔍 **400+ searchable reference entries**: conditions, combat actions, spellcasting, rests, equipment, every class feature, species trait, and included spell
+- ℹ️ Nearly everything is clickable: sheet features, species traits, equipment, the level-up and rest overlays, and the Basics page all open in-place reference definitions
+- 🧭 A beginner-friendly **Basics** tab (the whole game on one page, with clickable dice-shaped icons)
 
 ## 💾 Your Characters, Kept
 
 - Characters save to browser localStorage and survive restarts and reboots
 - View, edit, and update saved characters; play-time changes (HP, slots, levels) persist automatically
 - ⬇️⬆️ **Export / Import** as JSON to move your party between browsers or machines
-- 🌙 Dark mode by default, ☀️ light mode in settings
+- 🌙 Modern dark mode by default, ☀️ parchment light mode in settings
+- 📱 Sidebar navigation on desktop and tablet, app-style bottom bar on phones
 
 ## 🚀 Run It
 
-Visit **[auto-character-generator.github.io](https://auto-character-generator.github.io/)**, or just open `index.html` in any browser. Plain HTML and vanilla JavaScript: no dependencies, no build, works offline once loaded.
+Visit **[auto-character-generator.github.io](https://auto-character-generator.github.io/)**, or clone and open `index.html` in any browser. Structure: `index.html` (markup), `css/style.css` (both themes), `js/data.js` (all SRD content), `js/app.js` (app logic). No dependencies; works offline once loaded.
 
 ## 📄 License
 

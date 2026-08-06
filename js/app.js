@@ -28,6 +28,15 @@ function diceHtml(dice) {
   return m ? `${dieIcon(+m[1])} ${dice}` : dice;
 }
 
+// Reduce a sheet line to a term the reference lookup can resolve
+function refTermFrom(s) {
+  return String(s).replace(/<[^>]*>/g,"").split(" (")[0].replace(/^Origin Feat: /,"").replace(/^Subclass: /,"").trim();
+}
+// Equipment lines: drop counts, parentheticals, and trailing lists ("4 Handaxes", "Longbow, 20 Arrows, Quiver")
+function eqTermFrom(s) {
+  return String(s).split(",")[0].split(" or ")[0].split(" (")[0].replace(/^\d+\s+/,"").trim();
+}
+
 // Rewrite level-1 feature text with level-appropriate numbers
 function scaleFeature(cls, f, lvl) {
   const cant = CANTRIPS_KNOWN[cls] ? CANTRIPS_KNOWN[cls][lvl-1] : null;
@@ -393,7 +402,7 @@ function renderSheet() {
     const used = state.slotsUsed[r.lv]||0;
     const pips = Array.from({length:r.total},(_,i)=>{
       const filled = i < r.total-used;
-      return `<span class="pip" style="cursor:pointer;font-size:1.05rem" onclick="${filled?`spendSlot(${r.lv})`:`restoreSlot(${r.lv})`}" title="${filled?"Click to expend":"Click to restore"}">${filled?"●":"○"}</span>`;
+      return `<span class="slot-pip${filled?" filled":""}" onclick="${filled?`spendSlot(${r.lv})`:`restoreSlot(${r.lv})`}" title="${filled?"Click to expend":"Click to restore"}"></span>`;
     }).join(" ");
     return `<li><b>${r.pact?`Pact Slots (Level ${r.lv})`:`Level ${r.lv} Slots`}:</b> ${pips}</li>`;
   }).join("");
@@ -419,7 +428,8 @@ function renderSheet() {
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
       <h2>${state.name || "Unnamed Hero"}</h2>
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
-        ${state.retired?`<span style="border:1px solid var(--accent2);color:var(--accent2);border-radius:6px;padding:.3rem .6rem;font-weight:bold" title="This hero has been laid to rest">🪦 Retired · Dead</span>`:""}
+        ${state.retired?`<button onclick="resurrectCurrent()" title="Powerful magic calls them back with 1 HP">✨ Resurrect</button>
+        <span style="border:1px solid var(--accent2);color:var(--accent2);border-radius:6px;padding:.3rem .6rem;font-weight:bold" title="This hero has been laid to rest">🪦 Retired · Dead</span>`:""}
         ${canAct?`<button onclick="shortRest()" title="1+ hour: spend Hit Dice to heal">⛺ Short Rest</button>
         <button onclick="longRest()" title="8 hours: restore HP, spell slots, and half your Hit Dice">🌙 Long Rest</button>`:""}
         ${canLevel?`<button onclick="levelUp()" style="font-weight:bold" title="Advance to level ${state.level+1}">⬆ Level Up</button>`:""}
@@ -464,9 +474,9 @@ function renderSheet() {
       </div>
       <div>
         <h3 class="section">Features &amp; Traits</h3>
-        <ul class="clean">${features.map(f=>`<li>${f}</li>`).join("") || "<li>--</li>"}</ul>
+        <ul class="clean">${features.map(f=>`<li class="rollable" onclick="refLookup('${escQ(refTermFrom(f))}')" title="Click for details">${f}</li>`).join("") || "<li>--</li>"}</ul>
         <h3 class="section">Species Traits${sp?` (${sp.size}, ${state.species})`:""}</h3>
-        <ul class="clean">${traits.map(t=>`<li>${t}</li>`).join("") || "<li>--</li>"}</ul>
+        <ul class="clean">${traits.map(t=>`<li class="rollable" onclick="refLookup('${escQ(refTermFrom(t))}')" title="Click for details">${t}</li>`).join("") || "<li>--</li>"}</ul>
         <h3 class="section">Proficiencies</h3>
         <ul class="clean">
           <li><b>Armor:</b> ${c?c.armor:"--"}</li>
@@ -474,7 +484,7 @@ function renderSheet() {
           <li><b>Tools:</b> ${bg?bg.tool:"--"}</li>
         </ul>
         <h3 class="section">Equipment</h3>
-        <ul class="clean">${equipment.map(e=>`<li>${e}</li>`).join("") || "<li>--</li>"}</ul>
+        <ul class="clean">${equipment.map(e=>`<li class="rollable" onclick="refLookup('${escQ(eqTermFrom(e))}')" title="Click for details">${e}</li>`).join("") || "<li>--</li>"}</ul>
       </div>
     </div>
     ${rpBlock}
@@ -619,6 +629,14 @@ function addRandomCharacter() {
   saveCharacter();
 }
 
+// Resurrect the character currently shown on a sheet
+function resurrectCurrent() {
+  if (!state.retired) return;
+  state.retired = false; state.curHp = 1; state.deathS = 0; state.deathF = 0; state.stable = false;
+  logEvent("heal", `<b>${state.name || "Unnamed Hero"} resurrected</b>: called back from beyond the veil with 1 HP`);
+  renderSheet(); persistLoaded(); renderSavedList();
+}
+
 function resurrectCharacter(id) {
   const list = loadStore();
   const ch = list.find(c=>c.id===id);
@@ -651,7 +669,6 @@ function renderSavedList() {
       <div class="who"><b>${ch.name || "Unnamed Hero"}</b>${ch.retired?' <span title="Laid to rest">🪦</span>':""}<br>
         <small>Level ${ch.level||1} ${ch.species} ${ch.cls} · ${ch.background || "no background"}${ch.retired?" · <b>dead</b>":""} · saved ${ch.savedAt}</small></div>
       <div class="btns">
-        ${ch.retired?`<button onclick="resurrectCharacter(${ch.id})" title="Powerful magic calls them back with 1 HP">✨ Resurrect</button>`:""}
         <button onclick="viewCharacter(${ch.id})">View</button>
         <button onclick="loadCharacter(${ch.id})">Edit</button>
         <button class="btn-danger" onclick="deleteCharacter(${ch.id})">Delete</button>
@@ -1150,6 +1167,11 @@ function refLookup(term) {
   const q = term.toLowerCase();
   let hits = RULES.filter(r=>r.t.toLowerCase()===q);
   if (!hits.length) hits = RULES.filter(r=>r.t.toLowerCase().includes(q));
+  // Plurals: "Handaxes" → "Handaxe", "Pouches" → "Pouch"
+  if (!hits.length && /s$/i.test(q)) {
+    const singular = q.replace(/e?s$/i,"");
+    hits = RULES.filter(r=>r.t.toLowerCase()===singular || r.t.toLowerCase().startsWith(singular));
+  }
   // Trim trailing words ("Sneak Attack 2d6" → "Sneak Attack") until a title matches
   if (!hits.length) {
     const words = term.split(" ");

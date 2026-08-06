@@ -562,3 +562,67 @@ const FEATURE_DEFS = {
 "Spellcasting":"See Spellcasting Basics, Spell Slots, and Spell Attack Rolls and Save DCs in this reference."
 };
 Object.entries(FEATURE_DEFS).forEach(([t,d])=>RULES.push({c:"Feature", t, d}));
+
+// Species trait definitions (SRD 5.2, abbreviated)
+const SPECIES_TRAIT_DEFS = {
+"Draconic Ancestry":"Choose a dragon type: you gain a Breath Weapon (1d10 of its damage type in a 15-ft cone or 30-ft line, DEX save, scaling with level, Proficiency Bonus uses per Long Rest) and Resistance to that damage type.",
+"Dwarven Resilience":"Resistance to Poison damage and Advantage on saving throws to avoid or end the Poisoned condition.",
+"Dwarven Toughness":"Your Hit Point maximum increases by 1 for every level you have.",
+"Stonecunning":"Bonus Action while on a stone surface: gain Tremorsense in a 60-ft radius for 10 minutes. Proficiency Bonus uses per Long Rest.",
+"Elven Lineage":"Choose Drow (Dancing Lights cantrip, 120-ft Darkvision), High Elf (Prestidigitation, swappable cantrip), or Wood Elf (Druidcraft, 35-ft Speed); each lineage grants bonus spells at levels 3 and 5.",
+"Fey Ancestry":"Advantage on saving throws to avoid or end the Charmed condition.",
+"Keen Senses":"Proficiency in your choice of Insight, Perception, or Survival.",
+"Trance":"Elves don't sleep: 4 hours of semiconscious trance grants the full benefit of a Long Rest.",
+"Gnomish Cunning":"Advantage on Intelligence, Wisdom, and Charisma saving throws.",
+"Gnomish Lineage":"Choose Forest Gnome (Minor Illusion, Speak with Animals) or Rock Gnome (Mending, Prestidigitation, and tiny clockwork devices).",
+"Giant Ancestry":"Choose one giant boon usable Proficiency Bonus times per Long Rest: e.g. Cloud's Jaunt (Bonus Action teleport 30 ft), Fire's Burn (+1d10 fire on a hit), Stone's Endurance (Reaction: reduce damage by 1d12 + CON).",
+"Large Form":"From level 5: Bonus Action to grow to Large size for 10 minutes, gaining Advantage on Strength checks and +10 ft Speed. 1/Long Rest.",
+"Powerful Build":"Advantage on saving throws to end the Grappled condition, and you count as one size larger for carrying capacity.",
+"Brave":"Advantage on saving throws to avoid or end the Frightened condition.",
+"Halfling Nimbleness":"You can move through the space of any creature that is a size larger than you (you can't stop there).",
+"Luck":"When you roll a 1 on a d20 test, you can reroll the die and must use the new roll.",
+"Naturally Stealthy":"You can take the Hide action even when obscured only by a creature at least one size larger than you.",
+"Resourceful":"You gain Heroic Inspiration whenever you finish a Long Rest.",
+"Skillful":"You gain proficiency in one extra skill of your choice.",
+"Versatile":"You gain an extra Origin feat of your choice.",
+"Adrenaline Rush":"Bonus Action: take the Dash action and gain temporary HP equal to your Proficiency Bonus. Proficiency Bonus uses per Short or Long Rest.",
+"Relentless Endurance":"When reduced to 0 HP but not killed outright, you drop to 1 HP instead. 1/Long Rest.",
+"Fiendish Legacy":"Choose Abyssal (Poison Spray, Poison resistance), Chthonic (Chill Touch, Necrotic resistance), or Infernal (Fire Bolt, Fire resistance); each grants bonus spells at levels 3 and 5.",
+"Otherworldly Presence":"You know the Thaumaturgy cantrip, cast with your chosen spellcasting ability."
+};
+Object.entries(SPECIES_TRAIT_DEFS).forEach(([t,d])=>RULES.push({c:"Species Trait", t, d}));
+
+// Equipment definitions
+const EQUIPMENT_DEFS = {
+"Shield":"+2 AC while wielded in one hand. Donning or doffing it takes the Utilize action.",
+"Leather Armor":"Light armor: AC 11 + DEX modifier.",
+"Studded Leather Armor":"Light armor: AC 12 + DEX modifier.",
+"Chain Shirt":"Medium armor: AC 13 + DEX modifier (max +2).",
+"Chain Mail":"Heavy armor: AC 16, no DEX bonus. Requires STR 13 to avoid a 10-ft Speed penalty; Disadvantage on Stealth checks.",
+"Explorer's Pack":"Backpack holding a bedroll, mess kit, tinderbox, 10 torches, 10 days of rations, a waterskin, and 50 feet of rope.",
+"Dungeoneer's Pack":"Backpack holding a crowbar, hammer, 10 pitons, 10 torches, tinderbox, 10 days of rations, a waterskin, and 50 feet of rope.",
+"Priest's Pack":"Backpack holding a blanket, 10 candles, tinderbox, alms box, incense, censer, vestments, 2 days of rations, and a waterskin.",
+"Entertainer's Pack":"Backpack holding a bedroll, 2 costumes, 5 candles, 5 days of rations, a waterskin, and a disguise kit.",
+"Scholar's Pack":"Backpack holding a book of lore, a bottle of ink, an ink pen, 10 sheets of parchment, a little bag of sand, and a small knife.",
+"Burglar's Pack":"Backpack holding ball bearings, string, a bell, 5 candles, a crowbar, hammer, 10 pitons, hooded lantern, 2 flasks of oil, 5 days of rations, tinderbox, waterskin, and 50 feet of rope.",
+"Holy Symbol":"A sacred emblem: amulet, shield emblem, or reliquary. Usable as a Spellcasting Focus for Cleric and Paladin spells.",
+"Druidic Focus":"A sprig of mistletoe, totem, wooden staff, or yew wand. Usable as a Spellcasting Focus for Druid and Ranger spells.",
+"Arcane Focus":"An orb, crystal, rod, wand, or staff channeling arcane magic. Usable as a Spellcasting Focus for Sorcerer, Warlock, and Wizard spells.",
+"Spellbook":"A Wizard's book holding the spells they can prepare. Copying a new spell into it takes 2 hours and 50 GP per spell level.",
+"Book of Shadows":"A Warlock's mystical tome (Pact of the Tome), granting extra cantrips and the ability to cast ritual spells from its pages.",
+"Thieves' Tools":"Lock picks and small tools: pick locks and disarm traps, usually with a DEX check adding your Proficiency Bonus if proficient.",
+"Healer's Kit":"Bandages and salves, 10 uses: stabilize a creature at 0 HP with the Utilize action, no Medicine check needed.",
+"Gaming Set":"Dice, cards, or board-game pieces. Proficiency adds your bonus to related ability checks and lets you earn a living gambling.",
+"Musical Instrument":"Playable with Charisma (Performance) checks; Bards can use one as a Spellcasting Focus.",
+"Artisan's Tools":"The tools of a craft (smith's, brewer's, carpenter's...). Proficiency adds your bonus to checks made with them.",
+"Calligrapher's Supplies":"Fine inks, pens, and parchment. Proficiency helps produce official-looking documents and detect forgeries.",
+"Crowbar":"Using a crowbar grants Advantage on Strength checks where its leverage can be applied.",
+"Pouch":"A small belt pouch that holds about 6 pounds of gear (or roughly 500 coins).",
+"Robe":"A simple garment, often embroidered with the marks of a vocation. Offers no armor: see Armor Class.",
+"Traveler's Clothes":"Sturdy, practical garments for life on the road.",
+"Parchment":"Sheets for writing maps, letters, and spell scrolls.",
+"Book":"A bound volume of lore, prayers, or history: a well-chosen book can grant Advantage on research checks at the GM's discretion."
+};
+Object.entries(EQUIPMENT_DEFS).forEach(([t,d])=>RULES.push({c:"Equipment", t, d}));
+// Every weapon gets an entry from its stats
+Object.entries(WEAPONS).forEach(([t,w])=>RULES.push({c:"Equipment", t, d:`Weapon: ${w.dmg} damage${w.fin?"; Finesse (use STR or DEX for attack and damage)":""}${w.rng?"; Ranged (uses DEX; requires ammunition)":""}. Attack: d20 + ability modifier + Proficiency Bonus vs. AC.`}));
