@@ -7,7 +7,7 @@ const state = {
   traits:"", ideals:"", bonds:"", flaws:"", notes:"",
   tempHp:0, inspiration:false, deathS:0, deathF:0,
   slotsUsed:{}, hdUsed:0, stable:false, retired:false,
-  resUsed:{}, conc:null, gear:[]
+  resUsed:{}, conc:null, gear:[], dropped:[]
 };
 let sheetTargetId = "sheet";
 
@@ -318,7 +318,7 @@ document.getElementById("charName").addEventListener("input", e=>{ state.name=e.
   document.getElementById(id).addEventListener("change", e=>{
     const key = {selClass:"cls",selSpecies:"species",selBackground:"background",selAlignment:"alignment"}[id];
     state[key] = e.target.value;
-    if (id==="selClass") { state.skills=[]; state.spells=[]; state.level=1; state.dieRolls=[]; state.slotsUsed={}; state.hdUsed=0; state.resUsed={}; state.conc=null; state.gear=[]; renderSkillChoices(); renderSpellChoices(); }
+    if (id==="selClass") { state.skills=[]; state.spells=[]; state.level=1; state.dieRolls=[]; state.slotsUsed={}; state.hdUsed=0; state.resUsed={}; state.conc=null; state.gear=[]; state.dropped=[]; renderSkillChoices(); renderSpellChoices(); }
     if (id==="selBackground") {
       // Free up any class pick the new background already grants, so the
       // player keeps their full allotment of distinct proficiencies
@@ -335,7 +335,7 @@ document.getElementById("btnRandomAll").addEventListener("click", ()=>{
   state.tempHp=0; state.inspiration=false; state.deathS=0; state.deathF=0;
   state.slotsUsed={}; state.hdUsed=0; state.stable=false; state.retired=false;
   // Fresh heroes arrive fully rested: force HP to recompute from scratch
-  state.maxHp=null; state.curHp=null; state.resUsed={}; state.conc=null; state.gear=[];
+  state.maxHp=null; state.curHp=null; state.resUsed={}; state.conc=null; state.gear=[]; state.dropped=[];
   Object.values(randomizers).forEach(f=>f());
   setScores(ABILITIES.map(()=>roll4d6()));
   optimizeForClass();
@@ -355,7 +355,7 @@ function clearCreator() {
   state.traits=""; state.ideals=""; state.bonds=""; state.flaws=""; state.notes="";
   state.tempHp=0; state.inspiration=false; state.deathS=0; state.deathF=0;
   state.slotsUsed={}; state.hdUsed=0; state.stable=false; state.retired=false;
-  state.resUsed={}; state.conc=null; state.gear=[];
+  state.resUsed={}; state.conc=null; state.gear=[]; state.dropped=[];
   ABILITIES.forEach(a=>{ state.scores[a]=null; document.getElementById("ab_"+a).value=""; });
   document.getElementById("charName").value="";
   ["selClass","selSpecies","selBackground","selAlignment"].forEach(id=>document.getElementById(id).value="");
@@ -435,7 +435,7 @@ function renderSheet() {
     return `<li ${roll}>${isProf?'<span class="prof">●</span>':'○'} ${s} <small style="color:var(--muted)">(${ab})</small> ${m!=null?fmtMod(m):"--"}</li>`;
   }).join("");
 
-  const equipment = [...(c?c.equipment:[]), ...(bg?bg.equipment:[]), ...(state.gear||[])];
+  const equipment = currentEquipment();
   const features = [...(c?c.features.map(f=>allDice(scaleFeature(state.cls,f,state.level))):[]), ...(bg?["Origin Feat: "+bg.feat]:[])];
   if (c && CLASS_LEVELS[state.cls]) {
     for (let lv=2; lv<=state.level; lv++) {
@@ -452,7 +452,7 @@ function renderSheet() {
   const attacks = [];
   if (c) {
     const seen = new Set();
-    [...c.equipment, ...(bg?bg.equipment:[]), ...(state.gear||[])].forEach(item=>{
+    equipment.forEach(item=>{   // only weapons still carried produce attacks
       Object.keys(WEAPONS).forEach(w=>{
         if (item.includes(w) && !seen.has(w)) {
           seen.add(w);
@@ -513,8 +513,10 @@ function renderSheet() {
       }).join("")}
     </ul>` : "";
 
+  const focusOk = hasSpellFocus();
   const spellBlock = castAb ? `
     <h3 class="section">Spellcasting (${ABILITY_NAMES[castAb]})</h3>
+    ${focusOk ? "" : `<div class="warn-banner">⚠ No spellcasting focus carried. Add a ${refLink("Arcane Focus","focus")}${state.cls==="Wizard"?" or your Spellbook":""} in Equipment to cast spells.</div>`}
     <ul class="clean">
       <li>Spell Save DC <b>${8+profBonus+castMod}</b> · <span class="rollable" onclick="attackRoll('Spell Attack',${profBonus+castMod},null,'spell',0)" title="Click to roll" style="color:var(--accent)">Spell Attack ${fmtMod(profBonus+castMod)} 🎲</span></li>
       ${slotRows}
@@ -595,13 +597,12 @@ function renderSheet() {
           <li><b>Tools:</b> ${bg?bg.tool:"--"}</li>
         </ul>
         <h3 class="section">Equipment</h3>
-        <ul class="clean">${equipment.map(e=>{
-          const own = (state.gear||[]).includes(e);
-          return `<li class="rollable" onclick="refLookup('${escQ(eqTermFrom(e))}')" title="Click for details">${e}${
-            own?` <button style="float:right;padding:0 .35rem;font-size:.75rem" title="Remove"
-                    onclick="event.stopPropagation();removeGear('${escQ(e)}')">✕</button>`:""}</li>`;
-        }).join("") || "<li>--</li>"}</ul>
-        ${canAct?`<button onclick="openGear()" style="margin-top:.4rem;font-size:.85rem">➕ Add Equipment</button>`:""}
+        <ul class="clean">${equipment.map(e=>
+          `<li class="rollable" onclick="refLookup('${escQ(eqTermFrom(e))}')" title="Click for details">${e}${
+            canAct?` <button class="gear-btn" style="float:right" title="Drop ${e.replace(/"/g,"&quot;")}"
+                    onclick="event.stopPropagation();dropItem('${escQ(e)}')">−</button>`:""}</li>`
+        ).join("") || "<li>--</li>"}</ul>
+        ${canAct?`<button class="gear-btn wide" onclick="openGear()">+ Add Equipment</button>`:""}
       </div>
     </div>
     ${rpBlock}
@@ -724,7 +725,7 @@ function applyCharacter(ch) {
   state.slotsUsed = {...(ch.slotsUsed||{})}; state.hdUsed = ch.hdUsed||0; state.stable = !!ch.stable;
   state.retired = !!ch.retired;
   state.resUsed = {...(ch.resUsed||{})}; state.conc = ch.conc || null;
-  state.gear = [...(ch.gear||[])];
+  state.gear = [...(ch.gear||[])]; state.dropped = [...(ch.dropped||[])];
   document.getElementById("rpTraits").value = state.traits;
   document.getElementById("rpIdeals").value = state.ideals;
   document.getElementById("rpBonds").value = state.bonds;
@@ -1140,6 +1141,36 @@ function lvlConfirm() {
 document.getElementById("lvlOverlay").addEventListener("click", e=>{ if (e.target.id==="lvlOverlay") lvlCancel(); });
 document.addEventListener("keydown", e=>{ if (e.key==="Escape" && pendingLvl) lvlCancel(); });
 
+// ---------- EQUIPMENT ----------
+// What the character is actually carrying: starting gear minus anything dropped,
+// plus anything picked up. Attacks and spellcasting both read from this.
+function currentEquipment() {
+  const c = state.cls ? CLASSES[state.cls] : null;
+  const bg = state.background ? BACKGROUNDS[state.background] : null;
+  const base = [...(c?c.equipment:[]), ...(bg?bg.equipment:[])];
+  const pending = [...(state.dropped||[])];
+  const kept = [];
+  base.forEach(item=>{
+    const i = pending.indexOf(item);
+    if (i >= 0) pending.splice(i,1);   // one entry dropped removes one copy
+    else kept.push(item);
+  });
+  return [...kept, ...(state.gear||[])];
+}
+// A caster needs a focus (or spellbook) in hand to cast
+const FOCUS_RE = /holy symbol|druidic focus|arcane focus|spellbook|component pouch/i;
+function hasSpellFocus() { return currentEquipment().some(e=>FOCUS_RE.test(e)); }
+function isCaster() { return !!(state.cls && CLASSES[state.cls].spellcaster); }
+
+// Drop an item: added gear leaves state.gear, starting gear is recorded as dropped
+function dropItem(name) {
+  const i = (state.gear||[]).indexOf(name);
+  if (i >= 0) state.gear.splice(i,1);
+  else state.dropped = [...(state.dropped||[]), name];
+  logEvent("gear", `Dropped <b>${name}</b>${FOCUS_RE.test(name)?" · spellcasting focus lost":""}`);
+  renderSheet(); persistLoaded();
+}
+
 // ---------- EQUIPMENT THE PLAYER PICKS UP ----------
 function openGear() {
   document.getElementById("gearSearch") && (gearFilter = "");
@@ -1158,7 +1189,7 @@ function renderGearModal() {
     </div>`;
   const w = weapons.filter(match), o = others.filter(match);
   document.getElementById("gearModal").innerHTML = `
-    <h3>➕ Add Equipment</h3>
+    <h3>Add Equipment</h3>
     <div style="color:var(--muted);font-style:italic">Anything you add shows up in Equipment. Weapons also appear under Attacks with their bonus worked out.</div>
     <div class="lvl-step">
       <div class="k">Write it in</div>
@@ -1193,13 +1224,6 @@ function addCustomGear() {
   const v = (el.value||"").trim();
   if (!v) return;
   addGear(v);
-}
-function removeGear(name) {
-  const i = (state.gear||[]).indexOf(name);
-  if (i < 0) return;
-  state.gear.splice(i,1);
-  logEvent("gear", `Dropped <b>${name}</b>`);
-  renderSheet(); persistLoaded();
 }
 function gearClose() { document.getElementById("gearOverlay").classList.remove("open"); }
 document.addEventListener("click", e=>{ if (e.target.id==="gearOverlay") gearClose(); });
@@ -1720,9 +1744,11 @@ document.addEventListener("click", e=>{ if (e.target.id==="atkOverlay") atkClose
 function spellDetail(name) {
   const s = SPELLS.find(x=>x.n===name);
   if (!s) return;
+  const canCast = hasSpellFocus();
   const rows = getSlotRows().filter(r=>r.total>0 && r.lv >= s.l).map(r=>{
     const left = r.total - (state.slotsUsed[r.lv]||0);
-    return `<button onclick="castSpell('${escQ(s.n)}',${r.lv})" ${left<=0?"disabled style='opacity:.45'":""}>✨ Cast with Level ${r.lv} slot (${left} left)</button>`;
+    const off = left<=0 || !canCast;
+    return `<button onclick="castSpell('${escQ(s.n)}',${r.lv})" ${off?"disabled style='opacity:.45'":""}>✨ Cast with Level ${r.lv} slot (${left} left)</button>`;
   }).join(" ");
   const roll = spellRolls(s);
   const prof = 2 + Math.floor((state.level-1)/4);
@@ -1740,14 +1766,16 @@ function spellDetail(name) {
     <div style="color:var(--muted);font-style:italic;margin-bottom:.5rem">${s.l===0?"Cantrip":"Level "+s.l} · ${s.c.join(", ")}${roll.save?` · ${ABILITY_NAMES[roll.save.toUpperCase()]||roll.save} save vs DC ${8+spellAtk}`:""}</div>
     <div class="lvl-step">${allDice(s.d)}${roll.note?`<div style="margin-top:.3rem;color:var(--muted);font-size:.85rem">${roll.note}</div>`:""}</div>
     ${rollBtns?`<div class="lvl-step"><div class="k">Rolls</div>${rollBtns}</div>`:""}
+    ${hasSpellFocus() ? "" : `<div class="warn-banner">⚠ You aren't carrying a spellcasting focus, so you can't cast this. Add one under Equipment.</div>`}
     <div class="lvl-step"><div class="k">Cast</div>
-      ${s.l===0 ? `<button onclick="castSpell('${escQ(s.n)}',0)">✨ Cast cantrip</button>` : (rows || '<span style="color:var(--muted)">No spell slots of this level.</span>')}
+      ${s.l===0 ? `<button onclick="castSpell('${escQ(s.n)}',0)" ${canCast?"":"disabled style='opacity:.45'"}>✨ Cast cantrip</button>` : (rows || '<span style="color:var(--muted)">No spell slots of this level.</span>')}
     </div>
     <div class="lvl-actions"><button onclick="spellClose()">Close</button></div>`;
   document.getElementById("spellOverlay").classList.add("open");
 }
 
 function castSpell(name, lv) {
+  if (!hasSpellFocus()) return;
   if (lv > 0) {
     const row = getSlotRows().find(r=>r.lv===lv);
     const left = row ? row.total - (state.slotsUsed[lv]||0) : 0;

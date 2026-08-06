@@ -255,6 +255,20 @@
   }
   .conc-banner button { padding: 0 .4rem; margin-left: .3rem; font-size: .8rem; }
 
+  /* Equipment add / drop controls share the accent colour */
+  .gear-btn {
+    background: transparent; color: var(--accent); border: 1px solid var(--accent);
+    font-weight: bold; line-height: 1; padding: .1rem .45rem; font-size: .9rem;
+  }
+  .gear-btn:hover { background: var(--accent); color: #fff; }
+  body.dark .gear-btn:hover { color: #06230f; }
+  .gear-btn.wide { width: 100%; margin-top: .5rem; padding: .45rem; font-size: .9rem; }
+
+  .warn-banner {
+    border: 1px solid var(--accent2); color: var(--accent2); border-radius: 8px;
+    padding: .4rem .7rem; margin: .4rem 0; font-size: .85rem;
+  }
+
   /* Spell slot pips: identical size whether available or spent */
   .slot-pip {
     display: inline-block; width: .8em; height: .8em; border-radius: 50%;
