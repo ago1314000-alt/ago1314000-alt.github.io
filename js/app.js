@@ -849,17 +849,36 @@ function importCharacters(input) {
 }
 
 const rulesInput = document.getElementById("rulesSearch");
+
+// Category chips: everything before the "·" in an entry's category, so all the
+// per-level spell buckets collapse into one "Spell" filter
+const ruleCat = r => r.c.split(" · ")[0];
+let ruleFilter = null;
+function renderRuleCats() {
+  const counts = {};
+  RULES.forEach(r=>{ const k = ruleCat(r); counts[k] = (counts[k]||0)+1; });
+  const cats = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);
+  document.getElementById("ruleCats").innerHTML =
+    `<span class="cat-chip${ruleFilter===null?" picked":""}" onclick="setRuleFilter(null)">All <small>${RULES.length}</small></span>` +
+    cats.map(c=>`<span class="cat-chip${ruleFilter===c?" picked":""}" onclick="setRuleFilter('${escQ(c)}')">${c} <small>${counts[c]}</small></span>`).join("");
+}
+function setRuleFilter(c) {
+  ruleFilter = (ruleFilter === c) ? null : c;
+  renderRuleCats();
+  renderRules(rulesInput.value);
+}
+
 function renderRules(q) {
   q = (q||"").trim().toLowerCase();
-  const hits = !q ? RULES : RULES.filter(r =>
+  const pool = ruleFilter ? RULES.filter(r=>ruleCat(r)===ruleFilter) : RULES;
+  const hits = !q ? pool : pool.filter(r =>
     r.t.toLowerCase().includes(q) || r.d.toLowerCase().includes(q) || r.c.toLowerCase().includes(q));
   const hi = txt => q ? txt.replace(new RegExp("("+q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi"), "<mark>$1</mark>") : txt;
   document.getElementById("rulesResults").innerHTML = hits.length
     ? hits.map(r=>`<div class="rule-card"><div class="cat">${r.c}</div><h4>${allDice(hi(r.t))}</h4><p>${allDice(hi(r.d))}</p>${r.url?`<a href="${r.url}" target="_blank" rel="noopener" style="font-size:.85rem">Full description on the SRD ↗</a>`:""}</div>`).join("")
-    : '<div class="empty">No rules matched. Try another term.</div>';
+    : `<div class="empty">Nothing matched${ruleFilter?` in ${ruleFilter}`:""}. Try another term${ruleFilter?` or pick <span class="ref-link" onclick="setRuleFilter(null)">All</span>`:""}.</div>`;
 }
 rulesInput.addEventListener("input", ()=>renderRules(rulesInput.value));
-renderRules("");
 
 // ---------- DICE ROLLING & HP ----------
 let toastTimer = null;
@@ -1823,6 +1842,8 @@ try {
 } catch(e) {}
 
 updateSavedCount();
+renderRuleCats();
+renderRules("");
 renderSkillChoices();
 renderSpellChoices();
 renderSheet();
