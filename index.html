@@ -274,9 +274,18 @@
 
 <div class="tabpage maxw" id="tab-saved">
   <div class="panel">
-    <h3 class="section" style="margin-top:0">Saved Characters</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap">
+      <h3 class="section" style="margin:0;border:none">Saved Characters</h3>
+      <div style="display:flex;gap:.4rem">
+        <button onclick="exportCharacters()" title="Download all characters as a JSON file">⬇ Export</button>
+        <button onclick="document.getElementById('importFile').click()" title="Import characters from a JSON export">⬆ Import</button>
+        <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importCharacters(this)">
+      </div>
+    </div>
+    <div style="color:var(--muted);font-size:.8rem;margin:.3rem 0 .8rem">Characters are stored in this browser and survive restarts. Use Export / Import to move them to another browser or computer.</div>
     <div id="savedList"></div>
   </div>
+  <div class="panel sheet" id="savedSheet" style="margin-top:1rem;display:none"></div>
 </div>
 
 <div class="tabpage maxw" id="tab-quickref">
@@ -486,6 +495,23 @@ const BACKGROUNDS = {
     equipment:["Spear","Shortbow, 20 Arrows, Quiver","Gaming Set","Healer's Kit","Traveler's Clothes","14 GP"] }
 };
 
+// Key features gained at each level (SRD 5.2, abbreviated)
+const CLASS_LEVELS = {
+  "Barbarian": {2:["Reckless Attack","Danger Sense"],3:["Subclass: Path of the Berserker (Frenzy)","Primal Knowledge"],5:["Extra Attack","Fast Movement (+10 ft)"],7:["Feral Instinct","Instinctive Pounce"],9:["Brutal Strike"],11:["Relentless Rage"],13:["Improved Brutal Strike"],15:["Persistent Rage"],17:["Improved Brutal Strike (2 effects)"],18:["Indomitable Might"],20:["Primal Champion (+4 STR and CON, max 25)"]},
+  "Bard": {2:["Expertise (2 skills)","Jack of All Trades"],3:["Subclass: College of Lore (Cutting Words)"],5:["Font of Inspiration (d8 Bardic Inspiration)"],7:["Countercharm"],9:["Expertise (2 more skills)"],10:["Magical Secrets"],18:["Superior Inspiration"],20:["Words of Creation"]},
+  "Cleric": {2:["Channel Divinity (Divine Spark, Turn Undead)"],3:["Subclass: Life Domain"],5:["Sear Undead"],7:["Blessed Strikes"],10:["Divine Intervention"],14:["Improved Blessed Strikes"],20:["Greater Divine Intervention"]},
+  "Druid": {2:["Wild Shape","Wild Companion"],3:["Subclass: Circle of the Land"],5:["Wild Resurgence"],7:["Elemental Fury"],15:["Improved Elemental Fury"],18:["Beast Spells"],20:["Archdruid"]},
+  "Fighter": {2:["Action Surge","Tactical Mind"],3:["Subclass: Champion (Improved Critical)"],5:["Extra Attack","Tactical Shift"],9:["Indomitable","Tactical Master"],11:["Two Extra Attacks"],13:["Indomitable (2 uses)"],17:["Action Surge (2 uses)"],20:["Three Extra Attacks"]},
+  "Monk": {2:["Monk's Focus (Flurry of Blows, Patient Defense, Step of the Wind)","Unarmored Movement +10 ft"],3:["Subclass: Warrior of the Open Hand","Deflect Attacks"],4:["Slow Fall"],5:["Extra Attack","Stunning Strike"],6:["Empowered Strikes"],7:["Evasion"],10:["Self-Restoration","Heightened Focus"],13:["Deflect Energy"],14:["Disciplined Survivor"],15:["Perfect Focus"],18:["Superior Defense"],20:["Body and Mind (+4 DEX and WIS, max 25)"]},
+  "Paladin": {2:["Fighting Style","Paladin's Smite"],3:["Subclass: Oath of Devotion","Channel Divinity"],5:["Extra Attack","Faithful Steed"],6:["Aura of Protection"],9:["Abjure Foes"],10:["Aura of Courage"],11:["Radiant Strikes"],14:["Restoring Touch"],18:["Aura Expansion (30 ft)"]},
+  "Ranger": {2:["Deft Explorer (Expertise)","Fighting Style"],3:["Subclass: Hunter (Hunter's Prey)"],5:["Extra Attack"],6:["Roving (+10 ft, Climb and Swim Speed)"],9:["Expertise"],10:["Tireless"],13:["Relentless Hunter"],14:["Nature's Veil"],17:["Precise Hunter"],18:["Feral Senses"],20:["Foe Slayer"]},
+  "Rogue": {2:["Cunning Action (Dash, Disengage, Hide as Bonus Action)"],3:["Subclass: Thief (Fast Hands, Second-Story Work)","Steady Aim","Sneak Attack 2d6"],5:["Cunning Strike","Uncanny Dodge","Sneak Attack 3d6"],7:["Evasion","Reliable Talent","Sneak Attack 4d6"],9:["Sneak Attack 5d6"],11:["Improved Cunning Strike","Sneak Attack 6d6"],13:["Sneak Attack 7d6"],14:["Devious Strikes"],15:["Slippery Mind","Sneak Attack 8d6"],17:["Sneak Attack 9d6"],18:["Elusive"],19:["Sneak Attack 10d6"],20:["Stroke of Luck"]},
+  "Sorcerer": {2:["Font of Magic (Sorcery Points)","Metamagic (2 options)"],3:["Subclass: Draconic Sorcery"],5:["Sorcerous Restoration"],7:["Sorcery Incarnate"],10:["Metamagic (3rd option)"],17:["Metamagic (4th option)"],20:["Arcane Apotheosis"]},
+  "Warlock": {2:["Magical Cunning"],3:["Subclass: Fiend Patron (Dark One's Blessing)"],5:["Pact Boon improvements, 3rd-level slots"],9:["Contact Patron"],11:["Mystic Arcanum (6th level)"],13:["Mystic Arcanum (7th level)"],15:["Mystic Arcanum (8th level)"],17:["Mystic Arcanum (9th level)"],20:["Eldritch Master"]},
+  "Wizard": {2:["Scholar (Expertise in one INT skill)"],3:["Subclass: Evoker (Potent Cantrip)"],5:["Memorize Spell"],10:["Empowered Evocation (Evoker)"],18:["Spell Mastery"],20:["Signature Spells"]}
+};
+const ASI_LEVELS = { default:[4,8,12,16,19], Fighter:[4,6,8,12,14,16,19], Rogue:[4,8,10,12,16,19] };
+
 const ALIGNMENTS = ["Lawful Good","Neutral Good","Chaotic Good","Lawful Neutral","True Neutral","Chaotic Neutral","Lawful Evil","Neutral Evil","Chaotic Evil"];
 
 const NAMES = {
@@ -497,8 +523,9 @@ const NAMES = {
 const state = {
   name:"", cls:"", species:"", background:"", alignment:"",
   scores:{STR:null,DEX:null,CON:null,INT:null,WIS:null,CHA:null},
-  skills:[]
+  skills:[], level:1, dieRolls:[], loadedId:null
 };
+let sheetTargetId = "sheet";
 
 // ---------- HELPERS ----------
 const rand = arr => arr[Math.floor(Math.random()*arr.length)];
@@ -625,13 +652,14 @@ document.getElementById("charName").addEventListener("input", e=>{ state.name=e.
   document.getElementById(id).addEventListener("change", e=>{
     const key = {selClass:"cls",selSpecies:"species",selBackground:"background",selAlignment:"alignment"}[id];
     state[key] = e.target.value;
-    if (id==="selClass") { state.skills=[]; renderSkillChoices(); }
+    if (id==="selClass") { state.skills=[]; state.level=1; state.dieRolls=[]; renderSkillChoices(); }
     if (id==="selBackground") renderSkillChoices();
     renderSheet();
   });
 });
 
 document.getElementById("btnRandomAll").addEventListener("click", ()=>{
+  state.level=1; state.dieRolls=[]; state.loadedId=null;
   Object.values(randomizers).forEach(f=>f());
   setScores(ABILITIES.map(()=>roll4d6()));
   optimizeForClass();
@@ -641,6 +669,7 @@ document.getElementById("btnRandomAll").addEventListener("click", ()=>{
 
 document.getElementById("btnClear").addEventListener("click", ()=>{
   state.name=""; state.cls=""; state.species=""; state.background=""; state.alignment="";
+  state.level=1; state.dieRolls=[]; state.loadedId=null; state.maxHp=null; state.curHp=null;
   state.skills=[]; ABILITIES.forEach(a=>{ state.scores[a]=null; document.getElementById("ab_"+a).value=""; });
   document.getElementById("charName").value="";
   ["selClass","selSpecies","selBackground","selAlignment"].forEach(id=>document.getElementById(id).value="");
@@ -649,7 +678,11 @@ document.getElementById("btnClear").addEventListener("click", ()=>{
 
 // ---------- SHEET RENDER ----------
 function renderSheet() {
-  const el = document.getElementById("sheet");
+  const btnSaveEl = document.getElementById("btnSave");
+  btnSaveEl.textContent = state.loadedId ? "💾 Update Character" : "💾 Save Character";
+  try { localStorage.setItem("dnd-srd-current", JSON.stringify(state)); } catch(e) {}
+  const el = document.getElementById(sheetTargetId);
+  if (!el) return;
   const haveScores = ABILITIES.every(a=>state.scores[a]!=null);
   if (!state.cls && !state.species && !haveScores) {
     el.innerHTML = '<div class="empty">Choose options on the left (or hit <b>Randomize All</b>) to generate a character sheet.</div>';
@@ -658,14 +691,20 @@ function renderSheet() {
   const c = state.cls ? CLASSES[state.cls] : null;
   const sp = state.species ? SPECIES[state.species] : null;
   const bg = state.background ? BACKGROUNDS[state.background] : null;
-  const profBonus = 2;
+  const profBonus = 2 + Math.floor((state.level-1)/4);
   const conMod = state.scores.CON!=null ? mod(state.scores.CON) : 0;
   const dexMod = state.scores.DEX!=null ? mod(state.scores.DEX) : 0;
   const wisMod = state.scores.WIS!=null ? mod(state.scores.WIS) : 0;
 
-  let hp = c ? c.hitDie + conMod : null;
-  if (state.species==="Dwarf" && hp!=null) hp += 1;
-  if (state.maxHp !== hp) { state.maxHp = hp; state.curHp = hp; }
+  // Max HP: hit die at level 1 + rolled/average gains + CON per level (+1/level for Dwarf)
+  let hp = c ? c.hitDie + state.dieRolls.reduce((a,b)=>a+b,0) + conMod*state.level : null;
+  if (state.species==="Dwarf" && hp!=null) hp += state.level;
+  if (hp!=null) hp = Math.max(1, hp);
+  if (state.maxHp !== hp) {
+    const delta = hp - (state.maxHp||0);
+    state.curHp = state.maxHp==null || state.curHp==null ? hp : Math.max(0, Math.min(hp, state.curHp + Math.max(0,delta)));
+    state.maxHp = hp;
+  }
 
   let ac = 10 + dexMod;
   let acNote = "10 + Dex (unarmored)";
@@ -701,11 +740,21 @@ function renderSheet() {
 
   const equipment = [...(c?c.equipment:[]), ...(bg?bg.equipment:[])];
   const features = [...(c?c.features:[]), ...(bg?["Origin Feat: "+bg.feat]:[])];
+  if (c && CLASS_LEVELS[state.cls]) {
+    for (let lv=2; lv<=state.level; lv++) {
+      (CLASS_LEVELS[state.cls][lv]||[]).forEach(f=>features.push(`<small style="color:var(--muted)">L${lv}</small> ${f}`));
+      if ((ASI_LEVELS[state.cls]||ASI_LEVELS.default).includes(lv)) features.push(`<small style="color:var(--muted)">L${lv}</small> Ability Score Improvement or Feat`);
+    }
+  }
   const traits = sp ? sp.traits : [];
+  const canLevel = c && haveScores && state.level < 20;
 
   el.innerHTML = `
-    <h2>${state.name || "Unnamed Hero"}</h2>
-    <div class="tagline">Level 1 ${state.species||"?"} ${state.cls||"?"} · ${state.background||"no background"} · ${state.alignment||"unaligned"}</div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+      <h2>${state.name || "Unnamed Hero"}</h2>
+      ${canLevel?`<button onclick="levelUp()" style="font-weight:bold" title="Advance to level ${state.level+1}">⬆ Level Up</button>`:""}
+    </div>
+    <div class="tagline">Level ${state.level} ${state.species||"?"} ${state.cls||"?"} · ${state.background||"no background"} · ${state.alignment||"unaligned"}</div>
 
     <div class="vitals">
       <div class="vital"><div class="v">${ac}</div><div class="k">ARMOR CLASS</div><div style="font-size:.65rem;color:var(--muted)">${acNote}</div></div>
@@ -758,6 +807,7 @@ document.querySelectorAll(".tabs button").forEach(b=>{
     b.classList.add("active");
     document.getElementById("tab-"+b.dataset.tab).classList.add("active");
     if (b.dataset.tab==="saved") renderSavedList();
+    if (b.dataset.tab==="create") { sheetTargetId = "sheet"; renderSheet(); }
   });
 });
 
@@ -775,41 +825,61 @@ document.getElementById("btnSave").addEventListener("click", ()=>{
   if (!state.cls || !state.species) { alert("Pick at least a class and species before saving."); return; }
   const list = loadStore();
   const snapshot = JSON.parse(JSON.stringify(state));
-  snapshot.id = Date.now();
   snapshot.savedAt = new Date().toLocaleString();
-  const existingIdx = list.findIndex(ch => ch.name === snapshot.name && snapshot.name);
-  if (existingIdx >= 0 && confirm(`Overwrite existing saved character "${snapshot.name}"?`)) {
+  const existingIdx = state.loadedId ? list.findIndex(ch => ch.id === state.loadedId) : -1;
+  if (existingIdx >= 0) {
+    snapshot.id = state.loadedId;
     list[existingIdx] = snapshot;
   } else {
+    snapshot.id = Date.now();
+    state.loadedId = snapshot.id;
     list.push(snapshot);
   }
   saveStore(list);
-  updateSavedCount();
-  alert(`Saved ${snapshot.name || "Unnamed Hero"}.`);
+  updateSavedCount(); renderSheet();
+  alert(`${existingIdx>=0?"Updated":"Saved"} ${snapshot.name || "Unnamed Hero"}.`);
 });
+
+function applyCharacter(ch) {
+  state.name = ch.name; state.cls = ch.cls; state.species = ch.species;
+  state.background = ch.background; state.alignment = ch.alignment;
+  state.scores = {...ch.scores}; state.skills = [...(ch.skills||[])];
+  state.level = ch.level || 1; state.dieRolls = [...(ch.dieRolls||[])];
+  state.maxHp = ch.maxHp ?? null; state.curHp = ch.curHp ?? ch.maxHp ?? null;
+  state.loadedId = ch.id ?? null;
+  document.getElementById("charName").value = state.name || "";
+  document.getElementById("selClass").value = state.cls || "";
+  document.getElementById("selSpecies").value = state.species || "";
+  document.getElementById("selBackground").value = state.background || "";
+  document.getElementById("selAlignment").value = state.alignment || "";
+  ABILITIES.forEach(a=>document.getElementById("ab_"+a).value = state.scores[a] ?? "");
+  renderSkillChoices();
+}
 
 function loadCharacter(id) {
   const ch = loadStore().find(c=>c.id===id);
   if (!ch) return;
-  state.name = ch.name; state.cls = ch.cls; state.species = ch.species;
-  state.background = ch.background; state.alignment = ch.alignment;
-  state.scores = {...ch.scores}; state.skills = [...ch.skills];
-  state.maxHp = ch.maxHp ?? null; state.curHp = ch.curHp ?? ch.maxHp ?? null;
-  document.getElementById("charName").value = state.name;
-  document.getElementById("selClass").value = state.cls;
-  document.getElementById("selSpecies").value = state.species;
-  document.getElementById("selBackground").value = state.background;
-  document.getElementById("selAlignment").value = state.alignment;
-  ABILITIES.forEach(a=>document.getElementById("ab_"+a).value = state.scores[a] ?? "");
-  renderSkillChoices(); renderSheet();
+  applyCharacter(ch);
   document.querySelector('.tabs button[data-tab="create"]').click();
+}
+
+function viewCharacter(id) {
+  const ch = loadStore().find(c=>c.id===id);
+  if (!ch) return;
+  applyCharacter(ch);
+  sheetTargetId = "savedSheet";
+  document.getElementById("savedSheet").style.display = "block";
+  renderSheet();
+  document.getElementById("savedSheet").scrollIntoView({behavior:"smooth", block:"start"});
 }
 
 function deleteCharacter(id) {
   const ch = loadStore().find(c=>c.id===id);
   if (!ch || !confirm(`Delete "${ch.name || "Unnamed Hero"}"? This cannot be undone.`)) return;
   saveStore(loadStore().filter(c=>c.id!==id));
+  if (state.loadedId === id) state.loadedId = null;
   renderSavedList(); updateSavedCount();
+  document.getElementById("savedSheet").innerHTML = "";
 }
 
 function renderSavedList() {
@@ -819,12 +889,47 @@ function renderSavedList() {
   el.innerHTML = list.map(ch=>`
     <div class="saved-card">
       <div class="who"><b>${ch.name || "Unnamed Hero"}</b><br>
-        <small>Level 1 ${ch.species} ${ch.cls} · ${ch.background || "no background"} · saved ${ch.savedAt}</small></div>
+        <small>Level ${ch.level||1} ${ch.species} ${ch.cls} · ${ch.background || "no background"} · saved ${ch.savedAt}</small></div>
       <div class="btns">
-        <button onclick="loadCharacter(${ch.id})">Open</button>
+        <button onclick="viewCharacter(${ch.id})">View</button>
+        <button onclick="loadCharacter(${ch.id})">Edit</button>
         <button class="btn-danger" onclick="deleteCharacter(${ch.id})">Delete</button>
       </div>
     </div>`).join("");
+}
+
+// Export / import for moving characters between browsers or machines
+function exportCharacters() {
+  const data = JSON.stringify(loadStore(), null, 2);
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([data], {type:"application/json"}));
+  a.download = "dnd-characters.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importCharacters(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const incoming = JSON.parse(reader.result);
+      if (!Array.isArray(incoming)) throw new Error("not a list");
+      const list = loadStore();
+      const ids = new Set(list.map(c=>c.id));
+      let added = 0;
+      incoming.forEach(ch => {
+        if (!ch || !ch.cls) return;
+        if (ids.has(ch.id)) ch.id = Date.now() + Math.floor(Math.random()*1e6);
+        ids.add(ch.id); list.push(ch); added++;
+      });
+      saveStore(list);
+      renderSavedList(); updateSavedCount();
+      alert(`Imported ${added} character(s).`);
+    } catch(e) { alert("Could not read that file: it should be a dnd-characters.json export."); }
+    input.value = "";
+  };
+  reader.readAsText(file);
 }
 
 // ---------- SRD RULES REFERENCE ----------
@@ -899,7 +1004,31 @@ const RULES = [
 // Equipment quick reference
 {c:"Equipment",t:"Armor Class by Armor",d:"Light: Padded/Leather 11+Dex, Studded 12+Dex. Medium (max +2 Dex): Hide 12, Chain Shirt 13, Scale/Breastplate 14, Half Plate 15. Heavy (no Dex): Ring Mail 14, Chain Mail 16 (STR 13), Splint 17 (STR 15), Plate 18 (STR 15). Shield: +2."},
 {c:"Equipment",t:"Weapon Properties",d:"Finesse: use STR or DEX. Light: enables extra Bonus Action attack with a second Light weapon. Heavy: Disadvantage if STR (melee) or DEX (ranged) is below 13. Two-Handed, Versatile (one or two hands), Reach (+5 ft), Thrown, Ammunition, Loading (one shot per action)."},
-{c:"Equipment",t:"Potion of Healing",d:"A character can drink a Potion of Healing as a Bonus Action to regain 2d4+2 HP (administering it to another creature takes an action)."}
+{c:"Equipment",t:"Potion of Healing",d:"A character can drink a Potion of Healing as a Bonus Action to regain 2d4+2 HP (administering it to another creature takes an action)."},
+// Character sheet elements
+{c:"Character",t:"Ability Scores and Modifiers",d:"The six abilities are Strength (physical might), Dexterity (agility and reflexes), Constitution (endurance), Intelligence (reasoning and memory), Wisdom (perception and insight), and Charisma (force of personality). Modifier = (score - 10) / 2, rounded down: score 8-9 is -1, 10-11 is +0, 12-13 is +1, 14-15 is +2, 16-17 is +3, 18-19 is +4, 20-21 is +5."},
+{c:"Character",t:"Armor Class (AC)",d:"How hard you are to hit: an attack roll must equal or exceed your AC. Without armor, AC = 10 + DEX modifier. Armor sets a different base (see Armor Class by Armor); a Shield adds +2. Some classes have Unarmored Defense: Barbarian 10 + DEX + CON, Monk 10 + DEX + WIS."},
+{c:"Character",t:"Hit Points and Hit Point Dice",d:"HP represents durability and the will to live. At level 1, HP maximum = your class's Hit Point Die maximum + CON modifier. Each level after, add a roll of the die (or the average, die/2 + 1) + CON modifier. You have one Hit Point Die per level, spendable during Short Rests to heal."},
+{c:"Character",t:"Speed",d:"How far you can move on your turn, in feet (most species: 30 feet, Goliath: 35). You can break up movement around your action and Bonus Action. See also Difficult Terrain, Dash, and Jumping."},
+{c:"Character",t:"Initiative (sheet)",d:"Your bonus to the Dexterity check that sets turn order when combat starts: equal to your DEX modifier (some feats like Alert add Proficiency Bonus). Higher goes first."},
+{c:"Character",t:"Level and Experience Points",d:"Characters advance from level 1 to 20 by earning XP or by milestone at the GM's discretion. Each level grants a Hit Point Die, more HP, and class features; Proficiency Bonus rises at levels 5, 9, 13, and 17."},
+{c:"Character",t:"Ability Score Improvement (ASI)",d:"At levels 4, 8, 12, 16, and 19 (Fighters also 6 and 14, Rogues also 10), you gain a feat or an ASI: increase one ability by 2 or two abilities by 1 each. An ability score can't exceed 20 this way."},
+{c:"Character",t:"Class and Subclass",d:"Your class is your adventuring profession, determining Hit Point Die, saving throw and skill proficiencies, and features. At level 3 you choose a subclass specialization. SRD subclasses: Berserker, College of Lore, Life Domain, Circle of the Land, Champion, Warrior of the Open Hand, Oath of Devotion, Hunter, Thief, Draconic Sorcery, Fiend Patron, and Evoker."},
+{c:"Character",t:"Species",d:"Your character's ancestry: Dragonborn, Dwarf, Elf, Gnome, Goliath, Halfling, Human, Orc, or Tiefling in the SRD. Species grants Size, Speed, and special traits: it does not modify ability scores (your Background does that in the 2024 rules)."},
+{c:"Character",t:"Background and Origin Feats",d:"Your pre-adventuring life. A background grants +2/+1 (or +1/+1/+1) to three specific abilities, two skill proficiencies, a tool proficiency, starting equipment, and an Origin feat. SRD backgrounds: Acolyte (INT/WIS/CHA, Magic Initiate: Cleric), Criminal (DEX/CON/INT, Alert), Sage (CON/INT/WIS, Magic Initiate: Wizard), Soldier (STR/DEX/CON, Savage Attacker)."},
+{c:"Character",t:"Feat: Alert",d:"Origin feat (Criminal). Add your Proficiency Bonus to Initiative rolls. When you roll Initiative, you can swap your result with a willing ally's."},
+{c:"Character",t:"Feat: Magic Initiate",d:"Origin feat (Acolyte: Cleric list, Sage: Wizard list). Learn two cantrips and one level 1 spell from that class's list. You can cast the level 1 spell once per Long Rest for free, and also with any spell slots you have."},
+{c:"Character",t:"Feat: Savage Attacker",d:"Origin feat (Soldier). Once per turn when you hit with a weapon, roll the weapon's damage dice twice and use either result."},
+{c:"Character",t:"Alignment",d:"A shorthand for moral outlook combining attitude toward order (Lawful, Neutral, Chaotic) and morality (Good, Neutral, Evil), e.g. Lawful Good or Chaotic Neutral. A roleplaying guide, not a straitjacket: it has no mechanical effect on play."},
+{c:"Character",t:"Skills (all 18)",d:"STR: Athletics. DEX: Acrobatics, Sleight of Hand, Stealth. INT: Arcana, History, Investigation, Nature, Religion. WIS: Animal Handling, Insight, Medicine, Perception, Survival. CHA: Deception, Intimidation, Performance, Persuasion. Proficiency (from class and background) adds your Proficiency Bonus to that skill's checks."},
+{c:"Character",t:"Expertise",d:"Some features (Bard, Rogue, Ranger) grant Expertise in a skill: your Proficiency Bonus is doubled for checks with that skill."},
+{c:"Character",t:"Saving Throw Proficiencies",d:"Each class grants proficiency in two saving throws (marked ● on the sheet): add your Proficiency Bonus to those saves. Barbarian/Fighter: STR and CON. Bard: DEX and CHA. Cleric/Paladin: WIS and CHA. Druid: INT and WIS. Monk/Ranger: STR and DEX. Rogue: DEX and INT. Sorcerer: CON and CHA. Warlock: WIS and CHA. Wizard: INT and WIS."},
+{c:"Character",t:"Spell Slots",d:"Fuel for casting leveled spells; you regain all slots on a Long Rest (Warlocks: Short Rest). A full caster at level 1 has two level-1 slots; slots grow in number and level as you gain levels, up to level 9 spells at character level 17. Half casters (Paladin, Ranger) progress at half rate."},
+{c:"Character",t:"Weapon Mastery",d:"Martial classes can use the mastery property of chosen weapons (Barbarian/Paladin/Ranger/Rogue 2, Fighter 3). Examples: Cleave (greataxe: hit a second adjacent creature), Vex (shortsword: gain Advantage on your next attack vs. the target), Topple (flail: force a CON save or Prone), Nick (dagger: extra Light-weapon attack without a Bonus Action)."},
+{c:"Character",t:"Size",d:"Your species determines size: Small (Gnome, Halfling, and optionally Human/Tiefling) or Medium. Small and Medium creatures occupy a 5-foot space and function identically in almost all rules; Small creatures can't wield Heavy weapons effectively (Disadvantage)."},
+{c:"Character",t:"Coins and Equipment",d:"The gold piece (GP) is the standard coin: 1 GP = 10 silver (SP) = 100 copper (CP); 1 platinum (PP) = 10 GP. Starting equipment comes from your class and background. Packs (Explorer's, Dungeoneer's, etc.) bundle common gear like rations, rope, torches, and a tinderbox."},
+{c:"Character",t:"Tool Proficiencies",d:"Proficiency with a tool (Thieves' Tools, Calligrapher's Supplies, a Gaming Set, a Musical Instrument) lets you add your Proficiency Bonus to ability checks using it. Thieves' Tools are used to pick locks and disarm traps (usually DEX checks)."},
+{c:"Character",t:"Passive Perception (sheet)",d:"10 + WIS modifier + Proficiency Bonus if proficient in Perception. The GM compares hidden creatures' Stealth checks and subtle details against it: no roll needed. See also Passive Perception under Rules."}
 ];
 
 const rulesInput = document.getElementById("rulesSearch");
@@ -949,6 +1078,61 @@ function changeHp(delta) {
   if (state.maxHp==null) return;
   state.curHp = Math.max(0, Math.min(state.maxHp, state.curHp + delta));
   renderSheet();
+  persistLoaded();
+}
+
+// Silently write play-time changes (HP, level) back to the saved copy
+function persistLoaded() {
+  if (!state.loadedId) return;
+  const list = loadStore();
+  const i = list.findIndex(c=>c.id===state.loadedId);
+  if (i < 0) return;
+  const snap = JSON.parse(JSON.stringify(state));
+  snap.id = state.loadedId;
+  snap.savedAt = list[i].savedAt;
+  list[i] = snap;
+  saveStore(list);
+}
+
+// ---------- LEVEL UP ----------
+function levelUp() {
+  if (!state.cls || state.level >= 20) return;
+  const c = CLASSES[state.cls];
+  state.level++;
+  const avg = c.hitDie/2 + 1;
+  const useRoll = confirm(`Level ${state.level}! Roll your d${c.hitDie} for Hit Points?\n\nOK = roll the die · Cancel = take the average (${avg})`);
+  const gain = useRoll ? 1 + Math.floor(Math.random()*c.hitDie) : avg;
+  state.dieRolls.push(gain);
+
+  const asiLevels = ASI_LEVELS[state.cls] || ASI_LEVELS.default;
+  if (asiLevels.includes(state.level)) {
+    const inp = prompt(`Level ${state.level} grants an Ability Score Improvement!\n\nEnter one ability for +2 (e.g. CON) or two separated by a comma for +1 each (e.g. STR,WIS).\nCancel to skip (take a feat instead and adjust manually).`);
+    if (inp) {
+      const parts = inp.toUpperCase().split(",").map(s=>s.trim()).filter(Boolean);
+      const valid = parts.every(p=>ABILITIES.includes(p)) && (parts.length===1 || parts.length===2);
+      if (!valid) { alert("Didn't recognize that: no changes applied. You can edit scores manually on the Create tab."); }
+      else {
+        const bump = parts.length===1 ? 2 : 1;
+        parts.forEach(p=>{
+          state.scores[p] = Math.min(20, (state.scores[p]||10) + bump);
+          document.getElementById("ab_"+p).value = state.scores[p];
+        });
+      }
+    }
+  }
+
+  const newFeats = (CLASS_LEVELS[state.cls][state.level]||[]).join(", ");
+  renderSheet();
+  persistLoaded();
+  const toast = document.getElementById("rollToast");
+  toast.querySelector(".what").textContent = `${state.name || "Hero"} reached...`;
+  const totalEl = toast.querySelector(".total");
+  totalEl.textContent = "Level " + state.level;
+  totalEl.className = "total crit";
+  toast.querySelector(".detail").textContent = `+${gain} HP${useRoll?" (rolled)":""}${newFeats?" · "+newFeats:""}`;
+  toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>toast.classList.remove("show"), 6000);
 }
 
 // ---------- THEME ----------
@@ -963,6 +1147,12 @@ function applyTheme(theme) {
 document.getElementById("btnThemeDark").addEventListener("click", ()=>applyTheme("dark"));
 document.getElementById("btnThemeLight").addEventListener("click", ()=>applyTheme("light"));
 applyTheme(localStorage.getItem(THEME_KEY) || "dark");
+
+// Restore the in-progress character from the last visit
+try {
+  const cur = JSON.parse(localStorage.getItem("dnd-srd-current"));
+  if (cur && (cur.cls || cur.species || cur.name)) applyCharacter(cur);
+} catch(e) {}
 
 updateSavedCount();
 renderSkillChoices();
