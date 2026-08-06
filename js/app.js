@@ -6,7 +6,8 @@ const state = {
   skills:[], spells:[], level:1, dieRolls:[], loadedId:null,
   traits:"", ideals:"", bonds:"", flaws:"", notes:"",
   tempHp:0, inspiration:false, deathS:0, deathF:0,
-  slotsUsed:{}, hdUsed:0, stable:false, retired:false
+  slotsUsed:{}, hdUsed:0, stable:false, retired:false,
+  resUsed:{}, conc:null
 };
 let sheetTargetId = "sheet";
 
@@ -317,7 +318,7 @@ document.getElementById("charName").addEventListener("input", e=>{ state.name=e.
   document.getElementById(id).addEventListener("change", e=>{
     const key = {selClass:"cls",selSpecies:"species",selBackground:"background",selAlignment:"alignment"}[id];
     state[key] = e.target.value;
-    if (id==="selClass") { state.skills=[]; state.spells=[]; state.level=1; state.dieRolls=[]; state.slotsUsed={}; state.hdUsed=0; renderSkillChoices(); renderSpellChoices(); }
+    if (id==="selClass") { state.skills=[]; state.spells=[]; state.level=1; state.dieRolls=[]; state.slotsUsed={}; state.hdUsed=0; state.resUsed={}; state.conc=null; renderSkillChoices(); renderSpellChoices(); }
     if (id==="selBackground") {
       // Free up any class pick the new background already grants, so the
       // player keeps their full allotment of distinct proficiencies
@@ -334,7 +335,7 @@ document.getElementById("btnRandomAll").addEventListener("click", ()=>{
   state.tempHp=0; state.inspiration=false; state.deathS=0; state.deathF=0;
   state.slotsUsed={}; state.hdUsed=0; state.stable=false; state.retired=false;
   // Fresh heroes arrive fully rested: force HP to recompute from scratch
-  state.maxHp=null; state.curHp=null;
+  state.maxHp=null; state.curHp=null; state.resUsed={}; state.conc=null;
   Object.values(randomizers).forEach(f=>f());
   setScores(ABILITIES.map(()=>roll4d6()));
   optimizeForClass();
@@ -354,6 +355,7 @@ function clearCreator() {
   state.traits=""; state.ideals=""; state.bonds=""; state.flaws=""; state.notes="";
   state.tempHp=0; state.inspiration=false; state.deathS=0; state.deathF=0;
   state.slotsUsed={}; state.hdUsed=0; state.stable=false; state.retired=false;
+  state.resUsed={}; state.conc=null;
   ABILITIES.forEach(a=>{ state.scores[a]=null; document.getElementById("ab_"+a).value=""; });
   document.getElementById("charName").value="";
   ["selClass","selSpecies","selBackground","selAlignment"].forEach(id=>document.getElementById(id).value="");
@@ -488,6 +490,28 @@ function renderSheet() {
     return `<li><b>${r.pact?`Pact Slots (Level ${r.lv})`:`Level ${r.lv} Slots`}:</b> ${pips}</li>`;
   }).join("");
 
+  const resList = resourcesFor();
+  const resBlock = resList.length ? `
+    <h3 class="section">${refLink("Class Resources","Resources")}</h3>
+    <ul class="clean">
+      ${resList.map(r=>{
+        const used = state.resUsed[r.name]||0, left = r.max - used;
+        const note = `<small style="color:var(--muted)">${r.rest} rest</small>`;
+        if (r.pool) return `<li><b>${r.name}</b> ${left} / ${r.max} HP ${note}
+          <span style="float:right">
+            <button style="padding:.1rem .4rem;font-size:.8rem" onclick="spendRes('${escQ(r.name)}',1)" ${left<1?"disabled":""}>-1</button>
+            <button style="padding:.1rem .4rem;font-size:.8rem" onclick="spendRes('${escQ(r.name)}',5)" ${left<5?"disabled":""}>-5</button>
+            <button style="padding:.1rem .4rem;font-size:.8rem" onclick="restoreRes('${escQ(r.name)}')" ${used?"":"disabled"}>reset</button>
+          </span></li>`;
+        const pips = Array.from({length:Math.min(r.max,12)},(_,i)=>{
+          const filled = i < left;
+          return `<span class="slot-pip${filled?" filled":""}" title="${filled?"Click to spend":"Click to restore"}"
+                    onclick="${filled?`spendRes('${escQ(r.name)}',1)`:`restoreRes('${escQ(r.name)}',1)`}"></span>`;
+        }).join(" ");
+        return `<li><b>${r.name}</b> ${pips}${r.max>12?` <small>(${left}/${r.max})</small>`:""} ${note}</li>`;
+      }).join("")}
+    </ul>` : "";
+
   const spellBlock = castAb ? `
     <h3 class="section">Spellcasting (${ABILITY_NAMES[castAb]})</h3>
     <ul class="clean">
@@ -511,11 +535,15 @@ function renderSheet() {
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
         ${state.retired?`<button onclick="resurrectCurrent()" title="Powerful magic calls them back with 1 HP">✨ Resurrect</button>
         <span style="border:1px solid var(--accent2);color:var(--accent2);border-radius:6px;padding:.3rem .6rem;font-weight:bold" title="This hero has been laid to rest">🪦 Retired · Dead</span>`:""}
-        ${canAct?`<button onclick="shortRest()" title="1+ hour: spend Hit Dice to heal">⛺ Short Rest</button>
+        ${canAct?`<button class="roll-mode${rollMode==="adv"?" on":""}" onclick="setRollMode('adv')" title="Roll two d20s and keep the higher on every d20 test">⬆ ADV</button>
+        <button class="roll-mode${rollMode==="dis"?" on dis":""}" onclick="setRollMode('dis')" title="Roll two d20s and keep the lower on every d20 test">⬇ DIS</button>
+        <button onclick="shortRest()" title="1+ hour: spend Hit Dice to heal">⛺ Short Rest</button>
         <button onclick="longRest()" title="8 hours: restore HP, spell slots, and half your Hit Dice">🌙 Long Rest</button>`:""}
         ${canLevel?`<button onclick="levelUp()" style="font-weight:bold" title="Advance to level ${state.level+1}">⬆ Level Up</button>`:""}
       </div>
     </div>
+    ${rollModeLabel()?`<div class="mode-banner${rollMode==="dis"?" dis":""}">Rolling with ${rollModeLabel()} · <span onclick="setRollMode('${rollMode}')" style="cursor:pointer;text-decoration:underline">back to normal</span></div>`:""}
+    ${state.conc?`<div class="conc-banner">🌀 Concentrating on <b>${state.conc}</b> <button onclick="dropConc('dropped')" title="Stop concentrating">✕</button></div>`:""}
     <div class="tagline">Level ${state.level} ${state.species||"?"} ${state.cls||"?"} · ${state.background||"no background"} · ${state.alignment||"unaligned"}${state.playerName?` · played by ${state.playerName.replace(/</g,"&lt;")}`:""}${state.xp?` · ${state.xp.toString().replace(/</g,"&lt;")} XP`:""}</div>
 
     <div class="vitals">
@@ -549,6 +577,7 @@ function renderSheet() {
         <h3 class="section">Saving Throws</h3>
         <ul class="clean">${saveRows}</ul>
         ${attacks.length?`<h3 class="section">Attacks</h3><ul class="clean">${attackRows}</ul>`:""}
+        ${resBlock}
         ${spellBlock}
         <h3 class="section">Skills</h3>
         <ul class="clean">${skillRows}</ul>
@@ -669,6 +698,7 @@ function applyCharacter(ch) {
   state.deathS = ch.deathS||0; state.deathF = ch.deathF||0;
   state.slotsUsed = {...(ch.slotsUsed||{})}; state.hdUsed = ch.hdUsed||0; state.stable = !!ch.stable;
   state.retired = !!ch.retired;
+  state.resUsed = {...(ch.resUsed||{})}; state.conc = ch.conc || null;
   document.getElementById("rpTraits").value = state.traits;
   document.getElementById("rpIdeals").value = state.ideals;
   document.getElementById("rpBonds").value = state.bonds;
@@ -811,7 +841,7 @@ let toastTimer = null;
 let histLog = [];
 try { histLog = JSON.parse(localStorage.getItem("dnd-srd-history")) || []; } catch(e) {}
 let showRollLog = false;
-const HIST_ICONS = { roll:"🎲", level:"⬆️", edit:"✏️", rest:"⛺", longrest:"🌙", status:"💀", heal:"❤️", cast:"✨" };
+const HIST_ICONS = { roll:"🎲", level:"⬆️", edit:"✏️", rest:"⛺", longrest:"🌙", status:"💀", heal:"❤️", cast:"✨", resource:"🔆" };
 function logEvent(type, text) {
   histLog.unshift({type, text, who: state.name || "", at: new Date().toLocaleString()});
   if (histLog.length > 200) histLog.length = 200;
@@ -828,10 +858,32 @@ function clearRollLog() {
   renderSheet();
 }
 
+// Advantage / disadvantage applies to every d20 test until switched off
+let rollMode = "normal";
+function setRollMode(m) { rollMode = (rollMode === m) ? "normal" : m; renderSheet(); }
+function rollModeLabel() { return rollMode==="adv" ? "Advantage" : rollMode==="dis" ? "Disadvantage" : null; }
+
+// One d20 test, honouring the current roll mode
+function d20Roll() {
+  const a = 1 + Math.floor(Math.random()*20);
+  if (rollMode === "normal") return { v:a, pair:null, mode:null };
+  const b = 1 + Math.floor(Math.random()*20);
+  const keep = rollMode==="adv" ? Math.max(a,b) : Math.min(a,b);
+  const drop = rollMode==="adv" ? Math.min(a,b) : Math.max(a,b);
+  return { v:keep, pair:[keep,drop], mode:rollModeLabel() };
+}
+function d20Detail(r, modifier) {
+  const sign = modifier>=0 ? "+" : "-", m = Math.abs(modifier);
+  return r.pair
+    ? `${dieIcon(20)} (${r.pair[0]}, <s style="opacity:.45">${r.pair[1]}</s>) ${sign} ${m}`
+    : allDice(`d20 (${r.v}) ${sign} ${m}`);
+}
+
 function rollD20(what, modifier) {
-  const d = 1 + Math.floor(Math.random()*20);
+  const r = d20Roll();
+  const d = r.v;
   const total = d + modifier;
-  logRoll(what, `d20 (${d}) ${modifier>=0?"+":"-"} ${Math.abs(modifier)}`, total);
+  logRoll(what + (r.mode?` (${r.mode})`:""), d20Detail(r, modifier), total);
   const toast = document.getElementById("rollToast");
   toast.querySelector(".what").textContent = what;
   const totalEl = toast.querySelector(".total");
@@ -860,6 +912,7 @@ function rollDie(sides) {
 
 function changeHp(delta) {
   if (state.maxHp==null) return;
+  const damageTaken = delta < 0 ? -delta : 0;
   if (delta < 0 && state.tempHp > 0) {
     const absorbed = Math.min(state.tempHp, -delta);
     state.tempHp -= absorbed;
@@ -870,6 +923,7 @@ function changeHp(delta) {
   if (before > 0 && state.curHp === 0) {
     state.stable = false;
     logEvent("status", `<b>Down!</b> Dropped to 0 HP`);
+    if (state.conc) dropConc("knocked unconscious");
   }
   if (state.curHp > 0 && before === 0) {
     state.deathS = 0; state.deathF = 0; state.stable = false;
@@ -877,6 +931,8 @@ function changeHp(delta) {
   }
   renderSheet();
   persistLoaded();
+  // Damage while concentrating forces a save, unless it already knocked them out
+  if (damageTaken > 0 && state.conc && state.curHp > 0) concCheck(damageTaken);
 }
 
 function changeTempHp(delta) {
@@ -1058,6 +1114,109 @@ function lvlConfirm() {
 document.getElementById("lvlOverlay").addEventListener("click", e=>{ if (e.target.id==="lvlOverlay") lvlCancel(); });
 document.addEventListener("keydown", e=>{ if (e.key==="Escape" && pendingLvl) lvlCancel(); });
 
+// ---------- CLASS RESOURCES ----------
+// Resources this character has at their current level, with computed maximums
+function resourcesFor() {
+  if (!state.cls) return [];
+  return (CLASS_RESOURCES[state.cls]||[])
+    .filter(r => state.level >= r.from)
+    .map(r => ({
+      name: r.n,
+      max: r.max(state.level, state.scores),
+      rest: typeof r.rest === "function" ? r.rest(state.level) : r.rest,
+      pool: !!r.pool
+    }));
+}
+function spendRes(name, n) {
+  const r = resourcesFor().find(x=>x.name===name);
+  if (!r) return;
+  state.resUsed[name] = Math.min(r.max, (state.resUsed[name]||0) + n);
+  logEvent("resource", `Spent ${n>1?n+" ":""}<b>${name}</b> (${r.max - state.resUsed[name]} of ${r.max} left)`);
+  renderSheet(); persistLoaded();
+}
+function restoreRes(name, n) {
+  state.resUsed[name] = Math.max(0, (state.resUsed[name]||0) - (n||9999));
+  renderSheet(); persistLoaded();
+}
+// Refill resources that come back on the given rest ("short" also happens on a long rest)
+function refillResources(kind) {
+  const restored = [];
+  resourcesFor().forEach(r=>{
+    if ((kind === "long" || r.rest === "short") && (state.resUsed[r.name]||0) > 0) {
+      restored.push(r.name);
+      state.resUsed[r.name] = 0;
+    }
+  });
+  return restored;
+}
+
+// ---------- CONCENTRATION ----------
+let pendingConc = null;
+
+function startConcentration(spellName) {
+  if (state.conc && state.conc !== spellName) {
+    logEvent("cast", `Concentration on <b>${state.conc}</b> ends (started ${spellName})`);
+  }
+  state.conc = spellName;
+}
+function dropConc(reason) {
+  if (!state.conc) return;
+  logEvent("cast", `Concentration on <b>${state.conc}</b> ends${reason?` (${reason})`:""}`);
+  state.conc = null;
+  renderSheet(); persistLoaded();
+}
+// Damage while concentrating forces a CON save: DC 10 or half the damage, whichever is higher
+function concCheck(damage) {
+  const dc = Math.max(10, Math.floor(damage/2));
+  pendingConc = { dc, damage, result: null };
+  renderConcModal();
+  document.getElementById("concOverlay").classList.add("open");
+}
+function concSaveMod() {
+  const c = state.cls ? CLASSES[state.cls] : null;
+  const prof = 2 + Math.floor((state.level-1)/4);
+  return (state.scores.CON!=null ? mod(state.scores.CON) : 0) + (c && c.saves.includes("CON") ? prof : 0);
+}
+function renderConcModal() {
+  if (!pendingConc) return;
+  const p = pendingConc, m = concSaveMod();
+  document.getElementById("concModal").innerHTML = `
+    <h3>🌀 ${refLink("Concentration")} Check</h3>
+    <div style="color:var(--muted);font-style:italic">${state.name||"Your hero"} took ${p.damage} damage while concentrating on <b>${state.conc||"a spell"}</b>.</div>
+    <div class="lvl-step">
+      <div class="k">Constitution save · DC ${p.dc}</div>
+      ${p.result==null
+        ? `<div style="margin-bottom:.4rem">DC is 10 or half the damage taken, whichever is higher.</div>
+           <button onclick="concRoll()">🎲 Roll CON save (${fmtMod(m)})</button>`
+        : `<div style="font-size:1.4rem"><b style="color:${p.result.ok?"var(--good)":"var(--accent2)"}">${p.result.total}</b>
+             <small style="color:var(--muted)">${p.result.detail}</small></div>
+           <div style="margin-top:.3rem"><b style="color:${p.result.ok?"var(--good)":"var(--accent2)"}">
+             ${p.result.ok ? `Held! You keep concentrating on ${state.conc}.` : `Broken. ${p.result.spell} ends.`}</b></div>`}
+    </div>
+    <div class="lvl-actions">
+      ${p.result==null?`<button onclick="concGiveUp()">Drop it</button>`:""}
+      <button class="lvl-confirm" onclick="concClose()">${p.result==null?"Skip":"Done"}</button>
+    </div>`;
+}
+function concRoll() {
+  const m = concSaveMod();
+  const r = d20Roll();
+  const total = r.v + m;
+  const ok = total >= pendingConc.dc;
+  const spell = state.conc;
+  logRoll(`Concentration save${r.mode?` (${r.mode})`:""}`, d20Detail(r, m), total);
+  pendingConc.result = { total, ok, detail: d20Detail(r, m), spell };
+  if (!ok) { state.conc = null; logEvent("cast", `Concentration on <b>${spell}</b> broken (DC ${pendingConc.dc})`); }
+  renderConcModal(); renderSheet(); persistLoaded();
+}
+function concGiveUp() { dropConc("voluntarily"); concClose(); }
+function concClose() {
+  pendingConc = null;
+  document.getElementById("concOverlay").classList.remove("open");
+  renderSheet();
+}
+document.addEventListener("click", e=>{ if (e.target.id==="concOverlay") concClose(); });
+
 // ---------- SPELL SLOTS ----------
 function spendSlot(lv) {
   const row = getSlotRows().find(r=>r.lv===lv);
@@ -1134,6 +1293,8 @@ function restFinish() {
   state.hdUsed += spent;
   let extra = "";
   if (state.cls==="Warlock") { state.slotsUsed = {}; extra = ", Pact slots restored"; }
+  const back = refillResources("short");
+  if (back.length) extra += `, restored ${back.join(", ")}`;
   logEvent("rest", `<b>Short Rest</b>: spent ${spent} Hit ${spent===1?"Die":"Dice"}, healed ${healed} HP${extra}`);
   restCancel();
   renderSheet(); persistLoaded();
@@ -1187,7 +1348,9 @@ function longRestConfirm() {
   state.curHp = state.maxHp; state.tempHp = 0;
   state.slotsUsed = {}; state.hdUsed = Math.max(0, state.hdUsed - regain);
   state.deathS = 0; state.deathF = 0; state.stable = false;
-  let spellNote = "";
+  const resBack = refillResources("long");
+  if (state.conc) { state.conc = null; }
+  let spellNote = resBack.length ? `, restored ${resBack.join(", ")}` : "";
   if (pendingLR && pendingLR.spellMode === "random") {
     randomizeSpells();
     spellNote = `, prepared a new set of spells (${state.spells.join(", ")})`;
@@ -1384,9 +1547,11 @@ document.addEventListener("click", e=>{ if (e.target.id==="refOverlay") refClose
 let atkState = null;
 
 function attackRoll(name, bonus, dice, type, dmgMod) {
-  const d = 1 + Math.floor(Math.random()*20);
-  logRoll(`${name}`, `d20 (${d}) ${bonus>=0?"+":"-"} ${Math.abs(bonus)}`, d + bonus);
-  atkState = { name, bonus, d20: d, total: d + bonus, dice, type, dmgMod, dmgResult: null, extra: [] };
+  const r = d20Roll();
+  const d = r.v;
+  logRoll(`${name}${r.mode?` (${r.mode})`:""}`, d20Detail(r, bonus), d + bonus);
+  atkState = { name, bonus, d20: d, total: d + bonus, dice, type, dmgMod, dmgResult: null, extra: [],
+               detail: d20Detail(r, bonus), mode: r.mode };
   renderAtkModal();
   document.getElementById("atkOverlay").classList.add("open");
 }
@@ -1400,9 +1565,9 @@ function renderAtkModal() {
   document.getElementById("atkModal").innerHTML = `
     <h3>${a.name}</h3>
     <div class="lvl-step">
-      <div class="k">Attack Roll · vs target's AC</div>
+      <div class="k">Attack Roll · vs target's AC${a.mode?` · ${a.mode}`:""}</div>
       <div style="font-size:1.6rem"><b style="${crit?"color:var(--good)":fumble?"color:var(--accent2)":""}">${a.total}</b>
-        <small style="color:var(--muted)">${allDice(`d20 (${a.d20}) ${a.bonus>=0?"+":"-"} ${Math.abs(a.bonus)}`)}</small></div>
+        <small style="color:var(--muted)">${a.detail}</small></div>
       ${crit?'<b style="color:var(--good)">NATURAL 20 · Critical Hit! Roll the damage dice twice.</b>':fumble?'<b style="color:var(--accent2)">Natural 1 · automatic miss.</b>':""}
     </div>
     <div class="lvl-step">
@@ -1474,7 +1639,10 @@ function castSpell(name, lv) {
     if (left <= 0) return;
     state.slotsUsed[lv] = (state.slotsUsed[lv]||0) + 1;
   }
-  logEvent("cast", `Cast <b>${name}</b>${lv?` using a Level ${lv} slot`:" (cantrip)"}`);
+  const spell = SPELLS.find(s=>s.n===name);
+  const needsConc = spell && /concentration/i.test(spell.d);
+  logEvent("cast", `Cast <b>${name}</b>${lv?` using a Level ${lv} slot`:" (cantrip)"}${needsConc?" · concentrating":""}`);
+  if (needsConc) startConcentration(name);
   spellClose();
   renderSheet(); persistLoaded();
 }

@@ -238,6 +238,23 @@
   .tabpage.active { display: block; }
   .maxw { max-width: 1400px; margin: 0 auto; }
 
+  /* Advantage / disadvantage toggle and its banner */
+  .roll-mode { font-weight: bold; }
+  .roll-mode.on { background: var(--good); border-color: var(--good); color: #fff; }
+  body.dark .roll-mode.on { color: #06230f; }
+  .roll-mode.on.dis { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+  .mode-banner {
+    background: var(--good); color: #fff; border-radius: 8px;
+    padding: .35rem .7rem; margin: .4rem 0; font-weight: bold; font-size: .9rem;
+  }
+  body.dark .mode-banner { color: #06230f; }
+  .mode-banner.dis { background: var(--accent2); color: #fff; }
+  .conc-banner {
+    border: 1px solid var(--accent); color: var(--accent); border-radius: 8px;
+    padding: .35rem .7rem; margin: .4rem 0; font-size: .9rem;
+  }
+  .conc-banner button { padding: 0 .4rem; margin-left: .3rem; font-size: .8rem; }
+
   /* Spell slot pips: identical size whether available or spent */
   .slot-pip {
     display: inline-block; width: .8em; height: .8em; border-radius: 50%;

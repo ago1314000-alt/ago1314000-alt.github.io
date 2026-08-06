@@ -272,6 +272,26 @@ const SCALING = {
   secondWind: l => stepVal(l, [[1,2],[4,3],[10,4]]),
   invocations: l => stepVal(l, [[1,1],[2,3],[5,5],[7,6],[9,7],[12,8],[15,9],[18,10]])
 };
+// Spendable class resources (SRD 5.2). `from` is the level they appear at;
+// `max` takes (level, scores); `rest` is which rest refills them.
+const CLASS_RESOURCES = {
+  Barbarian:[{n:"Rage", from:1, rest:"long", max:l=>SCALING.rageUses(l)}],
+  Bard:[{n:"Bardic Inspiration", from:1, rest:l=>l>=5?"short":"long", max:(l,s)=>Math.max(1, Math.floor(((s.CHA??10)-10)/2))}],
+  Cleric:[{n:"Channel Divinity", from:2, rest:"short", max:l=>l>=18?4:l>=6?3:2}],
+  Druid:[{n:"Wild Shape", from:2, rest:"short", max:l=>l>=17?4:l>=6?3:2}],
+  Fighter:[{n:"Second Wind", from:1, rest:"short", max:l=>SCALING.secondWind(l)},
+           {n:"Action Surge", from:2, rest:"short", max:l=>l>=17?2:1}],
+  Monk:[{n:"Focus Points", from:2, rest:"short", max:l=>l}],
+  Paladin:[{n:"Channel Divinity", from:3, rest:"short", max:l=>l>=11?3:2},
+           {n:"Lay On Hands", from:1, rest:"long", pool:true, max:l=>5*l}],
+  Ranger:[{n:"Hunter's Mark", from:1, rest:"long", max:l=>l>=17?6:l>=13?5:l>=9?4:l>=5?3:2}],
+  Rogue:[{n:"Stroke of Luck", from:20, rest:"short", max:()=>1}],
+  Sorcerer:[{n:"Sorcery Points", from:2, rest:"long", max:l=>l},
+            {n:"Innate Sorcery", from:1, rest:"long", max:()=>2}],
+  Warlock:[{n:"Magical Cunning", from:2, rest:"long", max:()=>1}],
+  Wizard:[{n:"Arcane Recovery", from:1, rest:"long", max:()=>1}]
+};
+
 // Prepared casters rebuild their spell list on a Long Rest; the others know
 // their spells and may only swap when they gain a level (SRD 5.2)
 const PREPARED_CASTERS = ["Cleric","Druid","Paladin","Ranger","Wizard"];
@@ -418,6 +438,7 @@ const RULES = [
 {c:"Character",t:"Passive Perception (sheet)",d:"10 + WIS modifier + Proficiency Bonus if proficient in Perception. The GM compares hidden creatures' Stealth checks and subtle details against it: no roll needed. See also Passive Perception under Rules."},
 {c:"Character",t:"Personality Traits, Ideals, Bonds, Flaws",d:"Roleplaying anchors from the classic character sheet. Traits: small behaviors and mannerisms that make you distinct. Ideals: the principles you believe in most strongly. Bonds: connections to people, places, and events that drive you. Flaws: weaknesses an enemy (or a DM) could exploit. Playing to them well can earn Heroic Inspiration."},
 {c:"Character",t:"Attacks (sheet)",d:"Each weapon lists its attack bonus (ability modifier + Proficiency Bonus) and damage (weapon die + the same ability modifier). Melee weapons use STR; ranged weapons use DEX; Finesse weapons (dagger, scimitar, shortsword) use either. Click an attack on the sheet to roll it."},
+{c:"Character",t:"Class Resources",d:"Limited-use class features tracked on your sheet as pips: Rage, Channel Divinity, Second Wind, Action Surge, Bardic Inspiration, Focus Points, Sorcery Points, and the like. Click a filled pip to spend it. Each says which rest refills it: Short Rest resources come back on either rest, Long Rest resources only overnight."},
 {c:"Character",t:"Spell List (sheet)",d:"Casters prepare a limited list of spells: choose them in the Spells section of the creator. Cantrips are cast at will; leveled spells expend spell slots. Your Spell Save DC is 8 + Proficiency Bonus + spellcasting ability modifier; your spell attack is Proficiency Bonus + the same modifier. Search any spell by name on the Reference tab."}
 ];
 // Spells, classes, species, and backgrounds are searchable alongside the rules

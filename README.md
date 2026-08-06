@@ -19,6 +19,9 @@ A complete D&D character builder, live character sheet, and rules companion for 
 The sheet is a live play surface, not a printout:
 
 - **Click anything to roll it**: abilities, saves, skills, initiative, weapon attacks, spell attacks — results show the matching die icon in the toast and history
+- ⬆⬇ **Advantage and disadvantage** toggle that applies to every d20 test, showing both dice with the discarded one struck through
+- 🔆 **Class resources** tracked as spendable pips — Rage, Channel Divinity, Second Wind, Action Surge, Bardic Inspiration, Focus and Sorcery Points, Lay On Hands — refilled by the right rest
+- 🌀 **Concentration**: casting a concentration spell flags it, and taking damage prompts the CON save at the correct DC, breaking it on a failure
 - ⚔️ Attack overlay rolls to-hit and damage (crits double your dice automatically), with extra-dice buttons for Sneak Attack and friends
 - ✨ **Cast spells** from the sheet: click a spell for details and cast options; slots are tracked as clickable pips (full, half, and pact casters all supported)
 - ❤️ Hit point, temp HP, and Heroic Inspiration tracking
