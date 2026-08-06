@@ -159,6 +159,29 @@
   #rollToast .total.crit { color: #7be07b; }
   #rollToast .total.fumble { color: #ff8a8a; }
 
+  /* Quick reference */
+  .qr-banner {
+    border: 2px solid var(--accent); background: var(--accent); color: #fff;
+    border-radius: 8px; padding: .7rem 1rem; text-align: center; margin-bottom: 1rem;
+  }
+  .qr-banner .qr-label { font-size: .75rem; letter-spacing: 2px; text-transform: uppercase; opacity: .85; }
+  .qr-banner.soft { background: var(--card); color: var(--ink); border-color: var(--line); }
+  .qr-three { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; margin-bottom: 1.2rem; }
+  @media (max-width: 700px) { .qr-three { grid-template-columns: 1fr; } }
+  .qr-num { display: flex; gap: .7rem; align-items: center; border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: .6rem .8rem; transition: all .15s ease; }
+  .qr-num:hover { border-color: var(--accent); box-shadow: 0 3px 8px var(--shadow); }
+  .qr-num .abbr { font-size: 1.4rem; font-weight: bold; color: var(--accent); }
+  .qr-num small { color: var(--muted); display: block; font-style: italic; }
+  .qr-h { background: var(--accent); color: #fff; text-align: center; font-variant: small-caps; letter-spacing: 1px; padding: .3rem; border-radius: 5px; margin-bottom: .7rem; font-weight: bold; }
+  .qr-sec h4 { color: var(--accent); border-bottom: 1px solid var(--line); padding-bottom: .2rem; margin: .9rem 0 .35rem; font-variant: small-caps; font-size: 1.05rem; }
+  .qr-sec p, .qr-sec ol { font-size: .93rem; line-height: 1.5; margin: .25rem 0; }
+  .qr-sec ol { padding-left: 1.3rem; }
+  .qr-dice { display: flex; gap: .8rem; justify-content: center; flex-wrap: wrap; margin: 1rem 0 .4rem; }
+  .qr-die { border: 2px solid var(--accent); border-radius: 8px; padding: .5rem .7rem; font-weight: bold; color: var(--accent); background: var(--card); transition: all .15s ease; cursor: pointer; }
+  .qr-die:hover { transform: translateY(-2px); box-shadow: 0 4px 10px var(--shadow); background: var(--accent); color: #fff; }
+  .qr-die.big { border-width: 3px; font-size: 1.1rem; }
+  .qr-caption { text-align: center; color: var(--muted); font-style: italic; font-size: .85rem; margin-bottom: 1rem; }
+
   /* HP tracker */
   .hp-tracker { display: flex; align-items: center; gap: .35rem; justify-content: center; margin-top: .3rem; }
   .hp-tracker button { padding: .15rem .5rem; font-size: .8rem; font-weight: bold; }
@@ -173,6 +196,7 @@
 <div class="tabs">
   <button class="active" data-tab="create">Create Character</button>
   <button data-tab="saved">Saved Characters <span id="savedCount"></span></button>
+  <button data-tab="quickref">Quick Reference</button>
   <button data-tab="rules">Rules Reference</button>
   <button data-tab="settings" class="gear" title="Settings">⚙️</button>
 </div>
@@ -252,6 +276,73 @@
   <div class="panel">
     <h3 class="section" style="margin-top:0">Saved Characters</h3>
     <div id="savedList"></div>
+  </div>
+</div>
+
+<div class="tabpage maxw" id="tab-quickref">
+  <div class="panel">
+    <div style="text-align:center;margin-bottom:1rem">
+      <h2 style="margin:0;color:var(--accent);font-variant:small-caps;letter-spacing:1px">The Adventurer's First Quest</h2>
+      <div style="color:var(--muted);font-style:italic;font-size:.9rem">A one-page reference for your very first game of Dungeons &amp; Dragons</div>
+    </div>
+
+    <div class="qr-banner">
+      <div class="qr-label">The Golden Rule</div>
+      <b>Describe what you want to do. The DM tells you what to roll. That is the whole game.</b>
+    </div>
+
+    <div style="text-align:center;font-variant:small-caps;letter-spacing:1px;margin-bottom:.5rem;color:var(--muted)">Know these three numbers on your sheet</div>
+    <div class="qr-three">
+      <div class="qr-num"><span class="abbr">AC</span><span><b>Armor Class</b><small>How hard you are to hit</small></span></div>
+      <div class="qr-num"><span class="abbr">HP</span><span><b>Hit Points</b><small>Your health: at 0, you fall</small></span></div>
+      <div class="qr-num"><span class="abbr">SPD</span><span><b>Speed</b><small>How far you move each turn</small></span></div>
+    </div>
+
+    <div class="twocol">
+      <div class="qr-sec">
+        <div class="qr-h">At Any Time</div>
+        <h4>Ability Checks</h4>
+        <p>The DM says <i>"make a Perception check."</i> Roll the <b>d20</b>, add the number next to that skill on your sheet. Higher is better. A natural <b>20</b> is glorious; a natural <b>1</b> is trouble.</p>
+        <h4>Saving Throws</h4>
+        <p>Same deal, but <i>reacting</i> to danger: dodging a trap, resisting a spell. <b>d20 + the save number.</b> The DM will tell you which one.</p>
+        <h4>Advantage &amp; Disadvantage</h4>
+        <p><b>Advantage:</b> roll two d20s, keep the <b>higher</b>.<br><b>Disadvantage:</b> roll two, keep the <b>lower</b>.</p>
+        <h4>Spellcasters</h4>
+        <p>Your spells say what to roll. When in doubt, read the spell aloud; the DM will sort it out.</p>
+      </div>
+      <div class="qr-sec">
+        <div class="qr-h">In Combat</div>
+        <h4>Initiative</h4>
+        <p>Combat starts? Roll <b>d20 + your Initiative number</b>. That sets the turn order.</p>
+        <h4>Your Turn, in Three Steps</h4>
+        <ol>
+          <li><b>MOVE</b>: up to your Speed, before, after, or split around your action.</li>
+          <li><b>ACTION</b>: pick one: <b>Attack</b> · <b>Cast a Spell</b> · <b>Dash</b> · <b>Hide</b> · or try something creative, just ask!</li>
+          <li><b>BONUS ACTION</b>: only if your sheet says you have one.</li>
+        </ol>
+        <h4>Making an Attack</h4>
+        <p>Roll <b>d20 + attack bonus</b> vs. their <b>AC</b>. If you meet or beat it, roll your <b>damage die</b>. Done.</p>
+        <h4>At 0 Hit Points</h4>
+        <p>You fall unconscious, <i>not dead</i>. The DM will walk you through what happens next.</p>
+      </div>
+    </div>
+
+    <div style="text-align:center;font-variant:small-caps;letter-spacing:1px;margin-top:1rem;color:var(--muted)">The Dice of Fate</div>
+    <div class="qr-dice">
+      <span class="qr-die" onclick="rollDie(4)" title="Roll a d4">d4</span>
+      <span class="qr-die" onclick="rollDie(6)" title="Roll a d6">d6</span>
+      <span class="qr-die" onclick="rollDie(8)" title="Roll a d8">d8</span>
+      <span class="qr-die" onclick="rollDie(10)" title="Roll a d10">d10</span>
+      <span class="qr-die" onclick="rollDie(12)" title="Roll a d12">d12</span>
+      <span class="qr-die big" onclick="rollDie(20)" title="Roll a d20">d20</span>
+    </div>
+    <div class="qr-caption">The d20 does 90% of the work; the rest are mostly for damage. Your DM will always say which to roll. (Click a die to roll it!)</div>
+
+    <div class="qr-banner soft">
+      <div class="qr-label" style="color:var(--accent);opacity:1">You Cannot Play Wrong</div>
+      Ask questions anytime. Every player at the table was new once. It is always okay to say: <i>"I'm not sure what to do; what are my options?"</i>
+      <div style="margin-top:.4rem;color:var(--muted);font-style:italic;font-size:.85rem">Everything else, the Dungeon Master handles. Your job is to have fun. Roll for adventure!</div>
+    </div>
   </div>
 </div>
 
@@ -836,6 +927,19 @@ function rollD20(what, modifier) {
   totalEl.className = "total" + (d===20?" crit":d===1?" fumble":"");
   toast.querySelector(".detail").textContent =
     `d20 (${d}) ${modifier>=0?"+":"-"} ${Math.abs(modifier)}` + (d===20?" · NAT 20!":d===1?" · Nat 1":"");
+  toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>toast.classList.remove("show"), 3500);
+}
+
+function rollDie(sides) {
+  const d = 1 + Math.floor(Math.random()*sides);
+  const toast = document.getElementById("rollToast");
+  toast.querySelector(".what").textContent = "d" + sides;
+  const totalEl = toast.querySelector(".total");
+  totalEl.textContent = d;
+  totalEl.className = "total" + (sides===20 && d===20 ? " crit" : sides===20 && d===1 ? " fumble" : "");
+  toast.querySelector(".detail").textContent = sides===20 && d===20 ? "NAT 20!" : sides===20 && d===1 ? "Nat 1" : "";
   toast.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>toast.classList.remove("show"), 3500);
