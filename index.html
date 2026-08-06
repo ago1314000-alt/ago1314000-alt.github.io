@@ -1510,6 +1510,149 @@ Object.entries(CLASSES).forEach(([n,c])=>RULES.push({c:"Class", t:n, d:`Hit Die 
 Object.entries(SPECIES).forEach(([n,s])=>RULES.push({c:"Species", t:n, d:`${s.size}, Speed ${s.speed} ft. Traits: ${s.traits.join("; ")}.`}));
 Object.entries(BACKGROUNDS).forEach(([n,b])=>RULES.push({c:"Background", t:n, d:`Ability scores: ${b.abilities.join(", ")}. Origin feat: ${b.feat}. Skills: ${b.skills.join(", ")}. Tool: ${b.tool}.`}));
 
+// Class feature definitions (SRD 5.2, abbreviated) so every level-up reference resolves
+const FEATURE_DEFS = {
+// Barbarian
+"Rage":"Bonus Action: gain Resistance to bludgeoning, piercing, and slashing damage, bonus damage on STR attacks (+2, scaling up), and Advantage on STR checks and saves. Lasts 10 min while you attack or take damage. Can't cast spells or concentrate while raging.",
+"Unarmored Defense":"Without armor your AC is 10 + DEX + CON (Barbarian, shields allowed) or 10 + DEX + WIS (Monk, no shield).",
+"Reckless Attack":"When you make your first attack on your turn, you can attack with Advantage on STR attack rolls, but attack rolls against you have Advantage until your next turn.",
+"Danger Sense":"Advantage on Dexterity saving throws unless you are Incapacitated.",
+"Path of the Berserker":"Barbarian subclass: push Rage to violent extremes. Frenzy adds extra damage dice to Reckless Attacks while raging.",
+"Primal Knowledge":"Gain another skill proficiency, and while raging use STR for Acrobatics, Intimidation, Perception, Stealth, and Survival checks.",
+"Extra Attack":"When you take the Attack action on your turn, you can make two attacks instead of one.",
+"Fast Movement":"Your Speed increases by 10 feet while not wearing Heavy armor.",
+"Feral Instinct":"Advantage on Initiative rolls.",
+"Instinctive Pounce":"When you enter your Rage, move up to half your Speed for free.",
+"Brutal Strike":"Forgo Reckless Attack's Advantage to deal +1d10 and impose an effect: Forceful Blow (push 15 ft) or Hamstring Blow (-15 ft Speed).",
+"Relentless Rage":"If you drop to 0 HP while raging, make a DC 10 CON save to drop to your Barbarian level ×2 HP instead. DC +5 each use, resets on rest.",
+"Improved Brutal Strike":"Additional Brutal Strike options (Staggering Blow, Sundering Blow), later +2d10 and two effects at once.",
+"Persistent Rage":"Your Rage lasts the full 10 minutes without needing to attack, and regains all uses when you roll Initiative (1/Long Rest).",
+"Indomitable Might":"If a Strength check or save totals less than your Strength score, use the score instead.",
+"Primal Champion":"STR and CON increase by 4, maximum 25.",
+// Bard
+"Bardic Inspiration":"Bonus Action: give a creature a d6 (scaling to d12) it can add to one d20 test within the next hour. Uses = CHA modifier per Long Rest.",
+"Jack of All Trades":"Add half your Proficiency Bonus (rounded down) to ability checks that don't already include it.",
+"College of Lore":"Bard subclass: knowledge and cutting wit. Cutting Words subtracts your Bardic Inspiration die from an enemy's roll as a Reaction.",
+"Font of Inspiration":"Regain all Bardic Inspiration uses on Short or Long Rests, and can convert spell slots into uses.",
+"Countercharm":"Reaction: give an ally a reroll against a Charmed or Frightened effect.",
+"Magical Secrets":"Learn spells from the Bard, Cleric, Druid, and Wizard lists.",
+"Superior Inspiration":"Regain expended Bardic Inspiration when you roll Initiative (minimum 2 uses).",
+"Words of Creation":"Always have Power Word Heal and Power Word Kill prepared; they can affect a second creature.",
+// Cleric
+"Divine Order":"Choose Protector (Martial weapons and Heavy armor) or Thaumaturge (extra cantrip, bonus to Arcana and Religion checks).",
+"Channel Divinity":"Channel divine energy: Divine Spark (roll 1d8 + WIS to heal or damage a nearby creature) or Turn Undead (undead within 30 ft save or flee). 2 uses, scaling up; regain on rests.",
+"Life Domain":"Cleric subclass: healing magic. Disciple of Life adds 2 + spell level HP to your healing spells.",
+"Sear Undead":"Turn Undead also deals radiant damage equal to your Cleric level in d8s... (WIS-modifier d8s of radiant damage to turned undead).",
+"Blessed Strikes":"Choose Divine Strike (+1d8 weapon damage) or Potent Spellcasting (+WIS modifier to cantrip damage).",
+"Divine Intervention":"Cast any Cleric spell of level 5 or lower without a slot, 1/Long Rest.",
+"Improved Blessed Strikes":"Divine Strike improves to 2d8, or Potent Spellcasting also grants temp HP.",
+"Greater Divine Intervention":"Divine Intervention can produce Wish, once every 2d4 Long Rests.",
+// Druid
+"Druidic":"You know the secret language of druids and always have Speak with Animals prepared.",
+"Primal Order":"Choose Magician (extra cantrip, bonus to Arcana and Nature) or Warden (Martial weapons, Medium armor).",
+"Wild Shape":"Bonus Action: transform into a Beast form (CR and abilities scale with level) for hours; 2+ uses per Long Rest.",
+"Wild Companion":"Expend a spell slot or Wild Shape use to cast Find Familiar as a ritual.",
+"Circle of the Land":"Druid subclass: nature magic of a chosen terrain grants bonus prepared spells and Natural Recovery (regain slots on Short Rest).",
+"Wild Resurgence":"Trade spell slots for Wild Shape uses and vice versa (once per turn / 1 per Long Rest).",
+"Elemental Fury":"Choose Potent Spellcasting (+WIS to cantrip damage) or Primal Strike (+1d8 elemental damage on attacks in or out of Wild Shape).",
+"Improved Elemental Fury":"Potent Spellcasting cantrips reach farther, or Primal Strike improves to 2d8.",
+"Beast Spells":"Cast spells without Verbal or Somatic components while in Wild Shape.",
+"Archdruid":"Regain a Wild Shape use when you roll Initiative; convert Wild Shape uses into spell slots; you age slowly.",
+// Fighter
+"Fighting Style":"A combat specialty feat: e.g. Archery (+2 ranged attacks), Defense (+1 AC), Dueling (+2 damage with a one-handed weapon), Great Weapon Fighting (reroll 1s and 2s on damage).",
+"Second Wind":"Bonus Action: regain 1d10 + Fighter level HP. 2 uses, scaling to 4; regain on rests.",
+"Action Surge":"Take one additional action on your turn (not the Magic action). 1/rest, 2 uses at level 17.",
+"Tactical Mind":"When you fail an ability check, expend a Second Wind use to add 1d10; keep the use if you still fail.",
+"Champion":"Fighter subclass: Improved Critical scores Critical Hits on a 19-20 (18-20 at higher level) and Remarkable Athlete rewards crits with movement.",
+"Tactical Shift":"When you use Second Wind, also move up to half your Speed without provoking Opportunity Attacks.",
+"Indomitable":"Reroll a failed saving throw with a bonus equal to your Fighter level; must use the new roll. 1-3 uses per Long Rest.",
+"Tactical Master":"Swap a weapon's mastery property for Push, Sap, or Slow on each attack.",
+"Two Extra Attacks":"The Attack action gives you three attacks.",
+"Three Extra Attacks":"The Attack action gives you four attacks.",
+// Monk
+"Martial Arts":"Unarmed strikes and Monk weapons use d6 (scaling to d12) and DEX; Bonus Action unarmed strike; Grapple/Shove saves use DEX.",
+"Monk's Focus":"Focus Points fuel Flurry of Blows (2 unarmed strikes as a Bonus Action), Patient Defense (Disengage/Dodge), and Step of the Wind (Dash/Disengage + jump boost).",
+"Unarmored Movement":"+10 ft Speed (scaling to +30) while unarmored; later run up walls and across water.",
+"Warrior of the Open Hand":"Monk subclass: Open Hand Technique adds effects to Flurry of Blows (knock Prone, push, deny Reactions).",
+"Deflect Attacks":"Reaction: reduce attack damage by 1d10 + DEX + Monk level; if reduced to 0, spend a Focus Point to redirect it.",
+"Slow Fall":"Reaction: reduce falling damage by 5 × Monk level.",
+"Stunning Strike":"Once per turn when you hit with a Monk weapon or unarmed strike, spend a Focus Point: CON save or Stunned until your next turn.",
+"Empowered Strikes":"Your unarmed strikes can deal Force damage and count as magical.",
+"Evasion":"When a DEX save would deal half damage on success, you take none on success and half on failure.",
+"Self-Restoration":"End the Charmed, Frightened, or Poisoned condition on yourself at the end of your turn; no food or drink needed.",
+"Heightened Focus":"Flurry of Blows gains a third strike; Patient Defense and Step of the Wind improve.",
+"Deflect Energy":"Deflect Attacks works against any damage type.",
+"Disciplined Survivor":"Proficiency in all saving throws; reroll a failed save for a Focus Point.",
+"Perfect Focus":"Regain Focus Points (up to 4) when you roll Initiative with 3 or fewer.",
+"Superior Defense":"Spend 3 Focus Points: 1 minute of Resistance to all damage except Force.",
+"Body and Mind":"DEX and WIS increase by 4, maximum 25.",
+// Paladin
+"Lay On Hands":"A pool of 5 × Paladin level HP; as a Bonus Action touch to heal or spend 5 to remove Poisoned. Refills on Long Rest.",
+"Paladin's Smite":"Always have Divine Smite prepared: expend a slot on a hit for +2d8 radiant (scaling), 1 free cast per Long Rest.",
+"Oath of Devotion":"Paladin subclass: honor and duty. Sacred Weapon adds CHA to attack rolls; oath spells like Protection from Evil and Good.",
+"Faithful Steed":"Always have Find Steed prepared; 1 free cast per Long Rest.",
+"Aura of Protection":"You and allies within 10 ft add your CHA modifier to saving throws.",
+"Abjure Foes":"Spend a Channel Divinity use: frighten enemies within 60 ft (WIS save).",
+"Aura of Courage":"You and allies in your aura are immune to the Frightened condition.",
+"Radiant Strikes":"Your weapon and unarmed strikes deal +1d8 radiant damage.",
+"Restoring Touch":"Lay On Hands can also remove Blinded, Charmed, Deafened, Frightened, Paralyzed, or Stunned (5 HP each).",
+"Aura Expansion":"Your auras extend to 30 feet.",
+// Ranger
+"Favored Enemy":"Always have Hunter's Mark prepared, with free casts per Long Rest (scaling).",
+"Deft Explorer":"Expertise in one skill; learn two languages.",
+"Hunter":"Ranger subclass: Hunter's Prey grants Colossus Slayer (+1d8 vs wounded targets) or Horde Breaker (extra attack vs adjacent second target).",
+"Roving":"+10 ft Speed and a Climb Speed and Swim Speed equal to your Speed.",
+"Tireless":"Give yourself temp HP (1d8 + WIS) several times per day; Short Rests reduce Exhaustion.",
+"Relentless Hunter":"Taking damage can't break your Concentration on Hunter's Mark.",
+"Nature's Veil":"Bonus Action: become Invisible until your next turn, WIS-modifier uses per Long Rest.",
+"Precise Hunter":"Advantage on attack rolls against the creature marked by your Hunter's Mark.",
+"Feral Senses":"30-ft Blindsight.",
+"Foe Slayer":"Hunter's Mark's bonus damage die becomes d10.",
+// Rogue
+"Sneak Attack":"Once per turn, +1d6 damage (scaling to 10d6) with a Finesse or ranged weapon when you have Advantage or an ally is within 5 ft of the target.",
+"Thieves' Cant":"Secret code language of the criminal underworld, plus one other language.",
+"Cunning Action":"Bonus Action: Dash, Disengage, or Hide.",
+"Thief":"Rogue subclass: Fast Hands (Sleight of Hand or Utilize as a Bonus Action) and Second-Story Work (Climb Speed, longer jumps).",
+"Steady Aim":"Bonus Action: give yourself Advantage on your next attack roll this turn if you don't move.",
+"Cunning Strike":"Trade Sneak Attack dice for effects: Poison (1d6), Trip (1d6), Withdraw (1d6).",
+"Uncanny Dodge":"Reaction: halve the damage of an attack from an attacker you can see.",
+"Reliable Talent":"Treat d20 rolls of 9 or lower as a 10 on checks using skills or tools you're proficient with.",
+"Improved Cunning Strike":"Use two Cunning Strike effects on one Sneak Attack.",
+"Devious Strikes":"New Cunning Strike options: Daze (2d6), Knock Out (6d6), Obscure (3d6).",
+"Slippery Mind":"Proficiency in Wisdom and Charisma saving throws.",
+"Elusive":"Attack rolls against you can't have Advantage unless you're Incapacitated.",
+"Stroke of Luck":"Turn a failed d20 test into a 20, 1/rest.",
+// Sorcerer
+"Innate Sorcery":"Bonus Action: for 1 minute your spell save DC increases by 1 and Sorcerer spell attacks have Advantage. 2/Long Rest.",
+"Font of Magic":"Sorcery Points (= Sorcerer level) convert to and from spell slots and fuel Metamagic.",
+"Metamagic":"Shape spells with Sorcery Points: e.g. Careful (protect allies), Distant (double range), Quickened (cast as Bonus Action), Twinned (second target).",
+"Draconic Sorcery":"Sorcerer subclass: draconic resilience (extra HP, AC 10 + DEX + CHA unarmored) and elemental affinity.",
+"Sorcerous Restoration":"Regain Sorcery Points (half your level) on a Short Rest, 1/Long Rest.",
+"Sorcery Incarnate":"Use two Metamagic options on one spell; Innate Sorcery restores when you have no uses.",
+"Arcane Apotheosis":"While Innate Sorcery is active, use one Metamagic without spending Sorcery Points each turn.",
+// Warlock
+"Eldritch Invocations":"Magical talents chosen from a list (e.g. Agonizing Blast: +CHA to a cantrip's damage; Pact of the Blade/Chain/Tome). More at higher levels.",
+"Pact Magic":"Warlock spellcasting: few slots, but all at your highest level and regained on a Short Rest.",
+"Magical Cunning":"1/day ritual: regain half your Pact Magic slots.",
+"Fiend Patron":"Warlock subclass: Dark One's Blessing grants temp HP (CHA + level) when you reduce an enemy to 0 HP.",
+"Pact Boon":"Invocation gift from your patron: Pact of the Blade (summon a weapon using CHA), Chain (improved familiar), or Tome (extra cantrips and rituals).",
+"Contact Patron":"Always have Contact Other Plane prepared; 1 free cast per Long Rest.",
+"Mystic Arcanum":"Learn one spell each of levels 6-9, castable once per Long Rest without a slot.",
+"Eldritch Master":"Entreat your patron: regain all Pact Magic slots once per Long Rest.",
+// Wizard
+"Ritual Adept":"Cast any prepared Wizard spell with the Ritual tag without expending a slot.",
+"Arcane Recovery":"Once per day on a Short Rest, recover spell slots totaling half your Wizard level.",
+"Scholar":"Expertise in one of Arcana, History, Investigation, Medicine, Nature, or Religion.",
+"Evoker":"Wizard subclass: Evocation savant. Potent Cantrip deals half damage on a missed cantrip; Sculpt Spells protects allies inside your evocations.",
+"Memorize Spell":"Swap one prepared spell after a Short Rest.",
+"Empowered Evocation":"Add your INT modifier to one damage roll of your Evocation spells.",
+"Spell Mastery":"Choose a level 1 and level 2 spell; cast them at will without slots.",
+"Signature Spells":"Two level 3 spells are always prepared and castable once each without a slot per rest.",
+// Shared
+"Spellcasting":"See Spellcasting Basics, Spell Slots, and Spell Attack Rolls and Save DCs in this reference."
+};
+Object.entries(FEATURE_DEFS).forEach(([t,d])=>RULES.push({c:"Feature", t, d}));
+
 const rulesInput = document.getElementById("rulesSearch");
 function renderRules(q) {
   q = (q||"").trim().toLowerCase();
@@ -1931,6 +2074,15 @@ function refLookup(term) {
   const q = term.toLowerCase();
   let hits = RULES.filter(r=>r.t.toLowerCase()===q);
   if (!hits.length) hits = RULES.filter(r=>r.t.toLowerCase().includes(q));
+  // Trim trailing words ("Sneak Attack 2d6" → "Sneak Attack") until a title matches
+  if (!hits.length) {
+    const words = term.split(" ");
+    while (!hits.length && words.length > 1) {
+      words.pop();
+      const part = words.join(" ").replace(/[,;]$/,"").toLowerCase();
+      hits = RULES.filter(r=>r.t.toLowerCase()===part || r.t.toLowerCase().startsWith(part));
+    }
+  }
   if (!hits.length) hits = RULES.filter(r=>r.d.toLowerCase().includes(q)).slice(0,3);
   document.getElementById("refModal").innerHTML = `
     <h3>${term}</h3>
