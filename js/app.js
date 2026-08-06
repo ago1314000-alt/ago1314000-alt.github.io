@@ -800,7 +800,7 @@ function renderLvlModal() {
   const feats = CLASS_LEVELS[state.cls][pendingLvl.newLevel] || [];
   const asiTotal = Object.values(pendingLvl.asi).reduce((a,b)=>a+b,0);
   const gain = lvlHpGain();
-  const ref = t => `<span class="ref-link" onclick="refLookup('${escQ(t)}')" title="What is this?">${t}</span>`;
+  const ref = refLink;
 
   document.getElementById("lvlModal").innerHTML = `
     <h3>Level ${pendingLvl.newLevel}!</h3>
@@ -916,17 +916,19 @@ function renderRestModal() {
   const healed = pendingRest.rolls.reduce((a,r)=>a+r.gain,0);
   const cap = state.maxHp - state.curHp;
   document.getElementById("restModal").innerHTML = `
-    <h3>⛺ Short Rest</h3>
-    <div style="color:var(--muted);font-style:italic">At least 1 hour of light activity. Spend Hit Point Dice to recover HP.</div>
+    <h3>⛺ ${refLink("Short Rest")}</h3>
+    <div style="color:var(--muted);font-style:italic">At least 1 hour of light activity. Spend ${refLink("Hit Point Dice")} to recover HP.</div>
     <div class="lvl-step">
-      <div class="k">Hit Point Dice · ${hdLeft} of ${state.level} d${c.hitDie} remaining</div>
+      <div class="k">${refLink("Hit Point Dice")} · ${hdLeft} of ${state.level} d${c.hitDie} remaining</div>
       ${pendingRest.rolls.length ? pendingRest.rolls.map(r=>`<div>· d${c.hitDie} (${r.roll}) ${conMod>=0?"+":"-"} ${Math.abs(conMod)} = <b>${r.gain}</b> HP</div>`).join("") : `<div style="color:var(--muted)">No dice spent yet.</div>`}
       ${hdLeft>0 ? `<button onclick="restRollHd()" style="margin-top:.4rem">🎲 Spend a Hit Die (d${c.hitDie} ${conMod>=0?"+":"-"} ${Math.abs(conMod)})</button>` : `<div style="color:var(--muted);margin-top:.3rem">No Hit Dice left.</div>`}
     </div>
-    <div class="lvl-step"><div class="k">Healing</div>
-      Recover <b>${Math.min(healed,cap)}</b> HP (${state.curHp} → ${Math.min(state.maxHp, state.curHp+healed)} of ${state.maxHp})${state.cls==="Warlock"?" · Pact spell slots refresh on a Short Rest.":""}
+    <div class="lvl-step"><div class="k">${refLink("Healing")}</div>
+      Recover <b>${Math.min(healed,cap)}</b> HP (${state.curHp} → ${Math.min(state.maxHp, state.curHp+healed)} of ${state.maxHp})${state.cls==="Warlock"?` · ${refLink("Pact Magic","Pact spell slots")} refresh on a Short Rest.`:""}
     </div>
+    <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem">Combat or strenuous activity causes a ${refLink("Rest Interruption")}: no benefits.</div>
     <div class="lvl-actions">
+      <button onclick="restInterrupted('Short Rest')" title="The rest was broken: no benefits">✋ Interrupted</button>
       <button onclick="restCancel()">Cancel</button>
       <button class="lvl-confirm" onclick="restFinish()">Finish Rest</button>
     </div>`;
@@ -947,6 +949,11 @@ function restCancel() {
   document.getElementById("restOverlay").classList.remove("open");
 }
 
+function restInterrupted(kind) {
+  logEvent("rest", `<b>${kind} interrupted</b>: no benefits gained`);
+  restCancel();
+}
+
 function restFinish() {
   const spent = pendingRest.rolls.length;
   const healed = Math.min(pendingRest.rolls.reduce((a,r)=>a+r.gain,0), state.maxHp - state.curHp);
@@ -964,10 +971,35 @@ function longRest() {
   const healed = state.maxHp - state.curHp;
   const regain = Math.max(1, Math.floor(state.level/2));
   const hdBack = Math.min(state.hdUsed, regain);
+  const isCaster = getSlotRows().length > 0;
+  document.getElementById("restModal").innerHTML = `
+    <h3>🌙 ${refLink("Long Rest")}</h3>
+    <div style="color:var(--muted);font-style:italic">At least 8 hours: sleep for at least 6 and only light activity for the rest. A night of true rest mends body and magic alike. Nothing is applied until the rest completes.</div>
+    <div class="lvl-step">
+      <div class="k">On completion</div>
+      <div>· ${refLink("Hit Points")} restored to maximum${healed?` (<b>+${healed}</b>, back to ${state.maxHp})`:" (already full)"}${state.tempHp?`, Temporary HP fades`:""}</div>
+      ${isCaster?`<div>· All ${refLink("Spell Slots")} refreshed</div>`:""}
+      <div>· ${refLink("Hit Point Dice")}: regain half your total (min 1)${state.hdUsed?` · recovers <b>${hdBack}</b> of your ${state.hdUsed} spent`:" · none spent"}</div>
+      ${(state.deathS||state.deathF)?`<div>· ${refLink("Death Saving Throws")} reset</div>`:""}
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem">Only one Long Rest per 24 hours. An hour of combat or strenuous activity causes a ${refLink("Rest Interruption")}.</div>
+    </div>
+    <div class="lvl-actions">
+      <button onclick="restInterrupted('Long Rest')" title="The rest was broken: no benefits">✋ Interrupted</button>
+      <button onclick="restCancel()">Cancel</button>
+      <button class="lvl-confirm" onclick="longRestConfirm()">Long Rest Completed</button>
+    </div>`;
+  document.getElementById("restOverlay").classList.add("open");
+}
+
+function longRestConfirm() {
+  const healed = state.maxHp - state.curHp;
+  const regain = Math.max(1, Math.floor(state.level/2));
+  const hdBack = Math.min(state.hdUsed, regain);
   state.curHp = state.maxHp; state.tempHp = 0;
   state.slotsUsed = {}; state.hdUsed = Math.max(0, state.hdUsed - regain);
   state.deathS = 0; state.deathF = 0; state.stable = false;
   logEvent("longrest", `<b>Long Rest</b>: HP fully restored${healed?` (+${healed})`:""}, spell slots refreshed${hdBack?`, recovered ${hdBack} Hit ${hdBack===1?"Die":"Dice"}`:""}`);
+  restCancel();
   renderSheet(); persistLoaded();
 }
 
@@ -1003,7 +1035,7 @@ function renderDownOverlay() {
   document.getElementById("downModal").innerHTML = dead ? `
     <div class="death-big">💀</div>
     <h3 style="text-align:center">${who} has died</h3>
-    <p style="text-align:center;color:var(--muted)">Three Death Saving Throws failed. But in a world of magic, death is not always the end...</p>
+    <p style="text-align:center;color:var(--muted)">Three ${refLink("Death Saving Throws")} failed. But in a world of magic, death is not always the end: spells like ${refLink("Revivify")} and ${refLink("Resurrection")} can call a soul back.</p>
     <div class="lvl-actions" style="flex-wrap:wrap">
       <button onclick="revive(1,'Revivify')">✨ Revivify (1 HP)</button>
       <button onclick="revive(state.maxHp,'Resurrection')">🌟 Resurrection (full HP)</button>
@@ -1011,8 +1043,8 @@ function renderDownOverlay() {
     </div>`
   : stable ? `
     <div class="death-big">😮‍💨</div>
-    <h3 style="text-align:center">${who} is Stable</h3>
-    <p style="text-align:center;color:var(--muted)">Unconscious at 0 HP but no longer dying. They wake with 1 HP after 1d4 hours, or sooner if healed.</p>
+    <h3 style="text-align:center">${who} is ${refLink("Dying and Stabilization","Stable")}</h3>
+    <p style="text-align:center;color:var(--muted)">Unconscious at 0 HP but no longer dying. They wake with 1 HP after 1d4 hours, or sooner with ${refLink("Healing")}.</p>
     <div class="lvl-actions" style="flex-wrap:wrap">
       <button onclick="revive(1,'Waking up')">⏰ Wake with 1 HP</button>
       <button onclick="changeHp(5)">❤️ Healed (+5 HP)</button>
@@ -1021,7 +1053,7 @@ function renderDownOverlay() {
     <div class="death-big">🩸</div>
     <h3 style="text-align:center">${who} is dying!</h3>
     <div class="down-pips">Successes ${pips("deathS")} · Failures ${pips("deathF")}</div>
-    <p style="text-align:center;color:var(--muted);font-size:.9rem">At the start of each of your turns, make a Death Saving Throw: 10+ succeeds. Three successes stabilize you; three failures and you die. A 20 brings you back with 1 HP; a 1 counts as two failures.</p>
+    <p style="text-align:center;color:var(--muted);font-size:.9rem">At the start of each of your turns, make a ${refLink("Death Saving Throws","Death Saving Throw")}: 10+ succeeds. Three successes ${refLink("Dying and Stabilization","stabilize")} you; three failures and you die. A 20 brings you back with 1 HP; a 1 counts as two failures. ${refLink("Healing")} of any kind brings you back up.</p>
     <div class="lvl-actions">
       <button class="lvl-confirm" onclick="rollDeathSave()">🎲 Death Saving Throw</button>
     </div>
@@ -1069,6 +1101,10 @@ function revive(hp, how) {
 
 // ---------- REFERENCE LOOKUP ----------
 const escQ = s => s.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+// Clickable term that opens the reference overlay; optional label shows different text
+function refLink(term, label) {
+  return `<span class="ref-link" onclick="refLookup('${escQ(term)}')" title="What is this?">${label||term}</span>`;
+}
 function refLookup(term) {
   const q = term.toLowerCase();
   let hits = RULES.filter(r=>r.t.toLowerCase()===q);
