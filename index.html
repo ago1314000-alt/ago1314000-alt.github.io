@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>D&D Character Sheet Generator (SRD 5.2)</title>
-<link rel="stylesheet" href="css/style.css?v=2">
+<link rel="stylesheet" href="css/style.css?v=3">
 </head>
 <body>
 <h1>D&D Character Generator</h1>
@@ -15,14 +15,14 @@
   <button data-tab="saved">Saved Characters <span id="savedCount"></span></button>
   <button data-tab="quickref">Quick Reference</button>
   <button data-tab="rules">Rules Reference</button>
-  <button data-tab="settings" class="gear" title="Settings">⚙️</button>
+  <button data-tab="settings" class="gear" title="Settings">âš™ï¸</button>
 </div>
 
 <div class="tabpage active" id="tab-create">
 <div class="layout">
   <div class="panel">
     <div class="big-btns">
-      <button id="btnRandomAll">🎲 Randomize All</button>
+      <button id="btnRandomAll">ðŸŽ² Randomize All</button>
       <button id="btnClear">Clear</button>
     </div>
 
@@ -30,7 +30,7 @@
       <label>Character Name</label>
       <div class="row">
         <input type="text" id="charName" placeholder="Enter a name...">
-        <button class="dice" data-rand="name" title="Random name">🎲</button>
+        <button class="dice" data-rand="name" title="Random name">ðŸŽ²</button>
       </div>
     </div>
 
@@ -38,7 +38,7 @@
       <label>Class</label>
       <div class="row">
         <select id="selClass"></select>
-        <button class="dice" data-rand="class" title="Random class">🎲</button>
+        <button class="dice" data-rand="class" title="Random class">ðŸŽ²</button>
       </div>
     </div>
 
@@ -46,7 +46,7 @@
       <label>Species</label>
       <div class="row">
         <select id="selSpecies"></select>
-        <button class="dice" data-rand="species" title="Random species">🎲</button>
+        <button class="dice" data-rand="species" title="Random species">ðŸŽ²</button>
       </div>
     </div>
 
@@ -54,7 +54,7 @@
       <label>Background</label>
       <div class="row">
         <select id="selBackground"></select>
-        <button class="dice" data-rand="background" title="Random background">🎲</button>
+        <button class="dice" data-rand="background" title="Random background">ðŸŽ²</button>
       </div>
     </div>
 
@@ -62,13 +62,13 @@
       <label>Alignment</label>
       <div class="row">
         <select id="selAlignment"></select>
-        <button class="dice" data-rand="alignment" title="Random alignment">🎲</button>
+        <button class="dice" data-rand="alignment" title="Random alignment">ðŸŽ²</button>
       </div>
     </div>
 
     <h3 class="section">Ability Scores</h3>
     <div class="method-row">
-      <button id="btnRoll4d6">🎲 Roll 4d6 drop lowest</button>
+      <button id="btnRoll4d6">ðŸŽ² Roll 4d6 drop lowest</button>
       <button id="btnStandard">Standard Array</button>
       <button id="btnOptimize" title="Assign best scores to this class's key abilities">Optimize for Class</button>
     </div>
@@ -76,14 +76,14 @@
 
     <h3 class="section">Skill Proficiencies (from Class)</h3>
     <div class="method-row">
-      <button id="btnRandSkills">🎲 Random skills</button>
+      <button id="btnRandSkills">ðŸŽ² Random skills</button>
     </div>
     <div id="skillChoices" style="font-size:.85rem;"></div>
 
     <div id="spellSection" style="display:none">
       <h3 class="section">Spells</h3>
       <div class="method-row">
-        <button id="btnRandSpells">🎲 Random spells</button>
+        <button id="btnRandSpells">ðŸŽ² Random spells</button>
       </div>
       <input type="text" id="spellSearch" placeholder="Filter spells..." style="margin-bottom:.4rem">
       <div id="spellChoices" style="font-size:.85rem;max-height:300px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;padding:.5rem;background:var(--card)"></div>
@@ -97,17 +97,17 @@
       </div>
     </div>
     <div class="field"><label>Personality Traits</label>
-      <div class="row"><textarea id="rpTraits" rows="2"></textarea><button class="dice" data-rp="traits" title="Random trait">🎲</button></div></div>
+      <div class="row"><textarea id="rpTraits" rows="2"></textarea><button class="dice" data-rp="traits" title="Random trait">ðŸŽ²</button></div></div>
     <div class="field"><label>Ideals</label>
-      <div class="row"><textarea id="rpIdeals" rows="2"></textarea><button class="dice" data-rp="ideals" title="Random ideal">🎲</button></div></div>
+      <div class="row"><textarea id="rpIdeals" rows="2"></textarea><button class="dice" data-rp="ideals" title="Random ideal">ðŸŽ²</button></div></div>
     <div class="field"><label>Bonds</label>
-      <div class="row"><textarea id="rpBonds" rows="2"></textarea><button class="dice" data-rp="bonds" title="Random bond">🎲</button></div></div>
+      <div class="row"><textarea id="rpBonds" rows="2"></textarea><button class="dice" data-rp="bonds" title="Random bond">ðŸŽ²</button></div></div>
     <div class="field"><label>Flaws</label>
-      <div class="row"><textarea id="rpFlaws" rows="2"></textarea><button class="dice" data-rp="flaws" title="Random flaw">🎲</button></div></div>
+      <div class="row"><textarea id="rpFlaws" rows="2"></textarea><button class="dice" data-rp="flaws" title="Random flaw">ðŸŽ²</button></div></div>
     <div class="field"><label>Backstory &amp; Notes</label>
       <textarea id="rpNotes" rows="4" placeholder="Appearance, allies, treasure, campaign notes..."></textarea></div>
 
-    <button id="btnSave">💾 Save Character</button>
+    <button id="btnSave">ðŸ’¾ Save Character</button>
   </div>
 
   <div class="panel sheet" id="sheet">
@@ -121,8 +121,8 @@
     <div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap">
       <h3 class="section" style="margin:0;border:none">Saved Characters</h3>
       <div style="display:flex;gap:.4rem">
-        <button onclick="exportCharacters()" title="Download all characters as a JSON file">⬇ Export</button>
-        <button onclick="document.getElementById('importFile').click()" title="Import characters from a JSON export">⬆ Import</button>
+        <button onclick="exportCharacters()" title="Download all characters as a JSON file">â¬‡ Export</button>
+        <button onclick="document.getElementById('importFile').click()" title="Import characters from a JSON export">â¬† Import</button>
         <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importCharacters(this)">
       </div>
     </div>
@@ -170,7 +170,7 @@
         <h4>Your Turn, in Three Steps</h4>
         <ol>
           <li><b>MOVE</b>: up to your Speed, before, after, or split around your action.</li>
-          <li><b>ACTION</b>: pick one: <b>Attack</b> · <b>Cast a Spell</b> · <b>Dash</b> · <b>Hide</b> · or try something creative, just ask!</li>
+          <li><b>ACTION</b>: pick one: <b>Attack</b> Â· <b>Cast a Spell</b> Â· <b>Dash</b> Â· <b>Hide</b> Â· or try something creative, just ask!</li>
           <li><b>BONUS ACTION</b>: only if your sheet says you have one.</li>
         </ol>
         <h4>Making an Attack</h4>
@@ -219,8 +219,8 @@
     <div class="field">
       <label>Theme</label>
       <div class="row" style="max-width:320px">
-        <button id="btnThemeDark" style="flex:1">🌙 Dark</button>
-        <button id="btnThemeLight" style="flex:1">☀️ Light</button>
+        <button id="btnThemeDark" style="flex:1">ðŸŒ™ Dark</button>
+        <button id="btnThemeLight" style="flex:1">â˜€ï¸ Light</button>
       </div>
     </div>
   </div>
@@ -237,7 +237,7 @@
 
 <div class="footer-note">Uses content from the SRD 5.2 by Wizards of the Coast, licensed under CC-BY-4.0. Not affiliated with Wizards of the Coast.</div>
 
-<script src="js/data.js?v=2"></script>
-<script src="js/app.js?v=2"></script>
+<script src="js/data.js?v=3"></script>
+<script src="js/app.js?v=3"></script>
 </body>
 </html>

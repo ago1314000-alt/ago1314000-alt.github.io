@@ -261,9 +261,38 @@ const CLASS_LEVELS = {
 };
 const ASI_LEVELS = { default:[4,8,12,16,19], Fighter:[4,6,8,12,14,16,19], Rogue:[4,8,10,12,16,19] };
 
+// Feature scaling by level (SRD 5.2)
+const stepVal = (level, steps) => steps.reduce((v,[lv,val]) => level>=lv ? val : v, steps[0][1]);
+const SCALING = {
+  rageUses: l => stepVal(l, [[1,2],[3,3],[6,4],[12,5],[17,6]]),
+  rageDmg: l => stepVal(l, [[1,2],[9,3],[16,4]]),
+  sneakDice: l => Math.ceil(l/2),
+  martialDie: l => stepVal(l, [[1,6],[5,8],[11,10],[17,12]]),
+  bardDie: l => stepVal(l, [[1,6],[5,8],[10,10],[15,12]]),
+  secondWind: l => stepVal(l, [[1,2],[4,3],[10,4]]),
+  invocations: l => stepVal(l, [[1,1],[2,3],[5,5],[7,6],[9,7],[12,8],[15,9],[18,10]])
+};
+// Cantrips known by class level (index 0 = level 1)
+const mkCantrips = (a,b,c) => Array.from({length:20},(_,i)=>i>=9?c:i>=3?b:a);
+const CANTRIPS_KNOWN = {
+  Bard: mkCantrips(2,3,4), Cleric: mkCantrips(3,4,5), Druid: mkCantrips(2,3,4),
+  Sorcerer: mkCantrips(4,5,6), Warlock: mkCantrips(2,3,4), Wizard: mkCantrips(3,4,5)
+};
+// Prepared spells by class level (SRD 5.2 class tables)
+const PREPARED_SPELLS = {
+  Bard:    [4,5,6,7,9,10,11,12,14,15,16,16,17,17,18,18,19,20,21,22],
+  Cleric:  [4,5,6,7,9,10,11,12,14,15,16,16,17,17,18,18,19,20,21,22],
+  Druid:   [4,5,6,7,9,10,11,12,14,15,16,16,17,17,18,18,19,20,21,22],
+  Sorcerer:[2,4,6,7,9,10,11,12,14,15,16,16,17,17,18,18,19,20,21,22],
+  Wizard:  [4,5,6,7,9,10,11,12,14,15,16,16,17,18,19,21,22,23,24,25],
+  Warlock: [2,3,4,5,6,7,8,9,10,10,11,11,12,12,13,13,14,14,15,15],
+  Paladin: [2,3,4,5,6,6,7,7,9,9,10,10,11,11,12,12,14,14,15,15],
+  Ranger:  [2,3,4,5,6,6,7,7,9,9,10,10,11,11,12,12,14,14,15,15]
+};
+
 // Spell slots per character level (SRD 5.2)
 const FULL_SLOTS = {1:[2],2:[3],3:[4,2],4:[4,3],5:[4,3,2],6:[4,3,3],7:[4,3,3,1],8:[4,3,3,2],9:[4,3,3,3,1],10:[4,3,3,3,2],11:[4,3,3,3,2,1],12:[4,3,3,3,2,1],13:[4,3,3,3,2,1,1],14:[4,3,3,3,2,1,1],15:[4,3,3,3,2,1,1,1],16:[4,3,3,3,2,1,1,1],17:[4,3,3,3,2,1,1,1,1],18:[4,3,3,3,3,1,1,1,1],19:[4,3,3,3,3,2,1,1,1],20:[4,3,3,3,3,2,2,1,1]};
-const HALF_SLOTS = {1:[],2:[2],3:[3],4:[3],5:[4,2],6:[4,2],7:[4,3],8:[4,3],9:[4,3,2],10:[4,3,2],11:[4,3,3],12:[4,3,3],13:[4,3,3,1],14:[4,3,3,1],15:[4,3,3,2],16:[4,3,3,2],17:[4,3,3,3,1],18:[4,3,3,3,1],19:[4,3,3,3,2],20:[4,3,3,3,2]};
+const HALF_SLOTS = {1:[2],2:[2],3:[3],4:[3],5:[4,2],6:[4,2],7:[4,3],8:[4,3],9:[4,3,2],10:[4,3,2],11:[4,3,3],12:[4,3,3],13:[4,3,3,1],14:[4,3,3,1],15:[4,3,3,2],16:[4,3,3,2],17:[4,3,3,3,1],18:[4,3,3,3,1],19:[4,3,3,3,2],20:[4,3,3,3,2]};
 function pactSlots(lvl){ return lvl>=17?{n:4,l:5}:lvl>=11?{n:3,l:5}:lvl>=9?{n:2,l:5}:lvl>=7?{n:2,l:4}:lvl>=5?{n:2,l:3}:lvl>=3?{n:2,l:2}:lvl>=2?{n:2,l:1}:{n:1,l:1}; }
 // Returns [{lv, total}] slot rows for the current class/level (pact:true for Warlock)
 function getSlotRows() {

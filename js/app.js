@@ -10,6 +10,29 @@ const state = {
 };
 let sheetTargetId = "sheet";
 
+// Rewrite level-1 feature text with level-appropriate numbers
+function scaleFeature(cls, f, lvl) {
+  const cant = CANTRIPS_KNOWN[cls] ? CANTRIPS_KNOWN[cls][lvl-1] : null;
+  const prep = PREPARED_SPELLS[cls] ? PREPARED_SPELLS[cls][lvl-1] : null;
+  if (f.startsWith("Rage (")) return `Rage (${SCALING.rageUses(lvl)}/Long Rest, +${SCALING.rageDmg(lvl)} damage)`;
+  if (f.startsWith("Sneak Attack (")) return `Sneak Attack (${SCALING.sneakDice(lvl)}d6)`;
+  if (f.startsWith("Martial Arts (")) return `Martial Arts (d${SCALING.martialDie(lvl)})`;
+  if (f.startsWith("Bardic Inspiration (")) return `Bardic Inspiration (d${SCALING.bardDie(lvl)})`;
+  if (f.startsWith("Second Wind (")) return `Second Wind (${SCALING.secondWind(lvl)}/Long Rest, 1d10+level HP)`;
+  if (f.startsWith("Lay On Hands (")) return `Lay On Hands (${5*lvl} HP pool)`;
+  if (f.startsWith("Eldritch Invocations (")) return `Eldritch Invocations (${SCALING.invocations(lvl)})`;
+  if (f.startsWith("Pact Magic (")) {
+    const p = pactSlots(lvl);
+    return `Pact Magic (Charisma): ${cant} cantrips, ${prep} spells prepared, ${p.n} level-${p.l} slot${p.n>1?"s":""}`;
+  }
+  if (f.includes("spells prepared") && prep!=null) {
+    let out = f.replace(/\d+ spells prepared/, `${prep} spells prepared`);
+    if (cant!=null) out = out.replace(/\d+ cantrips/, `${cant} cantrips`);
+    return out;
+  }
+  return f;
+}
+
 // ---------- HELPERS ----------
 const rand = arr => arr[Math.floor(Math.random()*arr.length)];
 const mod = s => Math.floor((s-10)/2);
@@ -79,8 +102,14 @@ function randomizeSkills() {
 }
 
 // ---------- SPELL CHOICES ----------
-// Cantrips known / level-1 spells prepared at level 1 (SRD 5.2)
-const SPELL_COUNTS = { Bard:[2,4], Cleric:[3,4], Druid:[2,4], Paladin:[0,2], Ranger:[0,2], Sorcerer:[4,2], Warlock:[2,2], Wizard:[3,4] };
+// Current-level spell counts and highest castable spell level (capped at 3, this tool's data range)
+function spellCounts() {
+  const cant = CANTRIPS_KNOWN[state.cls] ? CANTRIPS_KNOWN[state.cls][state.level-1] : 0;
+  const prep = PREPARED_SPELLS[state.cls] ? PREPARED_SPELLS[state.cls][state.level-1] : 0;
+  const lvs = getSlotRows().map(r=>r.lv);
+  const maxCast = Math.min(3, lvs.length ? Math.max(...lvs) : 1);
+  return { cant, prep, maxCast };
+}
 
 function renderSpellChoices() {
   const sec = document.getElementById("spellSection");
@@ -88,10 +117,10 @@ function renderSpellChoices() {
   const caster = state.cls && CLASSES[state.cls].spellcaster;
   sec.style.display = caster ? "" : "none";
   if (!caster) return;
-  const counts = SPELL_COUNTS[state.cls];
+  const { cant, prep, maxCast } = spellCounts();
   const q = (document.getElementById("spellSearch").value||"").toLowerCase();
   const mine = SPELLS.filter(s=>s.c.includes(state.cls) && (!q || s.n.toLowerCase().includes(q) || s.d.toLowerCase().includes(q)));
-  let html = `<div style="color:var(--muted);margin-bottom:.2rem">At level 1: ${counts[0]?counts[0]+" cantrips, ":""}${counts[1]} level-1 spells. Higher-level spells unlock as you level.</div>`;
+  let html = `<div style="color:var(--muted);margin-bottom:.2rem">At level ${state.level}: ${cant?cant+" cantrips known, ":""}${prep} spells prepared, spell levels up to ${maxCast}. (Spells through level 3 are included here.)</div>`;
   [0,1,2,3].forEach(lv=>{
     const group = mine.filter(s=>s.l===lv);
     if (!group.length) return;
@@ -112,11 +141,11 @@ function randomizeSpells() {
   state.spells = [];
   const caster = state.cls && CLASSES[state.cls].spellcaster;
   if (!caster) return;
-  const [nCan, nOne] = SPELL_COUNTS[state.cls];
+  const { cant, prep, maxCast } = spellCounts();
   const pick = (pool,n)=>{ const p=[...pool]; const out=[]; while(out.length<n && p.length){ out.push(p.splice(Math.floor(Math.random()*p.length),1)[0].n); } return out; };
   state.spells = [
-    ...pick(SPELLS.filter(s=>s.c.includes(state.cls)&&s.l===0), nCan),
-    ...pick(SPELLS.filter(s=>s.c.includes(state.cls)&&s.l===1), nOne)
+    ...pick(SPELLS.filter(s=>s.c.includes(state.cls)&&s.l===0), cant),
+    ...pick(SPELLS.filter(s=>s.c.includes(state.cls)&&s.l>=1&&s.l<=maxCast), prep)
   ];
   renderSpellChoices();
 }
@@ -294,7 +323,7 @@ function renderSheet() {
   }).join("");
 
   const equipment = [...(c?c.equipment:[]), ...(bg?bg.equipment:[])];
-  const features = [...(c?c.features:[]), ...(bg?["Origin Feat: "+bg.feat]:[])];
+  const features = [...(c?c.features.map(f=>scaleFeature(state.cls,f,state.level)):[]), ...(bg?["Origin Feat: "+bg.feat]:[])];
   if (c && CLASS_LEVELS[state.cls]) {
     for (let lv=2; lv<=state.level; lv++) {
       (CLASS_LEVELS[state.cls][lv]||[]).forEach(f=>features.push(`<small style="color:var(--muted)">L${lv}</small> ${f}`));
@@ -322,7 +351,14 @@ function renderSheet() {
         }
       });
     });
-    attacks.push({name:"Unarmed Strike", bonus:strMod+profBonus, dice:null, type:"bludgeoning", dmgMod:Math.max(1,1+strMod), dmg:`${Math.max(1,1+strMod)} bludgeoning`});
+    if (state.cls==="Monk") {
+      const maMod = Math.max(strMod, dexMod);
+      const maDie = SCALING.martialDie(state.level);
+      attacks.push({name:"Unarmed Strike", bonus:maMod+profBonus, dice:`1d${maDie}`, type:"bludgeoning", dmgMod:maMod,
+        dmg:`1d${maDie} bludgeoning${maMod?` ${maMod>0?"+":""}${maMod}`:""}`});
+    } else {
+      attacks.push({name:"Unarmed Strike", bonus:strMod+profBonus, dice:null, type:"bludgeoning", dmgMod:Math.max(1,1+strMod), dmg:`${Math.max(1,1+strMod)} bludgeoning`});
+    }
   }
 
   // Spellcasting numbers
