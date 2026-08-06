@@ -29,7 +29,7 @@ The sheet is a live play surface, not a printout:
 
 ## 📚 Look Anything Up
 
-- 🔍 **400+ searchable reference entries**: conditions, combat actions, spellcasting, rests, equipment, every class feature, species trait, and included spell
+- 🔍 A **Reference** tab with 400+ searchable entries: every spell, weapon, and piece of gear, all class features and species traits, plus conditions, combat actions, spellcasting, and rests
 - ℹ️ Nearly everything is clickable: sheet features, species traits, equipment, the level-up and rest overlays, and the Basics page all open in-place reference definitions
 - 🧭 A beginner-friendly **Basics** tab (the whole game on one page, with clickable dice-shaped icons)
 

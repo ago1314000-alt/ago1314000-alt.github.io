@@ -272,6 +272,10 @@ const SCALING = {
   secondWind: l => stepVal(l, [[1,2],[4,3],[10,4]]),
   invocations: l => stepVal(l, [[1,1],[2,3],[5,5],[7,6],[9,7],[12,8],[15,9],[18,10]])
 };
+// Prepared casters rebuild their spell list on a Long Rest; the others know
+// their spells and may only swap when they gain a level (SRD 5.2)
+const PREPARED_CASTERS = ["Cleric","Druid","Paladin","Ranger","Wizard"];
+
 // Cantrips known by class level (index 0 = level 1)
 const mkCantrips = (a,b,c) => Array.from({length:20},(_,i)=>i>=9?c:i>=3?b:a);
 const CANTRIPS_KNOWN = {
@@ -414,7 +418,7 @@ const RULES = [
 {c:"Character",t:"Passive Perception (sheet)",d:"10 + WIS modifier + Proficiency Bonus if proficient in Perception. The GM compares hidden creatures' Stealth checks and subtle details against it: no roll needed. See also Passive Perception under Rules."},
 {c:"Character",t:"Personality Traits, Ideals, Bonds, Flaws",d:"Roleplaying anchors from the classic character sheet. Traits: small behaviors and mannerisms that make you distinct. Ideals: the principles you believe in most strongly. Bonds: connections to people, places, and events that drive you. Flaws: weaknesses an enemy (or a DM) could exploit. Playing to them well can earn Heroic Inspiration."},
 {c:"Character",t:"Attacks (sheet)",d:"Each weapon lists its attack bonus (ability modifier + Proficiency Bonus) and damage (weapon die + the same ability modifier). Melee weapons use STR; ranged weapons use DEX; Finesse weapons (dagger, scimitar, shortsword) use either. Click an attack on the sheet to roll it."},
-{c:"Character",t:"Spell List (sheet)",d:"Casters prepare a limited list of spells: choose them in the Spells section of the creator. Cantrips are cast at will; leveled spells expend spell slots. Your Spell Save DC is 8 + Proficiency Bonus + spellcasting ability modifier; your spell attack is Proficiency Bonus + the same modifier. Search any spell by name here in the rules reference."}
+{c:"Character",t:"Spell List (sheet)",d:"Casters prepare a limited list of spells: choose them in the Spells section of the creator. Cantrips are cast at will; leveled spells expend spell slots. Your Spell Save DC is 8 + Proficiency Bonus + spellcasting ability modifier; your spell attack is Proficiency Bonus + the same modifier. Search any spell by name on the Reference tab."}
 ];
 // Spells, classes, species, and backgrounds are searchable alongside the rules
 SPELLS.forEach(s=>RULES.push({c:s.l===0?"Spell · Cantrip":"Spell · Level "+s.l, t:s.n, d:s.d+" ("+s.c.join(", ")+")"}));

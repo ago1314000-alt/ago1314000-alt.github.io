@@ -94,8 +94,9 @@ function renderSkillChoices() {
   box.innerHTML = `<div style="margin-bottom:.3rem;color:var(--muted)">Choose ${c.skillCount}:</div>` +
     c.skillList.map(s=>{
       const fromBg = bgSkills.includes(s);
+      const checked = fromBg || state.skills.includes(s);
       return `<label style="display:inline-block;width:49%;font-weight:normal;${fromBg?'color:var(--muted)':''}">
-        <input type="checkbox" value="${s}" ${state.skills.includes(s)?"checked":""} ${fromBg?"disabled title='Already granted by background'":""}> ${s}${fromBg?" ✓bg":""}</label>`;
+        <input type="checkbox" value="${s}" ${checked?"checked":""} ${fromBg?"disabled title='Already granted by your background'":""}> ${s}${fromBg?" ✓bg":""}</label>`;
     }).join("");
   box.querySelectorAll("input[type=checkbox]").forEach(cb=>{
     cb.addEventListener("change", ()=>{
@@ -140,6 +141,43 @@ function spellCounts(atLevel) {
   const maxCast = Math.min(3, lvs.length ? Math.max(...lvs) : 1);
   return { cant, prep, maxCast };
 }
+// ---------- SHARED SPELL PICKER (level up and long rest) ----------
+// Selections are staged on the pending object so Cancel discards them.
+function pickerList(ctx) { return ctx === "lvl" ? pendingLvl.spells : pendingLR.spells; }
+
+function spellPickerHtml(ctx, counts) {
+  const list = pickerList(ctx);
+  const lvlOf = n => SPELLS.find(s=>s.n===n)?.l ?? 1;
+  const have0 = list.filter(n=>lvlOf(n)===0).length;
+  const have1 = list.length - have0;
+  const left0 = counts.cant - have0, left1 = counts.prep - have1;
+  const pool = SPELLS.filter(s=>s.c.includes(state.cls) && s.l <= counts.maxCast && (s.l>0 || counts.cant>0));
+  const todo = [left0>0?`${left0} cantrip${left0>1?"s":""}`:"", left1>0?`${left1} spell${left1>1?"s":""}`:""].filter(Boolean).join(" and ");
+  let html = `<div style="font-size:.85rem;margin:.2rem 0 .35rem">
+    ${counts.cant?`Cantrips <b>${have0}/${counts.cant}</b> · `:""}Spells <b>${have1}/${counts.prep}</b>
+    ${todo?`<span style="color:var(--accent)">· choose ${todo}</span>`
+          :`<span style="color:#4ade80">· ready</span>`}
+    ${(left0<0||left1<0)?`<span style="color:var(--accent2)">· over the limit, uncheck some</span>`:""}
+  </div><div class="picker-box">`;
+  [0,1,2,3].forEach(lv=>{
+    const g = pool.filter(s=>s.l===lv);
+    if (!g.length) return;
+    html += `<div class="spell-lvl-h">${lv===0?"Cantrips":"Level "+lv}</div>` + g.map(s=>{
+      const on = list.includes(s.n);
+      const full = lv===0 ? left0<=0 : left1<=0;
+      return `<label class="spell-row${!on&&full?" dimmed":""}"><input type="checkbox" ${on?"checked":""} ${!on&&full?"disabled":""} onchange="pickerToggle('${ctx}','${escQ(s.n)}')"> ${s.n} <small style="color:var(--muted)">${allDice(s.d)}</small></label>`;
+    }).join("");
+  });
+  return html + `</div>`;
+}
+
+function pickerToggle(ctx, name) {
+  const arr = pickerList(ctx);
+  const i = arr.indexOf(name);
+  if (i >= 0) arr.splice(i,1); else arr.push(name);
+  if (ctx === "lvl") renderLvlModal(); else longRest();
+}
+
 // Randomly add class spells until the given counts are met; returns the names added
 function fillSpellsRandomly(cant, prep, maxCast) {
   const learned = [];
@@ -860,7 +898,8 @@ function levelUp() {
     rolledValue: null, hpMode: null,
     asi: {},
     hasAsi: (ASI_LEVELS[state.cls] || ASI_LEVELS.default).includes(newLevel),
-    spellMode: CLASSES[state.cls].spellcaster ? "random" : null
+    spellMode: CLASSES[state.cls].spellcaster ? "random" : null,
+    spells: [...state.spells]
   };
   renderLvlModal();
   document.getElementById("lvlOverlay").classList.add("open");
@@ -904,6 +943,7 @@ function renderLvlModal() {
       ${gains.length?`<div style="margin-bottom:.35rem">You gain ${gains.join(", ")}.</div>`:`<div style="margin-bottom:.35rem;color:var(--muted)">No new spell picks at this level.</div>`}
       <span class="asi-chip ${pendingLvl.spellMode==="random"?"picked":""}" onclick="lvlSpellMode('random')">🎲 Choose new spells for me</span>
       <span class="asi-chip ${pendingLvl.spellMode==="manual"?"picked":""}" onclick="lvlSpellMode('manual')">✍️ I'll pick them myself</span>
+      ${pendingLvl.spellMode==="manual" ? spellPickerHtml("lvl", nxt) : ""}
       </div>`;
     })():""}
 
@@ -968,7 +1008,12 @@ function lvlConfirm() {
     learned = fillSpellsRandomly(cant, prep, maxCast);
     if (learned.length) renderSpellChoices();
   } else if (pendingLvl.spellMode === "manual") {
-    manualSpells = true;
+    learned = pendingLvl.spells.filter(n=>!state.spells.includes(n));
+    const dropped = state.spells.filter(n=>!pendingLvl.spells.includes(n));
+    state.spells = [...pendingLvl.spells];
+    manualSpells = !learned.length && !dropped.length;
+    if (dropped.length) learned.push(...dropped.map(n=>`(swapped out ${n})`));
+    renderSpellChoices();
   }
   logEvent("level", `<b>Level ${state.level}</b> ${state.cls}: +${gain} HP die (${mode==="roll"?"rolled":"average"})${asiText?` · ASI: ${asiText}`:""}${newFeats?` · gained: ${newFeats}`:""}${learned.length?` · learned: ${learned.join(", ")}`:""}`);
   lvlCancel();
@@ -1074,7 +1119,7 @@ let pendingLR = null;
 
 function longRest() {
   if (!state.cls || state.maxHp==null) return;
-  if (!pendingLR) pendingLR = { spellMode: "keep" };
+  if (!pendingLR) pendingLR = { spellMode: "keep", spells: [...state.spells] };
   const healed = state.maxHp - state.curHp;
   const regain = Math.max(1, Math.floor(state.level/2));
   const hdBack = Math.min(state.hdUsed, regain);
@@ -1090,13 +1135,17 @@ function longRest() {
       ${(state.deathS||state.deathF)?`<div>· ${refLink("Death Saving Throws")} reset</div>`:""}
       <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem">Only one Long Rest per 24 hours. An hour of combat or strenuous activity causes a ${refLink("Rest Interruption")}.</div>
     </div>
-    ${CLASSES[state.cls].spellcaster?`<div class="lvl-step">
+    ${PREPARED_CASTERS.includes(state.cls)?`<div class="lvl-step">
       <div class="k">Change Prepared ${refLink("Spell Slots","Spells")}</div>
-      <div style="font-size:.85rem;color:var(--muted);margin-bottom:.35rem">A night's rest lets a caster prepare a different set of spells.</div>
+      <div style="font-size:.85rem;color:var(--muted);margin-bottom:.35rem">A ${state.cls} rebuilds their prepared list after a Long Rest.</div>
       <span class="asi-chip ${pendingLR.spellMode==="keep"?"picked":""}" onclick="lrSpellMode('keep')">Keep current spells</span>
       <span class="asi-chip ${pendingLR.spellMode==="random"?"picked":""}" onclick="lrSpellMode('random')">🎲 Prepare a random new set</span>
-      <span class="asi-chip ${pendingLR.spellMode==="manual"?"picked":""}" onclick="lrSpellMode('manual')">✍️ I'll re-pick them myself</span>
-    </div>`:""}
+      <span class="asi-chip ${pendingLR.spellMode==="manual"?"picked":""}" onclick="lrSpellMode('manual')">✍️ Let me choose</span>
+      ${pendingLR.spellMode==="manual" ? spellPickerHtml("lr", spellCounts()) : ""}
+    </div>`:(CLASSES[state.cls].spellcaster?`<div class="lvl-step">
+      <div class="k">Spells</div>
+      <div style="font-size:.85rem;color:var(--muted)">A ${state.cls} knows their spells rather than preparing them: you can swap one only when you gain a level.</div>
+    </div>`:"")}
     <div class="lvl-actions">
       <button onclick="restInterrupted('Long Rest')" title="The rest was broken: no benefits">✋ Interrupted</button>
       <button onclick="restCancel()">Cancel</button>
@@ -1119,7 +1168,13 @@ function longRestConfirm() {
     randomizeSpells();
     spellNote = `, prepared a new set of spells (${state.spells.join(", ")})`;
   } else if (pendingLR && pendingLR.spellMode === "manual") {
-    spellNote = ", ready to prepare new spells (edit them in the Spells list)";
+    const added = pendingLR.spells.filter(n=>!state.spells.includes(n));
+    const removed = state.spells.filter(n=>!pendingLR.spells.includes(n));
+    state.spells = [...pendingLR.spells];
+    renderSpellChoices();
+    spellNote = (added.length||removed.length)
+      ? `, prepared ${added.join(", ")||"no new spells"}${removed.length?` (dropped ${removed.join(", ")})`:""}`
+      : "";
   }
   logEvent("longrest", `<b>Long Rest</b>: HP fully restored${healed?` (+${healed})`:""}, spell slots refreshed${hdBack?`, recovered ${hdBack} Hit ${hdBack===1?"Die":"Dice"}`:""}${spellNote}`);
   pendingLR = null;
@@ -1251,7 +1306,7 @@ function refLookup(term) {
   document.getElementById("refModal").innerHTML = `
     <h3>${term}</h3>
     ${hits.length ? hits.map(r=>`<div class="rule-card"><div class="cat">${r.c}</div><h4>${allDice(r.t)}</h4><p>${allDice(r.d)}</p></div>`).join("")
-      : `<div class="rule-card"><p>No reference entry found. Try the Rules Reference tab's search.</p></div>`}
+      : `<div class="rule-card"><p>No reference entry found. Try the Reference tab's search.</p></div>`}
     <div class="lvl-actions"><button onclick="refClose()">Close</button></div>`;
   document.getElementById("refOverlay").classList.add("open");
 }
@@ -1294,7 +1349,7 @@ function renderAtkModal() {
           : `<div style="font-size:1.4rem"><b>${a.dmgMod}</b> <small style="color:var(--muted)">flat</small></div>`)}
       <div style="margin-top:.4rem">
         <span style="color:var(--muted);font-size:.8rem">Extra dice:</span>
-        ${[4,6,8,10,12].map(s=>`<button style="padding:.25rem .5rem;font-size:.8rem" onclick="atkExtra(${s})">+d${s}</button>`).join(" ")}
+        ${[4,6,8,10,12].map(s=>`<button class="minor" style="padding:.25rem .5rem;font-size:.8rem" onclick="atkExtra(${s})">+d${s}</button>`).join(" ")}
         ${a.extra.length?`<div style="margin-top:.3rem">${a.extra.map(r=>`${dieIcon(r.s)} (${r.v})`).join(" + ")} = <b>${extraSum}</b></div>`:""}
       </div>
       ${grand && (a.dmgResult!=null || a.extra.length) ? `<div style="margin-top:.4rem;border-top:1px solid var(--line);padding-top:.3rem">Total damage: <b style="font-size:1.2rem">${grand}</b></div>` : ""}

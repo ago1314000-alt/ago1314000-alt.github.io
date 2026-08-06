@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>D&D Character Sheet Generator (SRD 5.2)</title>
-<link rel="stylesheet" href="css/style.css?v=13">
+<link rel="stylesheet" href="css/style.css?v=17">
 </head>
 <body>
 <div class="app">
@@ -16,8 +16,8 @@
     <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5"/></svg><span class="tab-label">Characters <span id="savedCount"></span></span></button>
   <button data-tab="quickref" title="Beginner quick reference">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg><span class="tab-label">Basics</span></button>
-  <button data-tab="rules" title="Searchable rules reference">
-    <svg viewBox="0 0 24 24"><path d="M4 5h6a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4z"/><path d="M20 5h-6a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h6z"/></svg><span class="tab-label">Rules</span></button>
+  <button data-tab="rules" title="Search spells, gear, features, and rules">
+    <svg viewBox="0 0 24 24"><path d="M4 5h6a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4z"/><path d="M20 5h-6a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h6z"/></svg><span class="tab-label">Reference</span></button>
   <button data-tab="settings" title="Settings">
     <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="7" cy="17" r="2"/></svg><span class="tab-label">Settings</span></button>
 </nav>
@@ -218,7 +218,7 @@
 
 <div class="tabpage maxw" id="tab-rules">
   <div class="panel">
-    <input type="text" id="rulesSearch" placeholder="Search the SRD rules reference... (e.g. grappled, opportunity attack, long rest, cover)">
+    <input type="text" id="rulesSearch" placeholder="Search spells, gear, features, species, rules... (e.g. Fireball, Chain Mail, Sneak Attack, Darkvision, grappled)">
     <div id="rulesResults"></div>
   </div>
 </div>
@@ -249,7 +249,7 @@
 
 <div id="rollToast"><div class="what"></div><div class="total"></div><div class="detail"></div></div>
 
-<script src="js/data.js?v=13"></script>
-<script src="js/app.js?v=13"></script>
+<script src="js/data.js?v=17"></script>
+<script src="js/app.js?v=17"></script>
 </body>
 </html>
