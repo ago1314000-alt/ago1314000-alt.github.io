@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>D&D Character Sheet Generator (SRD 5.2)</title>
+<style>
+  :root {
+    --bg: #f4efe6;
+    --panel: #fffdf8;
+    --ink: #2b2118;
+    --accent: #7a1f1f;
+    --accent2: #a33c2f;
+    --line: #d8cdb8;
+    --muted: #7a6f5d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 1.5rem;
+    font-family: Georgia, 'Times New Roman', serif;
+    background: var(--bg); color: var(--ink);
+  }
+  h1 { margin: 0 0 .25rem; color: var(--accent); font-variant: small-caps; letter-spacing: 1px; }
+  .sub { color: var(--muted); margin-bottom: 1.25rem; font-size: .95rem; }
+  .layout { display: grid; grid-template-columns: 380px 1fr; gap: 1.5rem; max-width: 1400px; margin: 0 auto; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 8px; padding: 1.25rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,.06);
+  }
+  .field { margin-bottom: .9rem; }
+  .field label { display: block; font-weight: bold; font-size: .85rem; margin-bottom: .25rem; }
+  .row { display: flex; gap: .4rem; align-items: center; }
+  select, input[type=text] {
+    flex: 1; padding: .45rem .5rem; font-family: inherit; font-size: .95rem;
+    border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink);
+    width: 100%;
+  }
+  button {
+    font-family: inherit; cursor: pointer; border-radius: 5px;
+    border: 1px solid var(--line); background: #fff; color: var(--ink);
+    padding: .45rem .6rem; font-size: .95rem;
+  }
+  button:hover { background: #f3ead8; }
+  button.dice { flex: 0 0 auto; font-size: 1.05rem; line-height: 1; }
+  .big-btns { display: flex; gap: .6rem; margin-bottom: 1.1rem; }
+  .big-btns button { flex: 1; padding: .7rem; font-weight: bold; }
+  #btnRandomAll { background: var(--accent); color: #fff; border-color: var(--accent); }
+  #btnRandomAll:hover { background: var(--accent2); }
+  .abilities { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
+  .ab { text-align: center; border: 1px solid var(--line); border-radius: 6px; padding: .35rem; background: #fff; }
+  .ab label { font-size: .75rem; font-weight: bold; display: block; }
+  .ab input { width: 100%; text-align: center; border: none; font-size: 1.1rem; font-family: inherit; background: transparent; }
+  .method-row { display: flex; gap: .4rem; margin-bottom: .5rem; flex-wrap: wrap; }
+  .method-row button { font-size: .8rem; padding: .35rem .5rem; }
+  h3.section { margin: 1.1rem 0 .5rem; font-size: .95rem; color: var(--accent); border-bottom: 1px solid var(--line); padding-bottom: .25rem; font-variant: small-caps; }
+
+  /* Sheet */
+  .sheet h2 { margin: 0; font-size: 1.9rem; color: var(--accent); }
+  .sheet .tagline { color: var(--muted); margin-bottom: 1rem; font-style: italic; }
+  .statgrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: .6rem; margin: 1rem 0; }
+  .stat {
+    border: 2px solid var(--ink); border-radius: 10px; text-align: center; padding: .5rem .25rem; background: #fff;
+  }
+  .stat .nm { font-size: .7rem; font-weight: bold; letter-spacing: 1px; }
+  .stat .mod { font-size: 1.6rem; font-weight: bold; }
+  .stat .scr { font-size: .85rem; color: var(--muted); border-top: 1px solid var(--line); margin-top: .2rem; padding-top: .15rem; }
+  .vitals { display: flex; gap: .6rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .vital { border: 1px solid var(--line); border-radius: 8px; padding: .5rem .8rem; background: #fff; text-align: center; min-width: 90px; }
+  .vital .v { font-size: 1.3rem; font-weight: bold; }
+  .vital .k { font-size: .7rem; color: var(--muted); letter-spacing: 1px; }
+  .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 700px) { .twocol { grid-template-columns: 1fr; } .statgrid { grid-template-columns: repeat(3, 1fr); } }
+  ul.clean { list-style: none; padding: 0; margin: .25rem 0; }
+  ul.clean li { padding: .2rem 0; border-bottom: 1px dotted var(--line); font-size: .92rem; }
+  .prof { color: var(--accent); font-weight: bold; }
+  .empty { color: var(--muted); text-align: center; padding: 3rem 1rem; font-style: italic; }
+  .footer-note { color: var(--muted); font-size: .8rem; margin-top: 1.5rem; text-align: center; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: .4rem; max-width: 1400px; margin: 0 auto 1rem; }
+  .tabs button {
+    padding: .6rem 1.2rem; font-weight: bold; font-size: 1rem;
+    border-radius: 8px 8px 0 0; border-bottom: none; background: #e9e1d0;
+  }
+  .tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .tabpage { display: none; }
+  .tabpage.active { display: block; }
+  .maxw { max-width: 1400px; margin: 0 auto; }
+
+  /* Rules reference */
+  #rulesSearch { width: 100%; padding: .7rem; font-size: 1.05rem; margin-bottom: 1rem; border: 1px solid var(--line); border-radius: 6px; font-family: inherit; }
+  .rule-card { border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: .8rem 1rem; margin-bottom: .7rem; }
+  .rule-card h4 { margin: 0 0 .3rem; color: var(--accent); }
+  .rule-card .cat { font-size: .7rem; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+  .rule-card p { margin: .3rem 0 0; font-size: .92rem; line-height: 1.45; }
+  mark { background: #f5d97b; padding: 0 .1em; }
+
+  /* Saved characters */
+  .saved-card { border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: .8rem 1rem; margin-bottom: .7rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .saved-card .who b { font-size: 1.05rem; color: var(--accent); }
+  .saved-card .btns { display: flex; gap: .4rem; }
+  .btn-danger { color: #fff; background: var(--accent2); border-color: var(--accent2); }
+  #btnSave { background: #2f5d3a; color: #fff; border-color: #2f5d3a; font-weight: bold; width: 100%; padding: .6rem; margin-top: .8rem; }
+  #btnSave:hover { background: #3d7a4c; }
+
+  /* Interactivity polish */
+  button, select, .stat, .rule-card, .saved-card, ul.clean li.rollable, .vital { transition: all .15s ease; }
+  button:active { transform: scale(.96); }
+  .stat.rollable, .vital.rollable { cursor: pointer; }
+  .stat.rollable:hover, .vital.rollable:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(122,31,31,.25); border-color: var(--accent); }
+  ul.clean li.rollable { cursor: pointer; border-radius: 4px; }
+  ul.clean li.rollable:hover { background: #f7edd8; padding-left: .4rem; }
+  .rule-card:hover { border-color: var(--accent); box-shadow: 0 3px 8px rgba(0,0,0,.08); }
+  .saved-card:hover { border-color: var(--accent); box-shadow: 0 3px 8px rgba(0,0,0,.08); }
+  .tabs button:hover:not(.active) { background: #ded2b8; }
+
+  /* Roll toast */
+  #rollToast {
+    position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 50;
+    background: var(--ink); color: #fff; border-radius: 10px; padding: .9rem 1.2rem;
+    box-shadow: 0 6px 20px rgba(0,0,0,.35); min-width: 220px;
+    opacity: 0; transform: translateY(15px); pointer-events: none;
+    transition: all .25s ease;
+  }
+  #rollToast.show { opacity: 1; transform: translateY(0); }
+  #rollToast .what { font-size: .8rem; color: #d8cdb8; }
+  #rollToast .total { font-size: 1.9rem; font-weight: bold; }
+  #rollToast .detail { font-size: .8rem; color: #b5ab97; }
+  #rollToast .total.crit { color: #7be07b; }
+  #rollToast .total.fumble { color: #ff8a8a; }
+
+  /* HP tracker */
+  .hp-tracker { display: flex; align-items: center; gap: .35rem; justify-content: center; margin-top: .3rem; }
+  .hp-tracker button { padding: .15rem .5rem; font-size: .8rem; font-weight: bold; }
+  .hp-dmg { color: var(--accent2); }
+  .hp-heal { color: #2f5d3a; }
+</style>
+</head>
+<body>
+<h1>D&D Character Generator</h1>
+<div class="sub">Based on the System Reference Document 5.2 (D&D 2024 rules, CC-BY-4.0). Level 1 characters. Data is saved in your browser.</div>
+
+<div class="tabs">
+  <button class="active" data-tab="create">Create Character</button>
+  <button data-tab="saved">Saved Characters <span id="savedCount"></span></button>
+  <button data-tab="rules">Rules Reference</button>
+</div>
+
+<div class="tabpage active" id="tab-create">
+<div class="layout">
+  <div class="panel">
+    <div class="big-btns">
+      <button id="btnRandomAll">🎲 Randomize All</button>
+      <button id="btnClear">Clear</button>
+    </div>
+
+    <div class="field">
+      <label>Character Name</label>
+      <div class="row">
+        <input type="text" id="charName" placeholder="Enter a name...">
+        <button class="dice" data-rand="name" title="Random name">🎲</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Class</label>
+      <div class="row">
+        <select id="selClass"></select>
+        <button class="dice" data-rand="class" title="Random class">🎲</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Species</label>
+      <div class="row">
+        <select id="selSpecies"></select>
+        <button class="dice" data-rand="species" title="Random species">🎲</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Background</label>
+      <div class="row">
+        <select id="selBackground"></select>
+        <button class="dice" data-rand="background" title="Random background">🎲</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Alignment</label>
+      <div class="row">
+        <select id="selAlignment"></select>
+        <button class="dice" data-rand="alignment" title="Random alignment">🎲</button>
+      </div>
+    </div>
+
+    <h3 class="section">Ability Scores</h3>
+    <div class="method-row">
+      <button id="btnRoll4d6">🎲 Roll 4d6 drop lowest</button>
+      <button id="btnStandard">Standard Array</button>
+      <button id="btnOptimize" title="Assign best scores to this class's key abilities">Optimize for Class</button>
+    </div>
+    <div class="abilities" id="abilityInputs"></div>
+
+    <h3 class="section">Skill Proficiencies (from Class)</h3>
+    <div class="method-row">
+      <button id="btnRandSkills">🎲 Random skills</button>
+    </div>
+    <div id="skillChoices" style="font-size:.85rem;"></div>
+
+    <button id="btnSave">💾 Save Character</button>
+  </div>
+
+  <div class="panel sheet" id="sheet">
+    <div class="empty">Choose options on the left (or hit <b>Randomize All</b>) to generate a character sheet.</div>
+  </div>
+</div>
+</div><!-- /tab-create -->
+
+<div class="tabpage maxw" id="tab-saved">
+  <div class="panel">
+    <h3 class="section" style="margin-top:0">Saved Characters</h3>
+    <div id="savedList"></div>
+  </div>
+</div>
+
+<div class="tabpage maxw" id="tab-rules">
+  <div class="panel">
+    <input type="text" id="rulesSearch" placeholder="Search the SRD rules reference... (e.g. grappled, opportunity attack, long rest, cover)">
+    <div id="rulesResults"></div>
+  </div>
+</div>
+
+<div id="rollToast"><div class="what"></div><div class="total"></div><div class="detail"></div></div>
+
+<div class="footer-note">Uses content from the SRD 5.2 by Wizards of the Coast, licensed under CC-BY-4.0. Not affiliated with Wizards of the Coast.</div>
+
+<script>
+// ---------- SRD 5.2 DATA ----------
+const ABILITIES = ["STR","DEX","CON","INT","WIS","CHA"];
+const ABILITY_NAMES = {STR:"Strength",DEX:"Dexterity",CON:"Constitution",INT:"Intelligence",WIS:"Wisdom",CHA:"Charisma"};
+
+const SKILLS = {
+  "Acrobatics":"DEX","Animal Handling":"WIS","Arcana":"INT","Athletics":"STR","Deception":"CHA",
+  "History":"INT","Insight":"WIS","Intimidation":"CHA","Investigation":"INT","Medicine":"WIS",
+  "Nature":"INT","Perception":"WIS","Performance":"CHA","Persuasion":"CHA","Religion":"INT",
+  "Sleight of Hand":"DEX","Stealth":"DEX","Survival":"WIS"
+};
+const ALL_SKILLS = Object.keys(SKILLS);
+
+const CLASSES = {
+  "Barbarian": { hitDie:12, saves:["STR","CON"], primary:["STR","CON","DEX"],
+    skillCount:2, skillList:["Animal Handling","Athletics","Intimidation","Nature","Perception","Survival"],
+    armor:"Light and Medium armor, Shields", weapons:"Simple and Martial weapons",
+    features:["Rage (2/Long Rest, +2 damage)","Unarmored Defense (AC 10 + Dex + Con)","Weapon Mastery (2 weapons)"],
+    equipment:["Greataxe","4 Handaxes","Explorer's Pack","15 GP"] },
+  "Bard": { hitDie:8, saves:["DEX","CHA"], primary:["CHA","DEX","CON"],
+    skillCount:3, skillList:ALL_SKILLS,
+    armor:"Light armor", weapons:"Simple weapons",
+    features:["Bardic Inspiration (d6)","Spellcasting (Charisma): 2 cantrips, 4 spells prepared"],
+    spellcaster:"CHA",
+    equipment:["Leather Armor","2 Daggers","Musical Instrument","Entertainer's Pack","19 GP"] },
+  "Cleric": { hitDie:8, saves:["WIS","CHA"], primary:["WIS","CON","STR"],
+    skillCount:2, skillList:["History","Insight","Medicine","Persuasion","Religion"],
+    armor:"Light and Medium armor, Shields", weapons:"Simple weapons",
+    features:["Spellcasting (Wisdom): 3 cantrips, 4 spells prepared","Divine Order (Protector or Thaumaturge)"],
+    spellcaster:"WIS",
+    equipment:["Chain Shirt","Shield","Mace","Holy Symbol","Priest's Pack","7 GP"] },
+  "Druid": { hitDie:8, saves:["INT","WIS"], primary:["WIS","CON","DEX"],
+    skillCount:2, skillList:["Arcana","Animal Handling","Insight","Medicine","Nature","Perception","Religion","Survival"],
+    armor:"Light armor, Shields", weapons:"Simple weapons",
+    features:["Spellcasting (Wisdom): 2 cantrips, 4 spells prepared","Druidic","Primal Order (Magician or Warden)"],
+    spellcaster:"WIS",
+    equipment:["Leather Armor","Shield","Sickle","Druidic Focus (Quarterstaff)","Explorer's Pack","9 GP"] },
+  "Fighter": { hitDie:10, saves:["STR","CON"], primary:["STR","DEX","CON"],
+    skillCount:2, skillList:["Acrobatics","Animal Handling","Athletics","History","Insight","Intimidation","Persuasion","Perception","Survival"],
+    armor:"All armor, Shields", weapons:"Simple and Martial weapons",
+    features:["Fighting Style feat","Second Wind (2/Long Rest, 1d10+level HP)","Weapon Mastery (3 weapons)"],
+    equipment:["Chain Mail","Greatsword","Flail","8 Javelins","Dungeoneer's Pack","4 GP"] },
+  "Monk": { hitDie:8, saves:["STR","DEX"], primary:["DEX","WIS","CON"],
+    skillCount:2, skillList:["Acrobatics","Athletics","History","Insight","Religion","Stealth"],
+    armor:"None", weapons:"Simple weapons, Martial weapons with Light property",
+    features:["Martial Arts (d6)","Unarmored Defense (AC 10 + Dex + Wis)"],
+    equipment:["Spear","5 Daggers","Artisan's Tools or Musical Instrument","Explorer's Pack","11 GP"] },
+  "Paladin": { hitDie:10, saves:["WIS","CHA"], primary:["STR","CHA","CON"],
+    skillCount:2, skillList:["Athletics","Insight","Intimidation","Medicine","Persuasion","Religion"],
+    armor:"All armor, Shields", weapons:"Simple and Martial weapons",
+    features:["Lay On Hands (5 HP pool)","Spellcasting (Charisma): 2 spells prepared","Weapon Mastery (2 weapons)"],
+    spellcaster:"CHA",
+    equipment:["Chain Mail","Shield","Longsword","6 Javelins","Holy Symbol","Priest's Pack","9 GP"] },
+  "Ranger": { hitDie:10, saves:["STR","DEX"], primary:["DEX","WIS","CON"],
+    skillCount:3, skillList:["Animal Handling","Athletics","Insight","Investigation","Nature","Perception","Stealth","Survival"],
+    armor:"Light and Medium armor, Shields", weapons:"Simple and Martial weapons",
+    features:["Spellcasting (Wisdom): 2 spells prepared","Favored Enemy (Hunter's Mark)","Weapon Mastery (2 weapons)"],
+    spellcaster:"WIS",
+    equipment:["Studded Leather Armor","Scimitar","Shortsword","Longbow, 20 Arrows, Quiver","Druidic Focus","Explorer's Pack","7 GP"] },
+  "Rogue": { hitDie:8, saves:["DEX","INT"], primary:["DEX","INT","CHA"],
+    skillCount:4, skillList:["Acrobatics","Athletics","Deception","Insight","Intimidation","Investigation","Perception","Persuasion","Sleight of Hand","Stealth"],
+    armor:"Light armor", weapons:"Simple weapons, Martial weapons with Finesse or Light property",
+    features:["Expertise (2 skills)","Sneak Attack (1d6)","Thieves' Cant","Weapon Mastery (2 weapons)"],
+    equipment:["Leather Armor","2 Daggers","Shortsword","Shortbow, 20 Arrows, Quiver","Thieves' Tools","Burglar's Pack","8 GP"] },
+  "Sorcerer": { hitDie:6, saves:["CON","CHA"], primary:["CHA","CON","DEX"],
+    skillCount:2, skillList:["Arcana","Deception","Insight","Intimidation","Persuasion","Religion"],
+    armor:"None", weapons:"Simple weapons",
+    features:["Spellcasting (Charisma): 4 cantrips, 2 spells prepared","Innate Sorcery (2/Long Rest)"],
+    spellcaster:"CHA",
+    equipment:["Spear","2 Daggers","Arcane Focus (Crystal)","Dungeoneer's Pack","28 GP"] },
+  "Warlock": { hitDie:8, saves:["WIS","CHA"], primary:["CHA","CON","DEX"],
+    skillCount:2, skillList:["Arcana","Deception","History","Intimidation","Investigation","Nature","Religion"],
+    armor:"Light armor", weapons:"Simple weapons",
+    features:["Eldritch Invocations (1)","Pact Magic (Charisma): 2 cantrips, 2 spells prepared, 1 slot"],
+    spellcaster:"CHA",
+    equipment:["Leather Armor","Sickle","2 Daggers","Arcane Focus (Orb)","Book of Shadows","Scholar's Pack","15 GP"] },
+  "Wizard": { hitDie:6, saves:["INT","WIS"], primary:["INT","CON","DEX"],
+    skillCount:2, skillList:["Arcana","History","Insight","Investigation","Medicine","Nature","Religion"],
+    armor:"None", weapons:"Simple weapons",
+    features:["Spellcasting (Intelligence): 3 cantrips, 4 spells prepared","Ritual Adept","Arcane Recovery"],
+    spellcaster:"INT",
+    equipment:["2 Daggers","Arcane Focus (Quarterstaff)","Robe","Spellbook","Scholar's Pack","5 GP"] }
+};
+
+const SPECIES = {
+  "Dragonborn": { speed:30, size:"Medium",
+    traits:["Draconic Ancestry (breath weapon 1d10, resistance to chosen damage type)","Darkvision 60 ft."] },
+  "Dwarf": { speed:30, size:"Medium",
+    traits:["Darkvision 120 ft.","Dwarven Resilience (resist Poison, advantage vs. Poisoned)","Dwarven Toughness (+1 HP per level)","Stonecunning"] },
+  "Elf": { speed:30, size:"Medium",
+    traits:["Darkvision 60 ft.","Elven Lineage (Drow, High Elf, or Wood Elf)","Fey Ancestry (advantage vs. Charmed)","Keen Senses (Insight, Perception, or Survival proficiency)","Trance (4-hour Long Rest)"] },
+  "Gnome": { speed:30, size:"Small",
+    traits:["Darkvision 60 ft.","Gnomish Cunning (advantage on INT/WIS/CHA saves)","Gnomish Lineage (Forest or Rock)"] },
+  "Goliath": { speed:35, size:"Medium",
+    traits:["Giant Ancestry (choose one giant benefit)","Large Form (at level 5)","Powerful Build"] },
+  "Halfling": { speed:30, size:"Small",
+    traits:["Brave (advantage vs. Frightened)","Halfling Nimbleness","Luck (reroll 1s on d20 tests)","Naturally Stealthy"] },
+  "Human": { speed:30, size:"Medium or Small",
+    traits:["Resourceful (Heroic Inspiration on Long Rest)","Skillful (one extra skill proficiency)","Versatile (one extra Origin feat)"] },
+  "Orc": { speed:30, size:"Medium",
+    traits:["Adrenaline Rush (Dash as bonus action, gain temp HP)","Darkvision 120 ft.","Relentless Endurance (drop to 1 HP instead of 0, 1/Long Rest)"] },
+  "Tiefling": { speed:30, size:"Medium or Small",
+    traits:["Darkvision 60 ft.","Fiendish Legacy (Abyssal, Chthonic, or Infernal)","Otherworldly Presence (Thaumaturgy cantrip)"] }
+};
+
+const BACKGROUNDS = {
+  "Acolyte":  { abilities:["INT","WIS","CHA"], feat:"Magic Initiate (Cleric)", skills:["Insight","Religion"], tool:"Calligrapher's Supplies",
+    equipment:["Calligrapher's Supplies","Book (prayers)","Holy Symbol","Parchment (10 sheets)","Robe","8 GP"] },
+  "Criminal": { abilities:["DEX","CON","INT"], feat:"Alert", skills:["Sleight of Hand","Stealth"], tool:"Thieves' Tools",
+    equipment:["2 Daggers","Thieves' Tools","Crowbar","2 Pouches","Traveler's Clothes","16 GP"] },
+  "Sage":     { abilities:["CON","INT","WIS"], feat:"Magic Initiate (Wizard)", skills:["Arcana","History"], tool:"Calligrapher's Supplies",
+    equipment:["Quarterstaff","Calligrapher's Supplies","Book (history)","Parchment (8 sheets)","Robe","8 GP"] },
+  "Soldier":  { abilities:["STR","DEX","CON"], feat:"Savage Attacker", skills:["Athletics","Intimidation"], tool:"Gaming Set",
+    equipment:["Spear","Shortbow, 20 Arrows, Quiver","Gaming Set","Healer's Kit","Traveler's Clothes","14 GP"] }
+};
+
+const ALIGNMENTS = ["Lawful Good","Neutral Good","Chaotic Good","Lawful Neutral","True Neutral","Chaotic Neutral","Lawful Evil","Neutral Evil","Chaotic Evil"];
+
+const NAMES = {
+  first: ["Adrik","Bree","Caelynn","Darrak","Eldon","Faen","Gorstag","Hilda","Ivellios","Jheri","Kael","Lia","Mardred","Nyx","Orsik","Pella","Quarrel","Rurik","Seraphina","Thia","Ulfgar","Vara","Wren","Xanaphia","Yorick","Zasheir","Mira","Torinn","Kethra","Baern"],
+  last: ["Amberflame","Brightwood","Coppervein","Duskwalker","Emberfall","Frostbeard","Grimspire","Hollowbrook","Ironfist","Jadeshadow","Kettleblack","Lightfoot","Moonwhisper","Nightriver","Oakenshield","Proudmore","Quickstep","Ravencrest","Stormwind","Thornfield","Underbough","Valewatcher","Windrunner","Yewbranch","Zephyrblade"]
+};
+
+// ---------- STATE ----------
+const state = {
+  name:"", cls:"", species:"", background:"", alignment:"",
+  scores:{STR:null,DEX:null,CON:null,INT:null,WIS:null,CHA:null},
+  skills:[]
+};
+
+// ---------- HELPERS ----------
+const rand = arr => arr[Math.floor(Math.random()*arr.length)];
+const mod = s => Math.floor((s-10)/2);
+const fmtMod = m => (m>=0?"+":"")+m;
+function roll4d6() {
+  const r = [0,0,0,0].map(()=>1+Math.floor(Math.random()*6)).sort((a,b)=>b-a);
+  return r[0]+r[1]+r[2];
+}
+
+// ---------- UI SETUP ----------
+function fillSelect(id, options) {
+  const el = document.getElementById(id);
+  el.innerHTML = '<option value="">-- choose --</option>' + options.map(o=>`<option>${o}</option>`).join("");
+}
+fillSelect("selClass", Object.keys(CLASSES));
+fillSelect("selSpecies", Object.keys(SPECIES));
+fillSelect("selBackground", Object.keys(BACKGROUNDS));
+fillSelect("selAlignment", ALIGNMENTS);
+
+const abDiv = document.getElementById("abilityInputs");
+abDiv.innerHTML = ABILITIES.map(a=>`
+  <div class="ab"><label>${a}</label>
+  <input type="number" min="3" max="20" id="ab_${a}" placeholder="--"></div>`).join("");
+
+// ---------- SKILL CHOICES ----------
+function renderSkillChoices() {
+  const box = document.getElementById("skillChoices");
+  if (!state.cls) { box.innerHTML = '<span style="color:var(--muted)">Pick a class first.</span>'; return; }
+  const c = CLASSES[state.cls];
+  const bgSkills = state.background ? BACKGROUNDS[state.background].skills : [];
+  box.innerHTML = `<div style="margin-bottom:.3rem;color:var(--muted)">Choose ${c.skillCount}:</div>` +
+    c.skillList.map(s=>{
+      const fromBg = bgSkills.includes(s);
+      return `<label style="display:inline-block;width:49%;font-weight:normal;${fromBg?'color:var(--muted)':''}">
+        <input type="checkbox" value="${s}" ${state.skills.includes(s)?"checked":""} ${fromBg?"disabled title='Already granted by background'":""}> ${s}${fromBg?" ✓bg":""}</label>`;
+    }).join("");
+  box.querySelectorAll("input[type=checkbox]").forEach(cb=>{
+    cb.addEventListener("change", ()=>{
+      const c2 = CLASSES[state.cls];
+      if (cb.checked) {
+        state.skills.push(cb.value);
+        if (state.skills.length > c2.skillCount) {
+          const removed = state.skills.shift();
+          const other = box.querySelector(`input[value="${removed}"]`);
+          if (other) other.checked = false;
+        }
+      } else {
+        state.skills = state.skills.filter(s=>s!==cb.value);
+      }
+      renderSheet();
+    });
+  });
+}
+
+function randomizeSkills() {
+  if (!state.cls) return;
+  const c = CLASSES[state.cls];
+  const bgSkills = state.background ? BACKGROUNDS[state.background].skills : [];
+  const pool = c.skillList.filter(s=>!bgSkills.includes(s));
+  state.skills = [];
+  while (state.skills.length < c.skillCount && pool.length) {
+    const pick = rand(pool);
+    pool.splice(pool.indexOf(pick),1);
+    state.skills.push(pick);
+  }
+  renderSkillChoices();
+}
+
+// ---------- RANDOMIZERS ----------
+const randomizers = {
+  name: () => { state.name = rand(NAMES.first)+" "+rand(NAMES.last); document.getElementById("charName").value = state.name; },
+  class: () => { state.cls = rand(Object.keys(CLASSES)); document.getElementById("selClass").value = state.cls; randomizeSkills(); },
+  species: () => { state.species = rand(Object.keys(SPECIES)); document.getElementById("selSpecies").value = state.species; },
+  background: () => { state.background = rand(Object.keys(BACKGROUNDS)); document.getElementById("selBackground").value = state.background; randomizeSkills(); },
+  alignment: () => { state.alignment = rand(ALIGNMENTS); document.getElementById("selAlignment").value = state.alignment; }
+};
+
+document.querySelectorAll("button.dice").forEach(b=>{
+  b.addEventListener("click", ()=>{ randomizers[b.dataset.rand](); renderSheet(); });
+});
+
+function setScores(vals) {
+  ABILITIES.forEach((a,i)=>{
+    state.scores[a] = vals[i];
+    document.getElementById("ab_"+a).value = vals[i];
+  });
+}
+
+document.getElementById("btnRoll4d6").addEventListener("click", ()=>{
+  setScores(ABILITIES.map(()=>roll4d6()));
+  renderSheet();
+});
+document.getElementById("btnStandard").addEventListener("click", ()=>{
+  setScores([15,14,13,12,10,8]);
+  renderSheet();
+});
+document.getElementById("btnOptimize").addEventListener("click", ()=>{
+  const vals = ABILITIES.map(a=>state.scores[a]).filter(v=>v!=null);
+  if (vals.length<6) { setScores([15,14,13,12,10,8]); }
+  optimizeForClass();
+  renderSheet();
+});
+
+function optimizeForClass() {
+  if (!state.cls) return;
+  const c = CLASSES[state.cls];
+  const sorted = ABILITIES.map(a=>state.scores[a]).sort((x,y)=>y-x);
+  const order = [...c.primary, ...ABILITIES.filter(a=>!c.primary.includes(a))];
+  const newScores = {};
+  order.forEach((a,i)=>newScores[a]=sorted[i]);
+  setScores(ABILITIES.map(a=>newScores[a]));
+}
+
+ABILITIES.forEach(a=>{
+  document.getElementById("ab_"+a).addEventListener("input", e=>{
+    state.scores[a] = parseInt(e.target.value)||null;
+    renderSheet();
+  });
+});
+
+document.getElementById("charName").addEventListener("input", e=>{ state.name=e.target.value; renderSheet(); });
+["selClass","selSpecies","selBackground","selAlignment"].forEach(id=>{
+  document.getElementById(id).addEventListener("change", e=>{
+    const key = {selClass:"cls",selSpecies:"species",selBackground:"background",selAlignment:"alignment"}[id];
+    state[key] = e.target.value;
+    if (id==="selClass") { state.skills=[]; renderSkillChoices(); }
+    if (id==="selBackground") renderSkillChoices();
+    renderSheet();
+  });
+});
+
+document.getElementById("btnRandomAll").addEventListener("click", ()=>{
+  Object.values(randomizers).forEach(f=>f());
+  setScores(ABILITIES.map(()=>roll4d6()));
+  optimizeForClass();
+  randomizeSkills();
+  renderSheet();
+});
+
+document.getElementById("btnClear").addEventListener("click", ()=>{
+  state.name=""; state.cls=""; state.species=""; state.background=""; state.alignment="";
+  state.skills=[]; ABILITIES.forEach(a=>{ state.scores[a]=null; document.getElementById("ab_"+a).value=""; });
+  document.getElementById("charName").value="";
+  ["selClass","selSpecies","selBackground","selAlignment"].forEach(id=>document.getElementById(id).value="");
+  renderSkillChoices(); renderSheet();
+});
+
+// ---------- SHEET RENDER ----------
+function renderSheet() {
+  const el = document.getElementById("sheet");
+  const haveScores = ABILITIES.every(a=>state.scores[a]!=null);
+  if (!state.cls && !state.species && !haveScores) {
+    el.innerHTML = '<div class="empty">Choose options on the left (or hit <b>Randomize All</b>) to generate a character sheet.</div>';
+    return;
+  }
+  const c = state.cls ? CLASSES[state.cls] : null;
+  const sp = state.species ? SPECIES[state.species] : null;
+  const bg = state.background ? BACKGROUNDS[state.background] : null;
+  const profBonus = 2;
+  const conMod = state.scores.CON!=null ? mod(state.scores.CON) : 0;
+  const dexMod = state.scores.DEX!=null ? mod(state.scores.DEX) : 0;
+  const wisMod = state.scores.WIS!=null ? mod(state.scores.WIS) : 0;
+
+  let hp = c ? c.hitDie + conMod : null;
+  if (state.species==="Dwarf" && hp!=null) hp += 1;
+  if (state.maxHp !== hp) { state.maxHp = hp; state.curHp = hp; }
+
+  let ac = 10 + dexMod;
+  let acNote = "10 + Dex (unarmored)";
+  if (c) {
+    if (state.cls==="Barbarian") { ac = 10+dexMod+conMod; acNote="Unarmored Defense"; }
+    else if (state.cls==="Monk") { ac = 10+dexMod+wisMod; acNote="Unarmored Defense"; }
+    else if (["Fighter","Paladin"].includes(state.cls)) { ac = 16; acNote="Chain Mail"; if (state.cls==="Paladin"){ac=18;acNote="Chain Mail + Shield";} }
+    else if (state.cls==="Cleric") { ac = 13+Math.min(dexMod,2)+2; acNote="Chain Shirt + Shield"; }
+    else if (state.cls==="Druid") { ac = 11+dexMod+2; acNote="Leather + Shield"; }
+    else if (state.cls==="Ranger") { ac = 12+dexMod; acNote="Studded Leather"; }
+    else if (["Bard","Rogue","Warlock"].includes(state.cls)) { ac = 11+dexMod; acNote="Leather Armor"; }
+  }
+
+  const allSkillProfs = new Set(state.skills);
+  if (bg) bg.skills.forEach(s=>allSkillProfs.add(s));
+
+  const passivePerception = 10 + wisMod + (allSkillProfs.has("Perception")?profBonus:0);
+
+  const saveRows = ABILITIES.map(a=>{
+    const isProf = c && c.saves.includes(a);
+    const m = state.scores[a]!=null ? mod(state.scores[a]) + (isProf?profBonus:0) : null;
+    const roll = m!=null ? `class="rollable" onclick="rollD20('${ABILITY_NAMES[a]} Save',${m})" title="Click to roll"` : "";
+    return `<li ${roll}>${isProf?'<span class="prof">●</span>':'○'} ${ABILITY_NAMES[a]} ${m!=null?fmtMod(m):"--"}</li>`;
+  }).join("");
+
+  const skillRows = ALL_SKILLS.map(s=>{
+    const ab = SKILLS[s];
+    const isProf = allSkillProfs.has(s);
+    const m = state.scores[ab]!=null ? mod(state.scores[ab]) + (isProf?profBonus:0) : null;
+    const roll = m!=null ? `class="rollable" onclick="rollD20('${s}',${m})" title="Click to roll"` : "";
+    return `<li ${roll}>${isProf?'<span class="prof">●</span>':'○'} ${s} <small style="color:var(--muted)">(${ab})</small> ${m!=null?fmtMod(m):"--"}</li>`;
+  }).join("");
+
+  const equipment = [...(c?c.equipment:[]), ...(bg?bg.equipment:[])];
+  const features = [...(c?c.features:[]), ...(bg?["Origin Feat: "+bg.feat]:[])];
+  const traits = sp ? sp.traits : [];
+
+  el.innerHTML = `
+    <h2>${state.name || "Unnamed Hero"}</h2>
+    <div class="tagline">Level 1 ${state.species||"?"} ${state.cls||"?"} · ${state.background||"no background"} · ${state.alignment||"unaligned"}</div>
+
+    <div class="vitals">
+      <div class="vital"><div class="v">${ac}</div><div class="k">ARMOR CLASS</div><div style="font-size:.65rem;color:var(--muted)">${acNote}</div></div>
+      <div class="vital"><div class="v">${hp!=null?`${state.curHp} / ${hp}`:"--"}</div><div class="k">HIT POINTS</div>
+        ${hp!=null?`<div class="hp-tracker"><button class="hp-dmg" onclick="changeHp(-1)" title="Take damage">-1</button><button class="hp-dmg" onclick="changeHp(-5)">-5</button><button class="hp-heal" onclick="changeHp(1)" title="Heal">+1</button><button class="hp-heal" onclick="changeHp(5)">+5</button></div>`:""}
+      </div>
+      <div class="vital rollable" onclick="rollD20('Initiative',${dexMod})" title="Click to roll initiative"><div class="v">${fmtMod(dexMod)}</div><div class="k">INITIATIVE 🎲</div></div>
+      <div class="vital"><div class="v">${sp?sp.speed:30} ft</div><div class="k">SPEED</div></div>
+      <div class="vital"><div class="v">+${profBonus}</div><div class="k">PROF. BONUS</div></div>
+      <div class="vital"><div class="v">${passivePerception}</div><div class="k">PASSIVE PERC.</div></div>
+    </div>
+
+    <div class="statgrid">
+      ${ABILITIES.map(a=>{
+        const s = state.scores[a];
+        const roll = s!=null ? `class="stat rollable" onclick="rollD20('${ABILITY_NAMES[a]} Check',${mod(s)})" title="Click to roll"` : 'class="stat"';
+        return `<div ${roll}><div class="nm">${a}</div><div class="mod">${s!=null?fmtMod(mod(s)):"--"}</div><div class="scr">${s!=null?s:"--"}</div></div>`;
+      }).join("")}
+    </div>
+
+    <div class="twocol">
+      <div>
+        <h3 class="section">Saving Throws</h3>
+        <ul class="clean">${saveRows}</ul>
+        <h3 class="section">Skills</h3>
+        <ul class="clean">${skillRows}</ul>
+      </div>
+      <div>
+        <h3 class="section">Features &amp; Traits</h3>
+        <ul class="clean">${features.map(f=>`<li>${f}</li>`).join("") || "<li>--</li>"}</ul>
+        <h3 class="section">Species Traits${sp?` (${sp.size}, ${state.species})`:""}</h3>
+        <ul class="clean">${traits.map(t=>`<li>${t}</li>`).join("") || "<li>--</li>"}</ul>
+        <h3 class="section">Proficiencies</h3>
+        <ul class="clean">
+          <li><b>Armor:</b> ${c?c.armor:"--"}</li>
+          <li><b>Weapons:</b> ${c?c.weapons:"--"}</li>
+          <li><b>Tools:</b> ${bg?bg.tool:"--"}</li>
+        </ul>
+        <h3 class="section">Equipment</h3>
+        <ul class="clean">${equipment.map(e=>`<li>${e}</li>`).join("") || "<li>--</li>"}</ul>
+      </div>
+    </div>`;
+}
+
+// ---------- TABS ----------
+document.querySelectorAll(".tabs button").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll(".tabpage").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    document.getElementById("tab-"+b.dataset.tab).classList.add("active");
+    if (b.dataset.tab==="saved") renderSavedList();
+  });
+});
+
+// ---------- SAVE / LOAD (localStorage) ----------
+const STORE_KEY = "dnd-srd-characters";
+const loadStore = () => { try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch(e) { return []; } };
+const saveStore = list => localStorage.setItem(STORE_KEY, JSON.stringify(list));
+
+function updateSavedCount() {
+  const n = loadStore().length;
+  document.getElementById("savedCount").textContent = n ? `(${n})` : "";
+}
+
+document.getElementById("btnSave").addEventListener("click", ()=>{
+  if (!state.cls || !state.species) { alert("Pick at least a class and species before saving."); return; }
+  const list = loadStore();
+  const snapshot = JSON.parse(JSON.stringify(state));
+  snapshot.id = Date.now();
+  snapshot.savedAt = new Date().toLocaleString();
+  const existingIdx = list.findIndex(ch => ch.name === snapshot.name && snapshot.name);
+  if (existingIdx >= 0 && confirm(`Overwrite existing saved character "${snapshot.name}"?`)) {
+    list[existingIdx] = snapshot;
+  } else {
+    list.push(snapshot);
+  }
+  saveStore(list);
+  updateSavedCount();
+  alert(`Saved ${snapshot.name || "Unnamed Hero"}.`);
+});
+
+function loadCharacter(id) {
+  const ch = loadStore().find(c=>c.id===id);
+  if (!ch) return;
+  state.name = ch.name; state.cls = ch.cls; state.species = ch.species;
+  state.background = ch.background; state.alignment = ch.alignment;
+  state.scores = {...ch.scores}; state.skills = [...ch.skills];
+  state.maxHp = ch.maxHp ?? null; state.curHp = ch.curHp ?? ch.maxHp ?? null;
+  document.getElementById("charName").value = state.name;
+  document.getElementById("selClass").value = state.cls;
+  document.getElementById("selSpecies").value = state.species;
+  document.getElementById("selBackground").value = state.background;
+  document.getElementById("selAlignment").value = state.alignment;
+  ABILITIES.forEach(a=>document.getElementById("ab_"+a).value = state.scores[a] ?? "");
+  renderSkillChoices(); renderSheet();
+  document.querySelector('.tabs button[data-tab="create"]').click();
+}
+
+function deleteCharacter(id) {
+  const ch = loadStore().find(c=>c.id===id);
+  if (!ch || !confirm(`Delete "${ch.name || "Unnamed Hero"}"? This cannot be undone.`)) return;
+  saveStore(loadStore().filter(c=>c.id!==id));
+  renderSavedList(); updateSavedCount();
+}
+
+function renderSavedList() {
+  const list = loadStore();
+  const el = document.getElementById("savedList");
+  if (!list.length) { el.innerHTML = '<div class="empty">No saved characters yet. Build one and hit Save.</div>'; return; }
+  el.innerHTML = list.map(ch=>`
+    <div class="saved-card">
+      <div class="who"><b>${ch.name || "Unnamed Hero"}</b><br>
+        <small>Level 1 ${ch.species} ${ch.cls} · ${ch.background || "no background"} · saved ${ch.savedAt}</small></div>
+      <div class="btns">
+        <button onclick="loadCharacter(${ch.id})">Open</button>
+        <button class="btn-danger" onclick="deleteCharacter(${ch.id})">Delete</button>
+      </div>
+    </div>`).join("");
+}
+
+// ---------- SRD RULES REFERENCE ----------
+const RULES = [
+// Conditions
+{c:"Condition",t:"Blinded",d:"You can't see and automatically fail any ability check requiring sight. Attack rolls against you have Advantage, and your attack rolls have Disadvantage."},
+{c:"Condition",t:"Charmed",d:"You can't attack the charmer or target them with damaging abilities or magical effects. The charmer has Advantage on ability checks to interact socially with you."},
+{c:"Condition",t:"Deafened",d:"You can't hear and automatically fail any ability check requiring hearing."},
+{c:"Condition",t:"Exhaustion",d:"Exhaustion has 6 levels and is cumulative. Each level gives you a -2 penalty per level to d20 tests (ability checks, attack rolls, saving throws) and reduces Speed by 5 feet per level. At level 6 you die. Finishing a Long Rest removes 1 level."},
+{c:"Condition",t:"Frightened",d:"You have Disadvantage on ability checks and attack rolls while the source of fear is within line of sight. You can't willingly move closer to the source of fear."},
+{c:"Condition",t:"Grappled",d:"Your Speed is 0 and can't increase. Attack rolls have Disadvantage against any target other than the grappler. The grappler can drag you when it moves, at half Speed unless you are Tiny or two or more sizes smaller. Escape with a Strength (Athletics) or Dexterity (Acrobatics) check vs. the grapple DC."},
+{c:"Condition",t:"Incapacitated",d:"You can't take any action, Bonus Action, or Reaction. Your Concentration is broken. You can't speak. If incapacitated when initiative is rolled, you have Disadvantage on initiative."},
+{c:"Condition",t:"Invisible",d:"You can't be seen without special senses (surprise and hiding benefits). Attack rolls against you have Disadvantage, and your attack rolls have Advantage. The condition ends immediately after you make an attack roll or cast a spell with a verbal component... (concealment ends when you attack or cast)."},
+{c:"Condition",t:"Paralyzed",d:"You are Incapacitated and can't move or speak. You automatically fail Strength and Dexterity saving throws. Attack rolls against you have Advantage, and any attack that hits you is a Critical Hit if the attacker is within 5 feet."},
+{c:"Condition",t:"Petrified",d:"You are transformed into an inanimate substance (usually stone), Incapacitated, can't move or speak, and are unaware of your surroundings. Attacks against you have Advantage; you automatically fail STR and DEX saves; you have Resistance to all damage; you are immune to Poison."},
+{c:"Condition",t:"Poisoned",d:"You have Disadvantage on attack rolls and ability checks."},
+{c:"Condition",t:"Prone",d:"Your only movement options are to crawl (each foot costs 1 extra foot) or stand up (costs half your Speed). You have Disadvantage on attack rolls. Attack rolls against you have Advantage if the attacker is within 5 feet, otherwise Disadvantage. Standing up ends the condition."},
+{c:"Condition",t:"Restrained",d:"Your Speed is 0 and can't increase. Attack rolls against you have Advantage, and your attack rolls have Disadvantage. You have Disadvantage on Dexterity saving throws."},
+{c:"Condition",t:"Stunned",d:"You are Incapacitated, can't move, and can speak only falteringly. You automatically fail Strength and Dexterity saving throws. Attack rolls against you have Advantage."},
+{c:"Condition",t:"Unconscious",d:"You are Incapacitated, can't move or speak, and are unaware of your surroundings. You drop whatever you're holding and fall Prone. You automatically fail STR and DEX saves. Attacks against you have Advantage, and any hit from within 5 feet is a Critical Hit."},
+// Actions
+{c:"Action",t:"Attack (action)",d:"Make one attack roll with a weapon or an Unarmed Strike. Attack roll: d20 + ability modifier + Proficiency Bonus (if proficient). Melee weapons use Strength (or Dexterity if the weapon has the Finesse property); ranged weapons use Dexterity."},
+{c:"Action",t:"Dash",d:"Gain extra movement for the current turn equal to your Speed (after applying any modifiers)."},
+{c:"Action",t:"Disengage",d:"Your movement doesn't provoke Opportunity Attacks for the rest of the turn."},
+{c:"Action",t:"Dodge",d:"Until the start of your next turn, attack rolls against you have Disadvantage if you can see the attacker, and you make Dexterity saving throws with Advantage. You lose this benefit if Incapacitated or if your Speed is 0."},
+{c:"Action",t:"Help",d:"Assist another creature: give an ally Advantage on its next ability check with a skill or tool you're proficient in, or distract an enemy within 5 feet to give the next attack roll against it Advantage (before the start of your next turn)."},
+{c:"Action",t:"Hide",d:"Make a DC 15 Dexterity (Stealth) check while Heavily Obscured or behind Three-Quarters or Total Cover, out of enemies' line of sight. On a success, you have the Invisible condition until you are found, make noise, attack, or cast a spell with a verbal component. Enemies must beat your check total with Wisdom (Perception) to find you."},
+{c:"Action",t:"Influence",d:"Make a Charisma (Deception, Intimidation, Performance, or Persuasion) or Wisdom (Animal Handling) check to alter a creature's attitude. Default DC is 15 or the creature's Intelligence score, whichever is higher; Willing creatures need no roll, Hesitant require the check, Unwilling auto-fail."},
+{c:"Action",t:"Magic (action)",d:"Cast a spell with a casting time of an action, or use a magical feature or item that requires the Magic action."},
+{c:"Action",t:"Ready",d:"Prepare a reaction: choose a trigger and an action (or move). When the trigger occurs before your next turn, take the readied action as a Reaction. Readying a spell requires Concentration and the spell must have a casting time of one action."},
+{c:"Action",t:"Search",d:"Make a Wisdom check (Insight, Medicine, Perception, or Survival) to discern something that isn't obvious."},
+{c:"Action",t:"Study",d:"Make an Intelligence check (Arcana, History, Investigation, Nature, or Religion) to recall or deduce information."},
+{c:"Action",t:"Utilize",d:"Use a nonmagical object: for example drink a potion, pull a lever, or open a stuck door."},
+{c:"Action",t:"Opportunity Attack",d:"Reaction: when a creature you can see leaves your reach using its movement, action, or reaction, make one melee attack against it. The attack occurs right before it leaves your reach. Avoided by the Disengage action or teleportation."},
+{c:"Action",t:"Grapple (unarmed strike)",d:"Instead of damage, an Unarmed Strike can Grapple: the target must be no more than one size larger and must succeed on a Strength or Dexterity saving throw (DC 8 + your STR modifier + Proficiency Bonus) or have the Grappled condition."},
+{c:"Action",t:"Shove (unarmed strike)",d:"Instead of damage, an Unarmed Strike can Shove: the target must be no more than one size larger and must succeed on a Strength or Dexterity saving throw (DC 8 + your STR modifier + Proficiency Bonus) or be pushed 5 feet away or knocked Prone."},
+{c:"Action",t:"Two-Weapon Fighting (Light property)",d:"When you take the Attack action and attack with a weapon that has the Light property, you can make one extra attack as a Bonus Action with a different Light weapon. You don't add your ability modifier to the extra attack's damage unless the modifier is negative."},
+// Combat core
+{c:"Combat",t:"Advantage and Disadvantage",d:"Roll two d20s. Advantage: use the higher roll. Disadvantage: use the lower. Multiple sources don't stack; if you have both Advantage and Disadvantage, they cancel and you roll one d20."},
+{c:"Combat",t:"Critical Hit",d:"A natural 20 on an attack roll always hits and is a Critical Hit: roll all the attack's damage dice twice and add them together, then add modifiers."},
+{c:"Combat",t:"Initiative",d:"At the start of combat, everyone rolls Initiative: a Dexterity check. Combatants act in initiative order each round. A round is about 6 seconds."},
+{c:"Combat",t:"Cover",d:"Half Cover: +2 to AC and Dexterity saving throws. Three-Quarters Cover: +5 to AC and Dexterity saving throws. Total Cover: can't be targeted directly by attacks or spells."},
+{c:"Combat",t:"Unarmed Strike",d:"A melee attack using your body: d20 + STR modifier + Proficiency Bonus to hit. On a hit choose: damage (1 + STR modifier bludgeoning), Grapple, or Shove."},
+{c:"Combat",t:"Death Saving Throws",d:"At 0 HP you are Unconscious and make a Death Saving Throw at the start of each of your turns: d20, 10 or higher succeeds. Three successes: you stabilize. Three failures: you die. A natural 1 counts as two failures; a natural 20 restores 1 HP. Taking damage at 0 HP causes a failure (two if a Critical Hit)."},
+{c:"Combat",t:"Dying and Stabilization",d:"A creature at 0 HP is Unconscious and dying. You can Stabilize it with a successful DC 10 Wisdom (Medicine) check as a Utilize action, or any healing. A Stable creature regains 1 HP after 1d4 hours."},
+{c:"Combat",t:"Damage Resistance and Vulnerability",d:"Resistance halves damage of that type; Vulnerability doubles it. Apply after all other modifiers. Multiple instances of Resistance or Vulnerability to the same type count once."},
+{c:"Combat",t:"Temporary Hit Points",d:"A buffer of HP that absorbs damage first. They don't stack: if you gain more while you have some, choose which amount to keep. They can't be healed and are lost after a Long Rest."},
+// Spellcasting
+{c:"Spellcasting",t:"Spellcasting Basics",d:"Spells have a level (cantrip to 9), casting time, range, components (Verbal, Somatic, Material), and duration. You cast a leveled spell by expending a spell slot of that level or higher. Cantrips don't use slots."},
+{c:"Spellcasting",t:"Concentration",d:"Some spells require Concentration, noted in the duration. You lose Concentration if you cast another Concentration spell, are Incapacitated, or die. Taking damage forces a Constitution saving throw, DC 10 or half the damage taken (whichever is higher), to maintain it."},
+{c:"Spellcasting",t:"Spell Attack Rolls and Save DCs",d:"Spell attack bonus = your spellcasting ability modifier + Proficiency Bonus. Spell save DC = 8 + spellcasting ability modifier + Proficiency Bonus."},
+{c:"Spellcasting",t:"Ritual Casting",d:"A spell with the Ritual tag can be cast without expending a spell slot by taking 10 extra minutes, if your class feature permits ritual casting."},
+{c:"Spellcasting",t:"One Spell Slot per Turn",d:"On a turn, you can expend only one spell slot to cast a spell. For example, you can't cast a leveled spell with a Bonus Action and another leveled spell with your action on the same turn (a cantrip is fine)."},
+// Rests & recovery
+{c:"Rest",t:"Short Rest",d:"A period of at least 1 hour of light activity. You can spend Hit Point Dice to regain HP: roll the die and add your Constitution modifier per die spent. Some features recharge on a Short Rest."},
+{c:"Rest",t:"Long Rest",d:"At least 8 hours: sleep for at least 6 and light activity for the rest. You regain all lost HP, all spent Hit Point Dice up to half your total (minimum 1), all spell slots, and reduce Exhaustion by 1 level. One Long Rest per 24 hours. Interrupted by 1+ hour of strenuous activity."},
+{c:"Rest",t:"Healing",d:"HP is regained via rest, magic (like Cure Wounds or Potion of Healing), or abilities. A creature's HP can't exceed its HP maximum. Healing does not help a dead creature."},
+// Checks & general
+{c:"Rules",t:"Ability Checks",d:"d20 + ability modifier (+ Proficiency Bonus if proficient in an applicable skill or tool). The GM sets a Difficulty Class (DC): Very Easy 5, Easy 10, Medium 15, Hard 20, Very Hard 25, Nearly Impossible 30."},
+{c:"Rules",t:"Proficiency Bonus",d:"Based on character level: levels 1-4: +2, levels 5-8: +3, levels 9-12: +4, levels 13-16: +5, levels 17-20: +6. Applied to attack rolls, ability checks, and saving throws you are proficient in. Never applied more than once to a roll."},
+{c:"Rules",t:"Saving Throws",d:"d20 + ability modifier (+ Proficiency Bonus if proficient in that save). Made to resist a spell, trap, poison, disease, or similar threat; the effect specifies the DC and the results of success or failure."},
+{c:"Rules",t:"Passive Perception",d:"10 + all modifiers that normally apply to a Wisdom (Perception) check. Used to notice things without rolling. Advantage adds +5; Disadvantage subtracts 5."},
+{c:"Rules",t:"Heroic Inspiration",d:"If you have Heroic Inspiration, you can expend it to reroll any die immediately after rolling it, and you must use the new roll. You can't have more than one at a time."},
+{c:"Rules",t:"Jumping",d:"Long Jump: with a 10-foot running start, leap a number of feet up to your Strength score; standing, half that. High Jump: with a running start, 3 + your STR modifier feet; standing, half that. Each foot jumped costs a foot of movement."},
+{c:"Rules",t:"Falling",d:"A falling creature takes 1d6 bludgeoning damage per 10 feet fallen (max 20d6) and lands Prone unless it avoids damage."},
+{c:"Rules",t:"Suffocating",d:"You can hold your breath for 1 + your CON modifier minutes (minimum 30 seconds). When out of breath, you can survive a number of rounds equal to your CON modifier (minimum 1), then drop to 0 HP at the start of your next turn."},
+{c:"Rules",t:"Light and Obscurement",d:"Bright Light: normal vision. Dim Light (Lightly Obscured): Disadvantage on Wisdom (Perception) checks relying on sight. Darkness (Heavily Obscured): you effectively have the Blinded condition when looking into it."},
+{c:"Rules",t:"Darkvision",d:"Within a specified range, you see in Dim Light as if it were Bright Light and in Darkness as if it were Dim Light, in shades of gray."},
+{c:"Rules",t:"Difficult Terrain",d:"Each foot of movement in Difficult Terrain costs 1 extra foot. Moving through a hostile creature's space counts, as does furniture, rubble, snow, or steep stairs."},
+{c:"Rules",t:"Travel Pace",d:"Fast: 400 ft/min, 4 mph, 30 miles/day (-5 to passive Perception). Normal: 300 ft/min, 3 mph, 24 miles/day. Slow: 200 ft/min, 2 mph, 18 miles/day (can move stealthily)."},
+{c:"Rules",t:"Carrying Capacity",d:"You can carry weight up to your Strength score times 15 pounds. Drag, lift, or push up to twice that, but Speed drops to 5 feet while doing so."},
+// Equipment quick reference
+{c:"Equipment",t:"Armor Class by Armor",d:"Light: Padded/Leather 11+Dex, Studded 12+Dex. Medium (max +2 Dex): Hide 12, Chain Shirt 13, Scale/Breastplate 14, Half Plate 15. Heavy (no Dex): Ring Mail 14, Chain Mail 16 (STR 13), Splint 17 (STR 15), Plate 18 (STR 15). Shield: +2."},
+{c:"Equipment",t:"Weapon Properties",d:"Finesse: use STR or DEX. Light: enables extra Bonus Action attack with a second Light weapon. Heavy: Disadvantage if STR (melee) or DEX (ranged) is below 13. Two-Handed, Versatile (one or two hands), Reach (+5 ft), Thrown, Ammunition, Loading (one shot per action)."},
+{c:"Equipment",t:"Potion of Healing",d:"A character can drink a Potion of Healing as a Bonus Action to regain 2d4+2 HP (administering it to another creature takes an action)."}
+];
+
+const rulesInput = document.getElementById("rulesSearch");
+function renderRules(q) {
+  q = (q||"").trim().toLowerCase();
+  const hits = !q ? RULES : RULES.filter(r =>
+    r.t.toLowerCase().includes(q) || r.d.toLowerCase().includes(q) || r.c.toLowerCase().includes(q));
+  const hi = txt => q ? txt.replace(new RegExp("("+q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi"), "<mark>$1</mark>") : txt;
+  document.getElementById("rulesResults").innerHTML = hits.length
+    ? hits.map(r=>`<div class="rule-card"><div class="cat">${r.c}</div><h4>${hi(r.t)}</h4><p>${hi(r.d)}</p></div>`).join("")
+    : '<div class="empty">No rules matched. Try another term.</div>';
+}
+rulesInput.addEventListener("input", ()=>renderRules(rulesInput.value));
+renderRules("");
+
+// ---------- DICE ROLLING & HP ----------
+let toastTimer = null;
+function rollD20(what, modifier) {
+  const d = 1 + Math.floor(Math.random()*20);
+  const total = d + modifier;
+  const toast = document.getElementById("rollToast");
+  toast.querySelector(".what").textContent = what;
+  const totalEl = toast.querySelector(".total");
+  totalEl.textContent = total;
+  totalEl.className = "total" + (d===20?" crit":d===1?" fumble":"");
+  toast.querySelector(".detail").textContent =
+    `d20 (${d}) ${modifier>=0?"+":"-"} ${Math.abs(modifier)}` + (d===20?" · NAT 20!":d===1?" · Nat 1":"");
+  toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>toast.classList.remove("show"), 3500);
+}
+
+function changeHp(delta) {
+  if (state.maxHp==null) return;
+  state.curHp = Math.max(0, Math.min(state.maxHp, state.curHp + delta));
+  renderSheet();
+}
+
+updateSavedCount();
+renderSkillChoices();
+renderSheet();
+</script>
+</body>
+</html>
