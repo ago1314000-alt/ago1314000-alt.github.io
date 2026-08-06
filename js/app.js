@@ -251,6 +251,8 @@ document.getElementById("btnRandomAll").addEventListener("click", ()=>{
   state.level=1; state.dieRolls=[]; state.loadedId=null;
   state.tempHp=0; state.inspiration=false; state.deathS=0; state.deathF=0;
   state.slotsUsed={}; state.hdUsed=0; state.stable=false; state.retired=false;
+  // Fresh heroes arrive fully rested: force HP to recompute from scratch
+  state.maxHp=null; state.curHp=null;
   Object.values(randomizers).forEach(f=>f());
   setScores(ABILITIES.map(()=>roll4d6()));
   optimizeForClass();
