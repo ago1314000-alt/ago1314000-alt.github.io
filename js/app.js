@@ -1394,7 +1394,7 @@ function spellDetail(name) {
     <div style="color:var(--muted);font-style:italic;margin-bottom:.5rem">${s.l===0?"Cantrip":"Level "+s.l} · ${s.c.join(", ")}</div>
     <div class="lvl-step">${allDice(s.d)}</div>
     <div class="lvl-step"><div class="k">Cast</div>
-      ${s.l===0 ? `<button onclick="castSpell('${escQ(s.n)}',0)">✨ Cast cantrip (no slot)</button>` : (rows || '<span style="color:var(--muted)">No spell slots of this level.</span>')}
+      ${s.l===0 ? `<button onclick="castSpell('${escQ(s.n)}',0)">✨ Cast cantrip</button>` : (rows || '<span style="color:var(--muted)">No spell slots of this level.</span>')}
     </div>
     <div class="lvl-actions"><button onclick="spellClose()">Close</button></div>`;
   document.getElementById("spellOverlay").classList.add("open");

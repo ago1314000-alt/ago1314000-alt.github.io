@@ -67,7 +67,7 @@
   .field { margin-bottom: .9rem; }
   .field label { display: block; font-weight: bold; font-size: .85rem; margin-bottom: .25rem; }
   .row { display: flex; gap: .4rem; align-items: center; }
-  select, input[type=text], textarea {
+  select, input[type=text], input[type=number], input[type=file], textarea {
     flex: 1; padding: .45rem .5rem; font-family: inherit; font-size: .95rem;
     border: 1px solid var(--line); border-radius: 5px; background: var(--card); color: var(--ink);
     width: 100%;
@@ -146,7 +146,11 @@
   .abilities { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
   .ab { text-align: center; border: 1px solid var(--line); border-radius: 6px; padding: .35rem; background: var(--card); }
   .ab label { font-size: .75rem; font-weight: bold; display: block; }
-  .ab input { width: 100%; text-align: center; border: none; font-size: 1.1rem; font-family: inherit; background: transparent; }
+  .ab input {
+    width: 100%; text-align: center; border: none; background: transparent;
+    font-size: 1.25rem; font-family: inherit; font-weight: bold; color: var(--ink);
+  }
+  .ab input::placeholder { color: var(--muted); font-weight: normal; }
   .method-row { display: flex; gap: .4rem; margin-bottom: .5rem; flex-wrap: wrap; }
   .method-row button { font-size: .8rem; padding: .35rem .5rem; }
   h3.section { margin: 1.1rem 0 .5rem; font-size: .95rem; color: var(--accent); border-bottom: 1px solid var(--line); padding-bottom: .25rem; font-variant: small-caps; }
