@@ -17,23 +17,39 @@
     --shadow: rgba(0,0,0,.06);
   }
   body.dark {
-    --bg: #1c1913;
-    --panel: #26221b;
-    --ink: #e8e0d0;
-    --accent: #d98c4a;
-    --accent2: #c25b45;
-    --line: #4a4335;
-    --muted: #a3987f;
-    --card: #302b22;
-    --btn-hover: #3c352a;
-    --tab-bg: #2e2921;
-    --tab-hover: #3a3328;
-    --row-hover: #3c352a;
-    --mark: #7a5c1e;
-    --toast-bg: #0f0d09;
-    --toast-ink: #f0e9d8;
-    --shadow: rgba(0,0,0,.35);
+    --bg: #0e0f11;
+    --panel: #17181b;
+    --ink: #e8eaed;
+    --accent: #22c55e;
+    --accent2: #e05252;
+    --line: #2a2d32;
+    --muted: #9aa0a6;
+    --card: #202226;
+    --btn-hover: #2a2d32;
+    --tab-bg: #1a1c1f;
+    --tab-hover: #24262a;
+    --row-hover: #24262a;
+    --mark: #365314;
+    --toast-bg: #050506;
+    --toast-ink: #e8eaed;
+    --shadow: rgba(0,0,0,.5);
   }
+  /* Dark mode goes modern: sans type, softer corners, green accent */
+  body.dark { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
+  body.dark h1, body.dark .sheet h2 { letter-spacing: 0; }
+  body.dark .panel, body.dark .rule-card, body.dark .saved-card, body.dark .lvl-modal { border-radius: 12px; }
+  body.dark .stat { border-color: var(--line); border-width: 1px; border-radius: 12px; }
+  body.dark .stat.rollable:hover { border-color: var(--accent); }
+  body.dark .tabs button.active { color: #06230f; }
+  body.dark #btnRandomAll { color: #06230f; }
+  body.dark #btnRandomAll:hover { background: #2ee06f; border-color: #2ee06f; }
+  body.dark .qr-banner { color: #06230f; }
+  body.dark .qr-h { color: #06230f; }
+  body.dark .asi-chip.picked { color: #06230f; }
+  body.dark .qr-dice svg:hover text { fill: #06230f; }
+  body.dark #btnSave, body.dark .lvl-confirm { background: var(--accent); border-color: var(--accent); color: #06230f; }
+  body.dark #btnSave:hover, body.dark .lvl-confirm:hover { background: #2ee06f; border-color: #2ee06f; }
+  body.dark .hp-heal { color: #4ade80; }
   * { box-sizing: border-box; }
   body {
     margin: 0; padding: 1.5rem;
@@ -230,7 +246,6 @@
   .hp-tracker button { padding: .15rem .5rem; font-size: .8rem; font-weight: bold; }
   .hp-dmg { color: var(--accent2); }
   .hp-heal { color: #2f5d3a; }
-  body.dark .hp-heal { color: #7bc98b; }
 
   /* Mobile */
   .tabs { flex-wrap: wrap; }
