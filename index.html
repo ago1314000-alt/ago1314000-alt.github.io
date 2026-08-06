@@ -3,13 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>D&D Character Sheet Generator (SRD 5.2)</title>
-<link rel="stylesheet" href="css/style.css?v=20">
+<title>Auto Character Generator (D&D SRD 5.2)</title>
+<link rel="stylesheet" href="css/style.css?v=21">
 </head>
 <body>
 <div class="app">
 <nav class="tabs">
-  <div class="brand"><span class="brand-logo">🐉</span> D&amp;D Generator</div>
+  <div class="brand">
+    <span class="brand-logo" aria-hidden="true">
+      <svg viewBox="0 0 40 40">
+        <mask id="ampKnockout">
+          <rect width="40" height="40" fill="#fff"/>
+          <text x="20" y="30" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="32" font-weight="bold" fill="#000">&amp;</text>
+        </mask>
+        <circle cx="20" cy="20" r="19" fill="currentColor" mask="url(#ampKnockout)"/>
+      </svg>
+    </span>
+    <span class="brand-name">Auto Character Generator</span>
+  </div>
   <button class="active" data-tab="create" title="Build a new character">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg><span class="tab-label">Create</span></button>
   <button data-tab="saved" title="Your saved characters">
@@ -22,7 +33,7 @@
     <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="7" cy="17" r="2"/></svg><span class="tab-label">Settings</span></button>
 </nav>
 <main class="content">
-<h1>D&D Character Generator</h1>
+<h1>Auto Character Generator</h1>
 <div class="sub">Based on the System Reference Document 5.2 (D&D 2024 rules, CC-BY-4.0). Levels 1-20. Data is saved in your browser.</div>
 
 <div class="tabpage active" id="tab-create">
@@ -245,7 +256,7 @@
 
 <div id="rollToast"><div class="what"></div><div class="total"></div><div class="detail"></div></div>
 
-<script src="js/data.js?v=20"></script>
-<script src="js/app.js?v=20"></script>
+<script src="js/data.js?v=21"></script>
+<script src="js/app.js?v=21"></script>
 </body>
 </html>

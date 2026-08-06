@@ -1,4 +1,4 @@
-# 🐉 D&D Character Generator
+# 🎲 Auto Character Generator
 
 **▶️ Play it now: [auto-character-generator.github.io](https://auto-character-generator.github.io/)**
 
