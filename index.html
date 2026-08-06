@@ -791,7 +791,7 @@ const state = {
   skills:[], spells:[], level:1, dieRolls:[], loadedId:null,
   traits:"", ideals:"", bonds:"", flaws:"", notes:"",
   tempHp:0, inspiration:false, deathS:0, deathF:0,
-  slotsUsed:{}, hdUsed:0, stable:false
+  slotsUsed:{}, hdUsed:0, stable:false, retired:false
 };
 let sheetTargetId = "sheet";
 
@@ -988,7 +988,7 @@ document.getElementById("charName").addEventListener("input", e=>{ state.name=e.
 document.getElementById("btnRandomAll").addEventListener("click", ()=>{
   state.level=1; state.dieRolls=[]; state.loadedId=null;
   state.tempHp=0; state.inspiration=false; state.deathS=0; state.deathF=0;
-  state.slotsUsed={}; state.hdUsed=0; state.stable=false;
+  state.slotsUsed={}; state.hdUsed=0; state.stable=false; state.retired=false;
   Object.values(randomizers).forEach(f=>f());
   setScores(ABILITIES.map(()=>roll4d6()));
   optimizeForClass();
@@ -1007,7 +1007,7 @@ function clearCreator() {
   state.skills=[]; state.spells=[]; state.playerName=""; state.xp="";
   state.traits=""; state.ideals=""; state.bonds=""; state.flaws=""; state.notes="";
   state.tempHp=0; state.inspiration=false; state.deathS=0; state.deathF=0;
-  state.slotsUsed={}; state.hdUsed=0; state.stable=false;
+  state.slotsUsed={}; state.hdUsed=0; state.stable=false; state.retired=false;
   ABILITIES.forEach(a=>{ state.scores[a]=null; document.getElementById("ab_"+a).value=""; });
   document.getElementById("charName").value="";
   ["selClass","selSpecies","selBackground","selAlignment"].forEach(id=>document.getElementById(id).value="");
@@ -1087,7 +1087,8 @@ function renderSheet() {
     }
   }
   const traits = sp ? sp.traits : [];
-  const canLevel = c && haveScores && state.level < 20;
+  const canLevel = c && haveScores && state.level < 20 && !state.retired;
+  const canAct = c && haveScores && !state.retired;
 
   // Attacks from carried weapons
   const strMod = state.scores.STR!=null ? mod(state.scores.STR) : 0;
@@ -1146,8 +1147,9 @@ function renderSheet() {
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
       <h2>${state.name || "Unnamed Hero"}</h2>
-      <div style="display:flex;gap:.4rem;flex-wrap:wrap">
-        ${c&&haveScores?`<button onclick="shortRest()" title="1+ hour: spend Hit Dice to heal">⛺ Short Rest</button>
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+        ${state.retired?`<span style="border:1px solid var(--accent2);color:var(--accent2);border-radius:6px;padding:.3rem .6rem;font-weight:bold" title="This hero has been laid to rest">🪦 Retired · Dead</span>`:""}
+        ${canAct?`<button onclick="shortRest()" title="1+ hour: spend Hit Dice to heal">⛺ Short Rest</button>
         <button onclick="longRest()" title="8 hours: restore HP, spell slots, and half your Hit Dice">🌙 Long Rest</button>`:""}
         ${canLevel?`<button onclick="levelUp()" style="font-weight:bold" title="Advance to level ${state.level+1}">⬆ Level Up</button>`:""}
       </div>
@@ -1306,6 +1308,7 @@ function applyCharacter(ch) {
   state.tempHp = ch.tempHp||0; state.inspiration = !!ch.inspiration;
   state.deathS = ch.deathS||0; state.deathF = ch.deathF||0;
   state.slotsUsed = {...(ch.slotsUsed||{})}; state.hdUsed = ch.hdUsed||0; state.stable = !!ch.stable;
+  state.retired = !!ch.retired;
   document.getElementById("rpTraits").value = state.traits;
   document.getElementById("rpIdeals").value = state.ideals;
   document.getElementById("rpBonds").value = state.bonds;
@@ -1356,8 +1359,8 @@ function renderSavedList() {
   if (!list.length) { el.innerHTML = '<div class="empty">No saved characters yet. Build one and hit Save.</div>'; return; }
   el.innerHTML = list.map(ch=>`
     <div class="saved-card">
-      <div class="who"><b>${ch.name || "Unnamed Hero"}</b><br>
-        <small>Level ${ch.level||1} ${ch.species} ${ch.cls} · ${ch.background || "no background"} · saved ${ch.savedAt}</small></div>
+      <div class="who"><b>${ch.name || "Unnamed Hero"}</b>${ch.retired?' <span title="Laid to rest">🪦</span>':""}<br>
+        <small>Level ${ch.level||1} ${ch.species} ${ch.cls} · ${ch.background || "no background"}${ch.retired?" · <b>dead</b>":""} · saved ${ch.savedAt}</small></div>
       <div class="btns">
         <button onclick="viewCharacter(${ch.id})">View</button>
         <button onclick="loadCharacter(${ch.id})">Edit</button>
@@ -1827,9 +1830,28 @@ function longRest() {
 }
 
 // ---------- DYING / DEAD OVERLAY ----------
+function retireCharacter() {
+  state.retired = true;
+  logEvent("status", `<b>Retired</b>: laid to rest at level ${state.level}. May their story be retold.`);
+  if (state.loadedId) {
+    persistLoaded();
+  } else {
+    // Never saved: save now so the fallen hero is kept
+    const list = loadStore();
+    const snapshot = JSON.parse(JSON.stringify(state));
+    snapshot.id = Date.now();
+    snapshot.savedAt = new Date().toLocaleString();
+    state.loadedId = snapshot.id;
+    list.push(snapshot);
+    saveStore(list);
+    updateSavedCount();
+  }
+  renderSheet();
+}
+
 function renderDownOverlay() {
   const el = document.getElementById("downOverlay");
-  const show = state.cls && state.maxHp!=null && state.curHp===0;
+  const show = state.cls && state.maxHp!=null && state.curHp===0 && !state.retired;
   el.classList.toggle("open", !!show);
   if (!show) return;
   const who = state.name || "Your hero";
@@ -1843,6 +1865,7 @@ function renderDownOverlay() {
     <div class="lvl-actions" style="flex-wrap:wrap">
       <button onclick="revive(1,'Revivify')">✨ Revivify (1 HP)</button>
       <button onclick="revive(state.maxHp,'Resurrection')">🌟 Resurrection (full HP)</button>
+      <button onclick="retireCharacter()" title="Lay this hero to rest; the sheet is kept in a dead state">🪦 Retire Character</button>
     </div>`
   : stable ? `
     <div class="death-big">😮‍💨</div>
