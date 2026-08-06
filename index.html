@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Auto Character Generator (D&D SRD 5.2)</title>
-<link rel="stylesheet" href="css/style.css?v=21">
+<link rel="stylesheet" href="css/style.css?v=24">
 </head>
 <body>
 <div class="app">
@@ -12,11 +12,15 @@
   <div class="brand">
     <span class="brand-logo" aria-hidden="true">
       <svg viewBox="0 0 40 40">
-        <mask id="ampKnockout">
+        <mask id="d20Knockout">
           <rect width="40" height="40" fill="#fff"/>
-          <text x="20" y="30" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="32" font-weight="bold" fill="#000">&amp;</text>
+          <g fill="none" stroke="#000" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round">
+            <polygon points="20,6 32.1,13 32.1,27 20,34 7.9,27 7.9,13"/>
+            <polygon points="20,13.5 26.5,24.75 13.5,24.75"/>
+            <path d="M20 13.5V6 M26.5 24.75 32.1 27 M13.5 24.75 7.9 27"/>
+          </g>
         </mask>
-        <circle cx="20" cy="20" r="19" fill="currentColor" mask="url(#ampKnockout)"/>
+        <circle cx="20" cy="20" r="19" fill="currentColor" mask="url(#d20Knockout)"/>
       </svg>
     </span>
     <span class="brand-name">Auto Character Generator</span>
@@ -256,7 +260,7 @@
 
 <div id="rollToast"><div class="what"></div><div class="total"></div><div class="detail"></div></div>
 
-<script src="js/data.js?v=21"></script>
-<script src="js/app.js?v=21"></script>
+<script src="js/data.js?v=24"></script>
+<script src="js/app.js?v=24"></script>
 </body>
 </html>

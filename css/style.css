@@ -60,7 +60,20 @@
   .layout { display: grid; grid-template-columns: 380px 1fr; gap: 1.5rem; max-width: 1400px; margin: 0 auto; }
   @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
   /* The create tab is the form alone; the sheet lives on the Characters tab */
-  #tab-create .layout { grid-template-columns: 1fr; max-width: 620px; }
+  #tab-create .layout { grid-template-columns: 1fr; max-width: none; }
+  /* Wide screens: flow the form into columns instead of one long narrow strip */
+  @media (min-width: 950px) {
+    #tab-create .panel {
+      display: grid; grid-template-columns: 1fr 1fr;
+      column-gap: 1.75rem; align-items: start;
+    }
+    #tab-create .panel > .big-btns,
+    #tab-create .panel > button,
+    #tab-create .panel > h3.section { grid-column: 1 / -1; }
+  }
+  @media (min-width: 1400px) {
+    #tab-create .panel { grid-template-columns: repeat(3, 1fr); }
+  }
   .panel {
     background: var(--panel); border: 1px solid var(--line);
     border-radius: 8px; padding: 1.25rem;
@@ -188,9 +201,11 @@
   .footer-note { color: var(--muted); font-size: .8rem; margin-top: 1.5rem; text-align: center; }
 
   /* Tabs */
-  /* App shell: sidebar navigation on desktop and tablet */
-  .app { display: flex; gap: 1.5rem; max-width: 1500px; margin: 0 auto; align-items: flex-start; }
-  .content { flex: 1; min-width: 0; }
+  /* App shell: sidebar navigation on desktop and tablet.
+     The shell is flush left so the nav never floats in dead space on wide screens;
+     the content area carries its own max width instead. */
+  .app { display: flex; gap: 1.5rem; align-items: flex-start; }
+  .content { flex: 1; min-width: 0; max-width: 1400px; }
   .tabs {
     display: flex; flex-direction: column; gap: .3rem;
     width: 215px; flex-shrink: 0; position: sticky; top: 1rem;
