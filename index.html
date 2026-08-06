@@ -218,10 +218,18 @@
   .qr-sec h4 { color: var(--accent); border-bottom: 1px solid var(--line); padding-bottom: .2rem; margin: .9rem 0 .35rem; font-variant: small-caps; font-size: 1.05rem; }
   .qr-sec p, .qr-sec ol { font-size: .93rem; line-height: 1.5; margin: .25rem 0; }
   .qr-sec ol { padding-left: 1.3rem; }
-  .qr-dice { display: flex; gap: .8rem; justify-content: center; flex-wrap: wrap; margin: 1rem 0 .4rem; }
-  .qr-die { border: 2px solid var(--accent); border-radius: 8px; padding: .5rem .7rem; font-weight: bold; color: var(--accent); background: var(--card); transition: all .15s ease; cursor: pointer; }
-  .qr-die:hover { transform: translateY(-2px); box-shadow: 0 4px 10px var(--shadow); background: var(--accent); color: #fff; }
-  .qr-die.big { border-width: 3px; font-size: 1.1rem; }
+  .qr-dice { display: flex; gap: 1.1rem; justify-content: center; align-items: center; flex-wrap: wrap; margin: 1rem 0 .4rem; }
+  .qr-dice svg { width: 58px; height: 58px; cursor: pointer; transition: transform .15s ease; overflow: visible; }
+  .qr-dice svg:hover { transform: translateY(-3px) scale(1.06); }
+  .qr-dice svg .shape { fill: var(--card); stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; }
+  .qr-dice svg:hover .shape { fill: var(--accent); }
+  .qr-dice svg text { fill: var(--accent); font-family: Georgia, serif; font-weight: bold; font-size: 13px; text-anchor: middle; }
+  .qr-dice svg:hover text { fill: #fff; }
+  .qr-dice svg.d20die { width: 68px; height: 68px; }
+  .qr-dice svg .halo { fill: none; stroke: #c9a227; stroke-width: 2; }
+  .qr-dice-title { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; }
+  .qr-dice-title::before, .qr-dice-title::after { content: ""; flex: 1; border-top: 1.5px solid #c9a227; }
+  .qr-dice-title span { font-variant: small-caps; letter-spacing: 2px; color: var(--accent); font-size: 1.05rem; }
   .qr-caption { text-align: center; color: var(--muted); font-style: italic; font-size: .85rem; margin-bottom: 1rem; }
 
   /* HP tracker */
@@ -437,14 +445,21 @@
       </div>
     </div>
 
-    <div style="text-align:center;font-variant:small-caps;letter-spacing:1px;margin-top:1rem;color:var(--muted)">The Dice of Fate</div>
+    <div class="qr-dice-title"><span>The Dice of Fate</span></div>
     <div class="qr-dice">
-      <span class="qr-die" onclick="rollDie(4)" title="Roll a d4">d4</span>
-      <span class="qr-die" onclick="rollDie(6)" title="Roll a d6">d6</span>
-      <span class="qr-die" onclick="rollDie(8)" title="Roll a d8">d8</span>
-      <span class="qr-die" onclick="rollDie(10)" title="Roll a d10">d10</span>
-      <span class="qr-die" onclick="rollDie(12)" title="Roll a d12">d12</span>
-      <span class="qr-die big" onclick="rollDie(20)" title="Roll a d20">d20</span>
+      <svg viewBox="0 0 64 64" onclick="rollDie(4)" role="button" aria-label="Roll a d4" title="Roll a d4">
+        <polygon class="shape" points="32,8 58,54 6,54"/><text x="32" y="47">D4</text></svg>
+      <svg viewBox="0 0 64 64" onclick="rollDie(6)" role="button" aria-label="Roll a d6" title="Roll a d6">
+        <rect class="shape" x="13" y="13" width="38" height="38"/><text x="32" y="37">D6</text></svg>
+      <svg viewBox="0 0 64 64" onclick="rollDie(8)" role="button" aria-label="Roll a d8" title="Roll a d8">
+        <polygon class="shape" points="32,5 59,32 32,59 5,32"/><text x="32" y="37">D8</text></svg>
+      <svg viewBox="0 0 64 64" onclick="rollDie(10)" role="button" aria-label="Roll a d10" title="Roll a d10">
+        <polygon class="shape" points="32,5 57,25 49,57 15,57 7,25"/><text x="32" y="42">D10</text></svg>
+      <svg viewBox="0 0 64 64" onclick="rollDie(12)" role="button" aria-label="Roll a d12" title="Roll a d12">
+        <polygon class="shape" points="32,7 58,26 48,58 16,58 6,26"/><text x="32" y="42">D12</text></svg>
+      <svg viewBox="0 0 64 64" class="d20die" onclick="rollDie(20)" role="button" aria-label="Roll a d20" title="Roll a d20">
+        <circle class="halo" cx="32" cy="32" r="30"/>
+        <polygon class="shape" points="32,8 53,20 53,44 32,56 11,44 11,20"/><text x="32" y="37">D20</text></svg>
     </div>
     <div class="qr-caption">The d20 does 90% of the work; the rest are mostly for damage. Your DM will always say which to roll. (Click a die to roll it!)</div>
 
@@ -480,6 +495,8 @@
 <div id="restOverlay" class="overlay"><div class="lvl-modal" id="restModal"></div></div>
 <div id="downOverlay" class="overlay"><div class="lvl-modal" id="downModal"></div></div>
 <div id="refOverlay" class="overlay"><div class="lvl-modal" id="refModal"></div></div>
+<div id="atkOverlay" class="overlay"><div class="lvl-modal" id="atkModal"></div></div>
+<div id="spellOverlay" class="overlay"><div class="lvl-modal" id="spellModal"></div></div>
 
 <div id="rollToast"><div class="what"></div><div class="total"></div><div class="detail"></div></div>
 
@@ -1083,11 +1100,13 @@ function renderSheet() {
           seen.add(w);
           const wd = WEAPONS[w];
           const abMod = wd.rng ? dexMod : wd.fin ? Math.max(strMod,dexMod) : strMod;
-          attacks.push({name:w, bonus:abMod+profBonus, dmg:`${wd.dmg}${abMod?` ${abMod>0?"+":""}${abMod}`:""}`});
+          const [die, type] = wd.dmg.split(" ");
+          attacks.push({name:w, bonus:abMod+profBonus, dice:die, type, dmgMod:abMod,
+            dmg:`${wd.dmg}${abMod?` ${abMod>0?"+":""}${abMod}`:""}`});
         }
       });
     });
-    attacks.push({name:"Unarmed Strike", bonus:strMod+profBonus, dmg:`${Math.max(1,1+strMod)} bludgeoning`});
+    attacks.push({name:"Unarmed Strike", bonus:strMod+profBonus, dice:null, type:"bludgeoning", dmgMod:Math.max(1,1+strMod), dmg:`${Math.max(1,1+strMod)} bludgeoning`});
   }
 
   // Spellcasting numbers
@@ -1096,7 +1115,7 @@ function renderSheet() {
   const chosenSpells = SPELLS.filter(s=>state.spells.includes(s.n));
 
   const attackRows = attacks.map(a=>
-    `<li class="rollable" onclick="rollD20('${a.name} Attack',${a.bonus})" title="Click to roll attack">${a.name} <b>${fmtMod(a.bonus)}</b> <small style="color:var(--muted)">${a.dmg}</small></li>`).join("");
+    `<li class="rollable" onclick="attackRoll('${escQ(a.name)}',${a.bonus},${a.dice?`'${a.dice}'`:"null"},'${a.type}',${a.dmgMod})" title="Click to attack">${a.name} <b>${fmtMod(a.bonus)}</b> <small style="color:var(--muted)">${a.dmg}</small></li>`).join("");
 
   const slotRows = getSlotRows().filter(r=>r.total>0).map(r=>{
     const used = state.slotsUsed[r.lv]||0;
@@ -1110,11 +1129,11 @@ function renderSheet() {
   const spellBlock = castAb ? `
     <h3 class="section">Spellcasting (${ABILITY_NAMES[castAb]})</h3>
     <ul class="clean">
-      <li>Spell Save DC <b>${8+profBonus+castMod}</b> · <span class="rollable" onclick="rollD20('Spell Attack',${profBonus+castMod})" title="Click to roll" style="color:var(--accent)">Spell Attack ${fmtMod(profBonus+castMod)} 🎲</span></li>
+      <li>Spell Save DC <b>${8+profBonus+castMod}</b> · <span class="rollable" onclick="attackRoll('Spell Attack',${profBonus+castMod},null,'spell',0)" title="Click to roll" style="color:var(--accent)">Spell Attack ${fmtMod(profBonus+castMod)} 🎲</span></li>
       ${slotRows}
       ${[0,1,2,3].map(lv=>{
         const g = chosenSpells.filter(s=>s.l===lv);
-        return g.length ? `<li><b>${lv===0?"Cantrips":"Level "+lv}:</b> ${g.map(s=>`<span title="${s.d.replace(/"/g,'&quot;')}" style="border-bottom:1px dotted var(--muted);cursor:help">${s.n}</span>`).join(", ")}</li>` : "";
+        return g.length ? `<li><b>${lv===0?"Cantrips":"Level "+lv}:</b> ${g.map(s=>`<span onclick="spellDetail('${escQ(s.n)}')" title="${s.d.replace(/"/g,'&quot;')}" style="border-bottom:1px dotted var(--muted);cursor:pointer">${s.n}</span>`).join(", ")}</li>` : "";
       }).join("")}
       ${!chosenSpells.length ? '<li style="color:var(--muted)">No spells chosen yet: pick them in the Spells list on the left.</li>' : ""}
     </ul>` : "";
@@ -1508,7 +1527,7 @@ let toastTimer = null;
 let histLog = [];
 try { histLog = JSON.parse(localStorage.getItem("dnd-srd-history")) || []; } catch(e) {}
 let showRollLog = false;
-const HIST_ICONS = { roll:"🎲", level:"⬆️", edit:"✏️", rest:"⛺", longrest:"🌙", status:"💀", heal:"❤️" };
+const HIST_ICONS = { roll:"🎲", level:"⬆️", edit:"✏️", rest:"⛺", longrest:"🌙", status:"💀", heal:"❤️", cast:"✨" };
 function logEvent(type, text) {
   histLog.unshift({type, text, who: state.name || "", at: new Date().toLocaleString()});
   if (histLog.length > 200) histLog.length = 200;
@@ -1899,6 +1918,108 @@ function refLookup(term) {
 }
 function refClose() { document.getElementById("refOverlay").classList.remove("open"); }
 document.addEventListener("click", e=>{ if (e.target.id==="refOverlay") refClose(); });
+
+// ---------- ATTACK OVERLAY (attack roll + secondary damage roll) ----------
+let atkState = null;
+
+function attackRoll(name, bonus, dice, type, dmgMod) {
+  const d = 1 + Math.floor(Math.random()*20);
+  logRoll(`${name}`, `d20 (${d}) ${bonus>=0?"+":"-"} ${Math.abs(bonus)}`, d + bonus);
+  atkState = { name, bonus, d20: d, total: d + bonus, dice, type, dmgMod, dmgResult: null, extra: [] };
+  renderAtkModal();
+  document.getElementById("atkOverlay").classList.add("open");
+}
+
+function renderAtkModal() {
+  if (!atkState) return;
+  const a = atkState;
+  const crit = a.d20 === 20, fumble = a.d20 === 1;
+  const extraSum = a.extra.reduce((s,r)=>s+r.v,0);
+  const grand = (a.dmgResult!=null ? a.dmgResult : 0) + extraSum;
+  document.getElementById("atkModal").innerHTML = `
+    <h3>${a.name}</h3>
+    <div class="lvl-step">
+      <div class="k">Attack Roll · vs target's AC</div>
+      <div style="font-size:1.6rem"><b style="${crit?"color:#7bc98b":fumble?"color:var(--accent2)":""}">${a.total}</b>
+        <small style="color:var(--muted)">d20 (${a.d20}) ${a.bonus>=0?"+":"-"} ${Math.abs(a.bonus)}</small></div>
+      ${crit?'<b style="color:#7bc98b">NATURAL 20 · Critical Hit! Roll the damage dice twice.</b>':fumble?'<b style="color:var(--accent2)">Natural 1 · automatic miss.</b>':""}
+    </div>
+    <div class="lvl-step">
+      <div class="k">Damage${a.type && a.type!=="spell"?` · ${a.type}`:""}</div>
+      ${a.dice
+        ? (a.dmgResult==null
+          ? `<button onclick="atkDamage()">🎲 Roll damage (${crit?"2×":""}${a.dice}${a.dmgMod?` ${a.dmgMod>0?"+":""}${a.dmgMod}`:""})</button>`
+          : `<div style="font-size:1.4rem"><b>${a.dmgResult}</b> <small style="color:var(--muted)">${a.dmgDetail}</small></div>`)
+        : (a.type==="spell"
+          ? `<div style="color:var(--muted);font-size:.85rem;margin-bottom:.3rem">Roll your spell's damage dice${crit?" twice (crit!)":""}:</div>`
+          : `<div style="font-size:1.4rem"><b>${a.dmgMod}</b> <small style="color:var(--muted)">flat</small></div>`)}
+      <div style="margin-top:.4rem">
+        <span style="color:var(--muted);font-size:.8rem">Extra dice:</span>
+        ${[4,6,8,10,12].map(s=>`<button style="padding:.25rem .5rem;font-size:.8rem" onclick="atkExtra(${s})">+d${s}</button>`).join(" ")}
+        ${a.extra.length?`<div style="margin-top:.3rem">${a.extra.map(r=>`d${r.s} (${r.v})`).join(" + ")} = <b>${extraSum}</b></div>`:""}
+      </div>
+      ${grand && (a.dmgResult!=null || a.extra.length) ? `<div style="margin-top:.4rem;border-top:1px solid var(--line);padding-top:.3rem">Total damage: <b style="font-size:1.2rem">${grand}</b></div>` : ""}
+    </div>
+    <div class="lvl-actions"><button onclick="atkClose()">Done</button></div>`;
+}
+
+function atkDamage() {
+  const a = atkState;
+  const [n, sides] = a.dice.split("d").map(Number);
+  const count = a.d20===20 ? n*2 : n;
+  const rolls = Array.from({length:count}, ()=>1+Math.floor(Math.random()*sides));
+  a.dmgResult = Math.max(0, rolls.reduce((s,v)=>s+v,0) + a.dmgMod);
+  a.dmgDetail = `${count}d${sides} (${rolls.join(", ")})${a.dmgMod?` ${a.dmgMod>0?"+":""}${a.dmgMod}`:""}${a.type?` ${a.type}`:""}`;
+  logRoll(`${a.name} Damage`, a.dmgDetail, a.dmgResult);
+  renderAtkModal();
+}
+
+function atkExtra(sides) {
+  const v = 1 + Math.floor(Math.random()*sides);
+  atkState.extra.push({s:sides, v});
+  logRoll(`${atkState.name} extra d${sides}`, `d${sides} (${v})`, v);
+  renderAtkModal();
+}
+
+function atkClose() {
+  atkState = null;
+  document.getElementById("atkOverlay").classList.remove("open");
+}
+document.addEventListener("click", e=>{ if (e.target.id==="atkOverlay") atkClose(); });
+
+// ---------- SPELL DETAIL / CASTING OVERLAY ----------
+function spellDetail(name) {
+  const s = SPELLS.find(x=>x.n===name);
+  if (!s) return;
+  const rows = getSlotRows().filter(r=>r.total>0 && r.lv >= s.l).map(r=>{
+    const left = r.total - (state.slotsUsed[r.lv]||0);
+    return `<button onclick="castSpell('${escQ(s.n)}',${r.lv})" ${left<=0?"disabled style='opacity:.45'":""}>✨ Cast with Level ${r.lv} slot (${left} left)</button>`;
+  }).join(" ");
+  document.getElementById("spellModal").innerHTML = `
+    <h3>${s.n}</h3>
+    <div style="color:var(--muted);font-style:italic;margin-bottom:.5rem">${s.l===0?"Cantrip":"Level "+s.l} · ${s.c.join(", ")}</div>
+    <div class="lvl-step">${s.d}</div>
+    <div class="lvl-step"><div class="k">Cast</div>
+      ${s.l===0 ? `<button onclick="castSpell('${escQ(s.n)}',0)">✨ Cast cantrip (no slot)</button>` : (rows || '<span style="color:var(--muted)">No spell slots of this level.</span>')}
+    </div>
+    <div class="lvl-actions"><button onclick="spellClose()">Close</button></div>`;
+  document.getElementById("spellOverlay").classList.add("open");
+}
+
+function castSpell(name, lv) {
+  if (lv > 0) {
+    const row = getSlotRows().find(r=>r.lv===lv);
+    const left = row ? row.total - (state.slotsUsed[lv]||0) : 0;
+    if (left <= 0) return;
+    state.slotsUsed[lv] = (state.slotsUsed[lv]||0) + 1;
+  }
+  logEvent("cast", `Cast <b>${name}</b>${lv?` using a Level ${lv} slot`:" (cantrip)"}`);
+  spellClose();
+  renderSheet(); persistLoaded();
+}
+
+function spellClose() { document.getElementById("spellOverlay").classList.remove("open"); }
+document.addEventListener("click", e=>{ if (e.target.id==="spellOverlay") spellClose(); });
 
 // ---------- THEME ----------
 const THEME_KEY = "dnd-srd-theme";
