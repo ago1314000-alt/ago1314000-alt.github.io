@@ -70,6 +70,9 @@
     #tab-create .panel > .big-btns,
     #tab-create .panel > button,
     #tab-create .panel > h3.section { grid-column: 1 / -1; }
+    /* Spells is its own block, never sharing a row with the skill list */
+    #tab-create .panel > #spellSection { grid-column: 1 / -1; }
+    #tab-create #spellChoices { max-height: 320px; }
   }
   @media (min-width: 1400px) {
     #tab-create .panel { grid-template-columns: repeat(3, 1fr); }
