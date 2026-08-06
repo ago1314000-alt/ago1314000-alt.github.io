@@ -398,6 +398,7 @@
     h1 { display: flex; align-items: center; gap: .5rem; font-size: 1.3rem; margin-bottom: .75rem; }
     h1 .brand-logo { width: 30px; height: 30px; }
     .app { display: block; }
+    #savedCount { display: none; }
     .layout { gap: .8rem; }
     .panel { padding: .85rem; }
     .brand { display: none; }
