@@ -630,5 +630,19 @@ const EQUIPMENT_DEFS = {
 "Book":"A bound volume of lore, prayers, or history: a well-chosen book can grant Advantage on research checks at the GM's discretion."
 };
 Object.entries(EQUIPMENT_DEFS).forEach(([t,d])=>RULES.push({c:"Equipment", t, d}));
+
+// The nine alignments, described in play terms
+const ALIGNMENT_DEFS = {
+"Lawful Good":"You do the right thing and you do it by the book: honor codes, oaths, and mercy. Think a paladin who keeps their word even when it costs them.",
+"Neutral Good":"You do as much good as you can and let rules and rebellion sort themselves out. Helpful, kind, and practical about it.",
+"Chaotic Good":"You follow your conscience over any law. A rescuer of the downtrodden who happily robs a corrupt noble to feed a village.",
+"Lawful Neutral":"Order itself is the point. You keep to your code, contract, or tradition without much concern for who it helps or harms.",
+"True Neutral":"You take each situation as it comes, avoiding extremes and grand causes. Many druids favor the balance of nature over any side.",
+"Chaotic Neutral":"You follow your whims and prize your own freedom above all. Unpredictable, but not cruel for its own sake.",
+"Lawful Evil":"You take what you want within the rules you respect: contracts, hierarchies, and tradition twisted to your advantage.",
+"Neutral Evil":"You do whatever you can get away with, without loyalty to law or love of chaos. Selfishness, plainly.",
+"Chaotic Evil":"You act on violent impulse and answer to nobody. Rare in a party, and worth a talk with your DM before choosing."
+};
+Object.entries(ALIGNMENT_DEFS).forEach(([t,d])=>RULES.push({c:"Alignment", t, d}));
 // Every weapon gets an entry from its stats
 Object.entries(WEAPONS).forEach(([t,w])=>RULES.push({c:"Equipment", t, d:`Weapon: ${w.dmg} damage${w.fin?"; Finesse (use STR or DEX for attack and damage)":""}${w.rng?"; Ranged (uses DEX; requires ammunition)":""}. Attack: d20 + ability modifier + Proficiency Bonus vs. AC.`}));

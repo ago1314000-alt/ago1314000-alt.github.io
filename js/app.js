@@ -346,12 +346,28 @@ function clearCreator() {
 }
 
 // ---------- SHEET RENDER ----------
+// Max HP: hit die at level 1 + rolled/average gains + CON per level (+1/level for Dwarf).
+// Runs independently of rendering so it stays correct while the sheet isn't on screen.
+function computeHp() {
+  const c = state.cls ? CLASSES[state.cls] : null;
+  const conMod = state.scores.CON!=null ? mod(state.scores.CON) : 0;
+  let hp = c ? c.hitDie + state.dieRolls.reduce((a,b)=>a+b,0) + conMod*state.level : null;
+  if (state.species==="Dwarf" && hp!=null) hp += state.level;
+  if (hp!=null) hp = Math.max(1, hp);
+  if (state.maxHp !== hp) {
+    const delta = hp - (state.maxHp||0);
+    state.curHp = state.maxHp==null || state.curHp==null ? hp : Math.max(0, Math.min(hp, state.curHp + Math.max(0,delta)));
+    state.maxHp = hp;
+  }
+}
+
 function renderSheet() {
   const saveLabel = state.loadedId ? "💾 Update Character" : "💾 Save Character";
   ["btnSave","btnSaveTop"].forEach(id=>{ const b = document.getElementById(id); if (b) b.textContent = saveLabel; });
+  computeHp();
   try { localStorage.setItem("dnd-srd-current", JSON.stringify(state)); } catch(e) {}
   const el = document.getElementById(sheetTargetId);
-  if (!el) return;
+  if (!el) { renderDownOverlay(); return; }
   const haveScores = ABILITIES.every(a=>state.scores[a]!=null);
   if (!state.cls && !state.species && !haveScores) {
     el.innerHTML = '<div class="empty">Choose options on the left (or hit <b>Randomize All</b>) to generate a character sheet.</div>';
@@ -366,15 +382,7 @@ function renderSheet() {
   const dexMod = state.scores.DEX!=null ? mod(state.scores.DEX) : 0;
   const wisMod = state.scores.WIS!=null ? mod(state.scores.WIS) : 0;
 
-  // Max HP: hit die at level 1 + rolled/average gains + CON per level (+1/level for Dwarf)
-  let hp = c ? c.hitDie + state.dieRolls.reduce((a,b)=>a+b,0) + conMod*state.level : null;
-  if (state.species==="Dwarf" && hp!=null) hp += state.level;
-  if (hp!=null) hp = Math.max(1, hp);
-  if (state.maxHp !== hp) {
-    const delta = hp - (state.maxHp||0);
-    state.curHp = state.maxHp==null || state.curHp==null ? hp : Math.max(0, Math.min(hp, state.curHp + Math.max(0,delta)));
-    state.maxHp = hp;
-  }
+  const hp = state.maxHp;
 
   let ac = 10 + dexMod;
   let acNote = "10 + Dex (unarmored)";
@@ -1310,6 +1318,49 @@ function refLookup(term) {
     <div class="lvl-actions"><button onclick="refClose()">Close</button></div>`;
   document.getElementById("refOverlay").classList.add("open");
 }
+// Chooser overlay: explains a creator choice and lists every option, selectable in place
+const CHOOSERS = {
+  class: { label:"Class", concept:"Class and Subclass", cat:"Class", sel:"selClass",
+    tip:"Your biggest decision: it sets your hit die, what you're good at, and what you actually do on your turn. Pick the fantasy you want to play, the numbers follow." },
+  species: { label:"Species", concept:"Species", cat:"Species", sel:"selSpecies",
+    tip:"Your character's ancestry. It grants size, speed, and a handful of special traits like Darkvision. In the 2024 rules it does not change your ability scores, so any species works with any class." },
+  background: { label:"Background", concept:"Background and Origin Feats", cat:"Background", sel:"selBackground",
+    tip:"What you did before adventuring. This is where your ability score bonuses come from, plus two skills, a tool, starting gear, and an origin feat." },
+  alignment: { label:"Alignment", concept:"Alignment", cat:"Alignment", sel:"selAlignment",
+    tip:"A two-word shorthand for how your character behaves: their attitude toward rules and toward other people. It's a roleplaying guide with no mechanical effect, so choose what you'll enjoy playing." }
+};
+
+function refChooser(kind) {
+  const cfg = CHOOSERS[kind];
+  const concept = RULES.find(r=>r.t === cfg.concept);
+  const opts = RULES.filter(r=>r.c === cfg.cat);
+  const current = document.getElementById(cfg.sel).value;
+  document.getElementById("refModal").innerHTML = `
+    <h3>${cfg.label}</h3>
+    <div class="lvl-step">
+      ${concept ? allDice(concept.d) : ""}
+      <div style="margin-top:.5rem;color:var(--accent)">${cfg.tip}</div>
+    </div>
+    <div class="lvl-step">
+      <div class="k">Your options · click one to choose it</div>
+      <div class="picker-box">
+        ${opts.map(o=>`<div class="chooser-row${o.t===current?" current":""}" onclick="chooserPick('${kind}','${escQ(o.t)}')" title="Choose ${o.t}">
+            <div><b>${o.t}</b>${o.t===current?' <small style="color:var(--accent)">· current</small>':""}</div>
+            <div style="font-size:.85rem;color:var(--muted)">${allDice(o.d)}</div>
+          </div>`).join("")}
+      </div>
+    </div>
+    <div class="lvl-actions"><button onclick="refClose()">Close</button></div>`;
+  document.getElementById("refOverlay").classList.add("open");
+}
+
+function chooserPick(kind, name) {
+  const el = document.getElementById(CHOOSERS[kind].sel);
+  el.value = name;
+  el.dispatchEvent(new Event("change"));
+  refClose();
+}
+
 function refClose() { document.getElementById("refOverlay").classList.remove("open"); }
 document.addEventListener("click", e=>{ if (e.target.id==="refOverlay") refClose(); });
 

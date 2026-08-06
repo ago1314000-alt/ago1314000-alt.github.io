@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>D&D Character Sheet Generator (SRD 5.2)</title>
-<link rel="stylesheet" href="css/style.css?v=19">
+<link rel="stylesheet" href="css/style.css?v=20">
 </head>
 <body>
 <div class="app">
@@ -44,7 +44,7 @@
     </div>
 
     <div class="field">
-      <label>Class</label>
+      <label><span class="ref-link" onclick="refChooser('class')">Class</span></label>
       <div class="row">
         <select id="selClass"></select>
         <button class="dice" data-rand="class" title="Random class">🎲</button>
@@ -52,7 +52,7 @@
     </div>
 
     <div class="field">
-      <label>Species</label>
+      <label><span class="ref-link" onclick="refChooser('species')">Species</span></label>
       <div class="row">
         <select id="selSpecies"></select>
         <button class="dice" data-rand="species" title="Random species">🎲</button>
@@ -60,7 +60,7 @@
     </div>
 
     <div class="field">
-      <label>Background</label>
+      <label><span class="ref-link" onclick="refChooser('background')">Background</span></label>
       <div class="row">
         <select id="selBackground"></select>
         <button class="dice" data-rand="background" title="Random background">🎲</button>
@@ -68,7 +68,7 @@
     </div>
 
     <div class="field">
-      <label>Alignment</label>
+      <label><span class="ref-link" onclick="refChooser('alignment')">Alignment</span></label>
       <div class="row">
         <select id="selAlignment"></select>
         <button class="dice" data-rand="alignment" title="Random alignment">🎲</button>
@@ -117,10 +117,6 @@
       <textarea id="rpNotes" rows="4" placeholder="Appearance, allies, treasure, campaign notes..."></textarea></div>
 
     <button id="btnSave">💾 Save Character</button>
-  </div>
-
-  <div class="panel sheet" id="sheet">
-    <div class="empty">Choose options on the left (or hit <b>Randomize All</b>) to generate a character sheet.</div>
   </div>
 </div>
 </div><!-- /tab-create -->
@@ -249,7 +245,7 @@
 
 <div id="rollToast"><div class="what"></div><div class="total"></div><div class="detail"></div></div>
 
-<script src="js/data.js?v=19"></script>
-<script src="js/app.js?v=19"></script>
+<script src="js/data.js?v=20"></script>
+<script src="js/app.js?v=20"></script>
 </body>
 </html>

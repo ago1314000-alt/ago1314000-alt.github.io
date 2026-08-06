@@ -59,6 +59,8 @@
   .sub { color: var(--muted); margin-bottom: 1.25rem; font-size: .95rem; }
   .layout { display: grid; grid-template-columns: 380px 1fr; gap: 1.5rem; max-width: 1400px; margin: 0 auto; }
   @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  /* The create tab is the form alone; the sheet lives on the Characters tab */
+  #tab-create .layout { grid-template-columns: 1fr; max-width: 620px; }
   .panel {
     background: var(--panel); border: 1px solid var(--line);
     border-radius: 8px; padding: 1.25rem;
@@ -127,6 +129,14 @@
   .death-saves .pip { cursor: pointer; font-size: 1rem; }
   .spell-row { display: block; padding: .2rem 0; border-bottom: 1px dotted var(--line); font-weight: normal; }
   .spell-row.dimmed { opacity: .45; }
+  .chooser-row {
+    padding: .5rem .1rem; border-bottom: 1px solid var(--line); cursor: pointer;
+    border-radius: 6px; transition: background .12s ease, padding .12s ease;
+  }
+  .chooser-row:last-child { border-bottom: none; }
+  .chooser-row:hover { background: var(--row-hover); padding-left: .5rem; }
+  .chooser-row.current { box-shadow: inset 3px 0 0 var(--accent); padding-left: .5rem; }
+
   .picker-box {
     max-height: 240px; overflow-y: auto; border: 1px solid var(--line);
     border-radius: 6px; padding: .4rem .6rem; background: var(--panel); font-size: .85rem;
