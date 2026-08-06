@@ -233,6 +233,11 @@ function randomizeSpells() {
   ];
   renderSpellChoices();
 }
+document.getElementById("btnRandSkills").addEventListener("click", ()=>{
+  if (!state.cls) { alert("Pick a class first: its list decides which skills you can choose."); return; }
+  randomizeSkills();
+  renderSheet();
+});
 document.getElementById("btnRandSpells").addEventListener("click", ()=>{ randomizeSpells(); renderSheet(); });
 document.getElementById("spellSearch").addEventListener("input", renderSpellChoices);
 
