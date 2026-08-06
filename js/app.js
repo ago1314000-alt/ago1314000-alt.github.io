@@ -855,7 +855,7 @@ function renderRules(q) {
     r.t.toLowerCase().includes(q) || r.d.toLowerCase().includes(q) || r.c.toLowerCase().includes(q));
   const hi = txt => q ? txt.replace(new RegExp("("+q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi"), "<mark>$1</mark>") : txt;
   document.getElementById("rulesResults").innerHTML = hits.length
-    ? hits.map(r=>`<div class="rule-card"><div class="cat">${r.c}</div><h4>${allDice(hi(r.t))}</h4><p>${allDice(hi(r.d))}</p></div>`).join("")
+    ? hits.map(r=>`<div class="rule-card"><div class="cat">${r.c}</div><h4>${allDice(hi(r.t))}</h4><p>${allDice(hi(r.d))}</p>${r.url?`<a href="${r.url}" target="_blank" rel="noopener" style="font-size:.85rem">Full description on the SRD ↗</a>`:""}</div>`).join("")
     : '<div class="empty">No rules matched. Try another term.</div>';
 }
 rulesInput.addEventListener("input", ()=>renderRules(rulesInput.value));
@@ -1606,7 +1606,7 @@ function refLookup(term) {
   if (!hits.length) hits = RULES.filter(r=>r.d.toLowerCase().includes(q)).slice(0,3);
   document.getElementById("refModal").innerHTML = `
     <h3>${term}</h3>
-    ${hits.length ? hits.map(r=>`<div class="rule-card"><div class="cat">${r.c}</div><h4>${allDice(r.t)}</h4><p>${allDice(r.d)}</p></div>`).join("")
+    ${hits.length ? hits.map(r=>`<div class="rule-card"><div class="cat">${r.c}</div><h4>${allDice(r.t)}</h4><p>${allDice(r.d)}</p>${r.url?`<a href="${r.url}" target="_blank" rel="noopener" style="font-size:.85rem">Full description on the SRD ↗</a>`:""}</div>`).join("")
       : `<div class="rule-card"><p>No reference entry found. Try the Reference tab's search.</p></div>`}
     <div class="lvl-actions"><button onclick="refClose()">Close</button></div>`;
   document.getElementById("refOverlay").classList.add("open");
@@ -1761,10 +1761,19 @@ function spellDetail(name) {
     roll.heal ? `<button onclick="rollDamageOnly('${escQ(s.n)}','${roll.heal}','','Healing')">❤️ Roll healing (${allDice(roll.heal)})</button>` : ""
   ].filter(Boolean).join(" ");
 
+  const meta = spellMeta(s);
   document.getElementById("spellModal").innerHTML = `
     <h3>${s.n}</h3>
     <div style="color:var(--muted);font-style:italic;margin-bottom:.5rem">${s.l===0?"Cantrip":"Level "+s.l} · ${s.c.join(", ")}${roll.save?` · ${ABILITY_NAMES[roll.save.toUpperCase()]||roll.save} save vs DC ${8+spellAtk}`:""}</div>
-    <div class="lvl-step">${allDice(s.d)}${roll.note?`<div style="margin-top:.3rem;color:var(--muted);font-size:.85rem">${roll.note}</div>`:""}</div>
+    <div class="lvl-step spell-meta">
+      <div><span class="k">Casting Time</span>${meta.time}</div>
+      <div><span class="k">Range</span>${meta.range}</div>
+      <div><span class="k">Components</span>${meta.comp}</div>
+      <div><span class="k">Duration</span>${meta.dur}</div>
+    </div>
+    <div class="lvl-step">${allDice(s.d)}${roll.note?`<div style="margin-top:.3rem;color:var(--muted);font-size:.85rem">${roll.note}</div>`:""}
+      <div style="margin-top:.5rem"><a href="${meta.url}" target="_blank" rel="noopener">Full description on the SRD ↗</a></div>
+    </div>
     ${rollBtns?`<div class="lvl-step"><div class="k">Rolls</div>${rollBtns}</div>`:""}
     ${hasSpellFocus() ? "" : `<div class="warn-banner">⚠ You aren't carrying a spellcasting focus, so you can't cast this. Add one under Equipment.</div>`}
     <div class="lvl-step"><div class="k">Cast</div>
@@ -1783,7 +1792,8 @@ function castSpell(name, lv) {
     state.slotsUsed[lv] = (state.slotsUsed[lv]||0) + 1;
   }
   const spell = SPELLS.find(s=>s.n===name);
-  const needsConc = spell && /concentration/i.test(spell.d);
+  // the duration field is authoritative; some summaries word it loosely
+  const needsConc = spell && /concentration/i.test(spellMeta(spell).dur);
   logEvent("cast", `Cast <b>${name}</b>${lv?` using a Level ${lv} slot`:" (cantrip)"}${needsConc?" · concentrating":""}`);
   if (needsConc) startConcentration(name);
   spellClose();

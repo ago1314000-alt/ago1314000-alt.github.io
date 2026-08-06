@@ -23,7 +23,7 @@ The sheet is a live play surface, not a printout:
 - 🔆 **Class resources** tracked as spendable pips — Rage, Channel Divinity, Second Wind, Action Surge, Bardic Inspiration, Focus and Sorcery Points, Lay On Hands — refilled by the right rest
 - 🌀 **Concentration**: casting a concentration spell flags it, and taking damage prompts the CON save at the correct DC, breaking it on a failure
 - ⚔️ Attack overlay rolls to-hit and damage (crits double your dice automatically), with extra-dice buttons for Sneak Attack and friends
-- ✨ **Cast spells** from the sheet: click a spell for details, cast options, and roll buttons — spell attacks, save-based damage, and healing all roll for you; slots are tracked as clickable pips (full, half, and pact casters all supported)
+- ✨ **Cast spells** from the sheet: click a spell for its casting time, range, components and duration, a link to the full SRD text, cast options, and roll buttons — spell attacks, save-based damage, and healing all roll for you; slots are tracked as clickable pips (full, half, and pact casters all supported)
 - 🎒 **Add equipment** as you loot it, from the SRD list or typed in freehand; weapons flow straight into your Attacks
 - 📝 A **Notes** box on the sheet that saves as you type
 - ❤️ Hit point, temp HP, and Heroic Inspiration tracking

@@ -148,6 +148,10 @@
 
   .death-saves { display: flex; gap: .5rem; justify-content: center; align-items: center; margin-top: .3rem; font-size: .75rem; }
   .death-saves .pip { cursor: pointer; font-size: 1rem; }
+  /* Spell stat block: label above value, wrapping into columns */
+  .spell-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: .5rem .9rem; }
+  .spell-meta .k { display: block; margin-bottom: .1rem; }
+
   .spell-row { display: block; padding: .2rem 0; border-bottom: 1px dotted var(--line); font-weight: normal; }
   .spell-row.dimmed { opacity: .45; }
   .chooser-row {
