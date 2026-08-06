@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>D&D Character Sheet Generator (SRD 5.2)</title>
 <style>
   :root {
@@ -59,11 +59,41 @@
   .field { margin-bottom: .9rem; }
   .field label { display: block; font-weight: bold; font-size: .85rem; margin-bottom: .25rem; }
   .row { display: flex; gap: .4rem; align-items: center; }
-  select, input[type=text] {
+  select, input[type=text], textarea {
     flex: 1; padding: .45rem .5rem; font-family: inherit; font-size: .95rem;
     border: 1px solid var(--line); border-radius: 5px; background: var(--card); color: var(--ink);
     width: 100%;
   }
+  textarea { resize: vertical; }
+  /* Level-up modal */
+  #lvlOverlay {
+    position: fixed; inset: 0; z-index: 100; display: none;
+    background: rgba(0,0,0,.55); align-items: center; justify-content: center; padding: 1rem;
+  }
+  #lvlOverlay.open { display: flex; }
+  .lvl-modal {
+    background: var(--panel); border: 2px solid var(--accent); border-radius: 12px;
+    max-width: 560px; width: 100%; max-height: 90vh; overflow-y: auto;
+    padding: 1.25rem; box-shadow: 0 10px 40px rgba(0,0,0,.5);
+  }
+  .lvl-modal h3 { margin: 0 0 .2rem; color: var(--accent); font-variant: small-caps; font-size: 1.4rem; }
+  .lvl-step { border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: .7rem .9rem; margin: .7rem 0; }
+  .lvl-step .k { font-size: .75rem; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; margin-bottom: .4rem; }
+  .asi-chip {
+    display: inline-block; border: 1px solid var(--line); border-radius: 6px; background: var(--panel);
+    padding: .4rem .6rem; margin: .15rem; cursor: pointer; font-weight: bold; transition: all .15s ease;
+  }
+  .asi-chip:hover { border-color: var(--accent); }
+  .asi-chip.picked { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .lvl-actions { display: flex; gap: .6rem; margin-top: 1rem; }
+  .lvl-actions button { flex: 1; padding: .7rem; font-weight: bold; }
+  .lvl-confirm { background: #2f5d3a; color: #fff; border-color: #2f5d3a; }
+  .lvl-confirm:disabled { opacity: .45; cursor: not-allowed; }
+
+  .death-saves { display: flex; gap: .5rem; justify-content: center; align-items: center; margin-top: .3rem; font-size: .75rem; }
+  .death-saves .pip { cursor: pointer; font-size: 1rem; }
+  .spell-row { display: block; padding: .2rem 0; border-bottom: 1px dotted var(--line); font-weight: normal; }
+  .spell-lvl-h { font-weight: bold; color: var(--accent); margin: .4rem 0 .15rem; font-variant: small-caps; }
   button {
     font-family: inherit; cursor: pointer; border-radius: 5px;
     border: 1px solid var(--line); background: var(--card); color: var(--ink);
@@ -135,6 +165,12 @@
 
   /* Interactivity polish */
   button, select, .stat, .rule-card, .saved-card, ul.clean li.rollable, .vital { transition: all .15s ease; }
+  /* Touch: no text selection, tap flash, or double-tap zoom on tappable elements */
+  button, .rollable, .qr-die, .stat, .vital, .hp-tracker, .tabs {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none; user-select: none;
+    touch-action: manipulation;
+  }
   button:active { transform: scale(.96); }
   .stat.rollable, .vital.rollable { cursor: pointer; }
   .stat.rollable:hover, .vital.rollable:hover { transform: translateY(-2px); box-shadow: 0 4px 10px var(--shadow); border-color: var(--accent); }
@@ -183,10 +219,42 @@
   .qr-caption { text-align: center; color: var(--muted); font-style: italic; font-size: .85rem; margin-bottom: 1rem; }
 
   /* HP tracker */
-  .hp-tracker { display: flex; align-items: center; gap: .35rem; justify-content: center; margin-top: .3rem; }
+  .hp-tracker { display: flex; align-items: center; gap: .35rem; justify-content: center; margin-top: .3rem; flex-wrap: wrap; }
   .hp-tracker button { padding: .15rem .5rem; font-size: .8rem; font-weight: bold; }
   .hp-dmg { color: var(--accent2); }
   .hp-heal { color: #2f5d3a; }
+  body.dark .hp-heal { color: #7bc98b; }
+
+  /* Mobile */
+  .tabs { flex-wrap: wrap; }
+  @media (max-width: 600px) {
+    body { padding: .6rem; }
+    h1 { font-size: 1.5rem; }
+    .layout { gap: .8rem; }
+    .panel { padding: .85rem; }
+    .tabs { gap: .25rem; }
+    .tabs button { padding: .5rem .7rem; font-size: .85rem; flex: 1 1 auto; }
+    .tabs button.gear { flex: 0 0 auto; }
+    .statgrid { gap: .4rem; }
+    .vitals { gap: .4rem; }
+    .vital { min-width: 0; flex: 1 1 28%; padding: .4rem .3rem; }
+    .vital:has(.hp-tracker) { flex: 1 1 100%; }
+    .hp-tracker button { padding: .45rem .6rem; font-size: .9rem; }
+    button.dice { padding: .55rem .7rem; }
+    ul.clean li { padding: .45rem 0; }
+    ul.clean li.rollable:hover { padding-left: 0; }
+    .qr-three { gap: .4rem; }
+    .saved-card .btns button { padding: .55rem .8rem; }
+    #rollToast {
+      left: .6rem; right: .6rem;
+      bottom: calc(.6rem + env(safe-area-inset-bottom, 0px));
+      min-width: 0; text-align: center;
+    }
+    /* 16px inputs stop iOS Safari from auto-zooming on focus */
+    select, input[type=text], input[type=number] { font-size: 16px; }
+    /* one checkbox per row for fat-finger-friendly skill picks */
+    #skillChoices label { width: 100% !important; padding: .25rem 0; }
+  }
 </style>
 </head>
 <body>
@@ -262,6 +330,33 @@
       <button id="btnRandSkills">🎲 Random skills</button>
     </div>
     <div id="skillChoices" style="font-size:.85rem;"></div>
+
+    <div id="spellSection" style="display:none">
+      <h3 class="section">Spells</h3>
+      <div class="method-row">
+        <button id="btnRandSpells">🎲 Random spells</button>
+      </div>
+      <input type="text" id="spellSearch" placeholder="Filter spells..." style="margin-bottom:.4rem">
+      <div id="spellChoices" style="font-size:.85rem;max-height:300px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;padding:.5rem;background:var(--card)"></div>
+    </div>
+
+    <h3 class="section">Personality &amp; Notes</h3>
+    <div class="field"><label>Player Name <small style="color:var(--muted);font-weight:normal">/ XP</small></label>
+      <div class="row">
+        <input type="text" id="playerName" placeholder="Player name...">
+        <input type="text" id="xpField" placeholder="XP" style="max-width:80px">
+      </div>
+    </div>
+    <div class="field"><label>Personality Traits</label>
+      <div class="row"><textarea id="rpTraits" rows="2"></textarea><button class="dice" data-rp="traits" title="Random trait">🎲</button></div></div>
+    <div class="field"><label>Ideals</label>
+      <div class="row"><textarea id="rpIdeals" rows="2"></textarea><button class="dice" data-rp="ideals" title="Random ideal">🎲</button></div></div>
+    <div class="field"><label>Bonds</label>
+      <div class="row"><textarea id="rpBonds" rows="2"></textarea><button class="dice" data-rp="bonds" title="Random bond">🎲</button></div></div>
+    <div class="field"><label>Flaws</label>
+      <div class="row"><textarea id="rpFlaws" rows="2"></textarea><button class="dice" data-rp="flaws" title="Random flaw">🎲</button></div></div>
+    <div class="field"><label>Backstory &amp; Notes</label>
+      <textarea id="rpNotes" rows="4" placeholder="Appearance, allies, treasure, campaign notes..."></textarea></div>
 
     <button id="btnSave">💾 Save Character</button>
   </div>
@@ -374,6 +469,8 @@
     </div>
   </div>
 </div>
+
+<div id="lvlOverlay"><div class="lvl-modal" id="lvlModal"></div></div>
 
 <div id="rollToast"><div class="what"></div><div class="total"></div><div class="detail"></div></div>
 
@@ -495,6 +592,136 @@ const BACKGROUNDS = {
     equipment:["Spear","Shortbow, 20 Arrows, Quiver","Gaming Set","Healer's Kit","Traveler's Clothes","14 GP"] }
 };
 
+// Weapon damage for the Attacks section (SRD 5.2)
+const WEAPONS = {
+  "Greataxe":{dmg:"1d12 slashing"},"Handaxe":{dmg:"1d6 slashing"},"Dagger":{dmg:"1d4 piercing",fin:true},
+  "Mace":{dmg:"1d6 bludgeoning"},"Sickle":{dmg:"1d4 slashing"},"Quarterstaff":{dmg:"1d6 bludgeoning"},
+  "Spear":{dmg:"1d6 piercing"},"Greatsword":{dmg:"2d6 slashing"},"Flail":{dmg:"1d8 bludgeoning"},
+  "Javelin":{dmg:"1d6 piercing"},"Longsword":{dmg:"1d8 slashing"},"Scimitar":{dmg:"1d6 slashing",fin:true},
+  "Shortsword":{dmg:"1d6 piercing",fin:true},"Longbow":{dmg:"1d8 piercing",rng:true},"Shortbow":{dmg:"1d6 piercing",rng:true}
+};
+
+// SRD 5.2 spells, cantrips through level 3 (one-line summaries)
+// Classes: Bard, Cleric, Druid, Paladin, Ranger, Sorcerer, Warlock, Wizard
+const SPELLS = [
+{n:"Acid Splash",l:0,c:["Sorcerer","Wizard"],d:"Hurl acid: creatures in a 5-ft sphere make a DEX save or take 1d6 acid."},
+{n:"Chill Touch",l:0,c:["Sorcerer","Warlock","Wizard"],d:"Necrotic touch: melee spell attack, 1d10 necrotic and the target can't regain HP until your next turn."},
+{n:"Dancing Lights",l:0,c:["Bard","Sorcerer","Wizard"],d:"Create up to four floating lights you can move as a Bonus Action. Concentration, 1 min."},
+{n:"Druidcraft",l:0,c:["Druid"],d:"Minor nature effects: predict weather, bloom a flower, light or snuff a candle."},
+{n:"Eldritch Blast",l:0,c:["Warlock"],d:"Ranged spell attack, 1d10 force. Extra beams at higher levels."},
+{n:"Fire Bolt",l:0,c:["Sorcerer","Wizard"],d:"Ranged spell attack, 1d10 fire; ignites flammable objects."},
+{n:"Guidance",l:0,c:["Cleric","Druid"],d:"Touch a willing creature: it adds 1d4 to one ability check. Concentration, 1 min."},
+{n:"Light",l:0,c:["Bard","Cleric","Sorcerer","Wizard"],d:"An object sheds bright light in a 20-ft radius for 1 hour."},
+{n:"Mage Hand",l:0,c:["Bard","Sorcerer","Warlock","Wizard"],d:"Spectral hand manipulates objects within 30 ft (up to 10 lbs) for 1 min."},
+{n:"Mending",l:0,c:["Bard","Cleric","Druid","Sorcerer","Wizard"],d:"Repair a single break or tear in an object."},
+{n:"Message",l:0,c:["Bard","Sorcerer","Wizard"],d:"Whisper to a creature within 120 ft; only it hears and can whisper back."},
+{n:"Minor Illusion",l:0,c:["Bard","Sorcerer","Warlock","Wizard"],d:"Create a sound or a small static image for 1 min."},
+{n:"Poison Spray",l:0,c:["Druid","Sorcerer","Warlock","Wizard"],d:"Ranged spell attack, 1d12 poison."},
+{n:"Prestidigitation",l:0,c:["Bard","Sorcerer","Warlock","Wizard"],d:"Minor magical tricks: spark, clean, flavor, chill, or warm small things."},
+{n:"Produce Flame",l:0,c:["Druid"],d:"Flame in your palm sheds light; hurl it as a ranged spell attack for 1d8 fire."},
+{n:"Ray of Frost",l:0,c:["Sorcerer","Wizard"],d:"Ranged spell attack, 1d8 cold and target's Speed drops 10 ft."},
+{n:"Resistance",l:0,c:["Cleric","Druid"],d:"Touch a willing creature: it adds 1d4 to one saving throw. Concentration, 1 min."},
+{n:"Sacred Flame",l:0,c:["Cleric"],d:"Radiance descends: DEX save or 1d8 radiant; cover gives no benefit."},
+{n:"Shillelagh",l:0,c:["Druid"],d:"Your club or quarterstaff uses your spellcasting mod and deals 1d8."},
+{n:"Shocking Grasp",l:0,c:["Sorcerer","Wizard"],d:"Melee spell attack, 1d8 lightning; target can't take Reactions until its next turn."},
+{n:"Spare the Dying",l:0,c:["Cleric"],d:"Touch a creature at 0 HP: it becomes Stable."},
+{n:"Thaumaturgy",l:0,c:["Cleric"],d:"Minor wonders: booming voice, tremors, flickering flames, slamming doors."},
+{n:"True Strike",l:0,c:["Bard","Sorcerer","Warlock","Wizard"],d:"Attack with a weapon using your spellcasting ability; extra radiant at higher levels."},
+{n:"Vicious Mockery",l:0,c:["Bard"],d:"Insult a creature: WIS save or 1d6 psychic and Disadvantage on its next attack."},
+{n:"Bane",l:1,c:["Bard","Cleric","Warlock"],d:"Up to 3 creatures: CHA save or subtract 1d4 from attacks and saves. Concentration, 1 min."},
+{n:"Bless",l:1,c:["Cleric","Paladin"],d:"Up to 3 creatures add 1d4 to attacks and saves. Concentration, 1 min."},
+{n:"Burning Hands",l:1,c:["Sorcerer","Wizard"],d:"15-ft cone: DEX save, 3d6 fire (half on success)."},
+{n:"Charm Person",l:1,c:["Bard","Druid","Sorcerer","Warlock","Wizard"],d:"WIS save or Charmed by you for 1 hour or until harmed."},
+{n:"Command",l:1,c:["Cleric","Paladin"],d:"One-word command: WIS save or the creature obeys (approach, drop, flee, grovel, halt)."},
+{n:"Comprehend Languages",l:1,c:["Bard","Sorcerer","Warlock","Wizard"],d:"Understand any spoken or written language for 1 hour. Ritual."},
+{n:"Cure Wounds",l:1,c:["Bard","Cleric","Druid","Paladin","Ranger"],d:"Touch: restore 2d8 + spellcasting mod HP."},
+{n:"Detect Magic",l:1,c:["Bard","Cleric","Druid","Paladin","Ranger","Sorcerer","Warlock","Wizard"],d:"Sense magic within 30 ft; see faint auras. Ritual. Concentration, 10 min."},
+{n:"Disguise Self",l:1,c:["Bard","Sorcerer","Wizard"],d:"Change your appearance (not your body) for 1 hour."},
+{n:"Divine Favor",l:1,c:["Paladin"],d:"Your weapon strikes deal +1d4 radiant. Concentration, 1 min."},
+{n:"Entangle",l:1,c:["Druid"],d:"20-ft square of grasping weeds: STR save or Restrained. Concentration, 1 min."},
+{n:"Faerie Fire",l:1,c:["Bard","Druid"],d:"20-ft cube: DEX save or outlined in light; attacks against have Advantage. Concentration."},
+{n:"False Life",l:1,c:["Sorcerer","Wizard"],d:"Gain 2d4+4 Temporary Hit Points."},
+{n:"Feather Fall",l:1,c:["Bard","Sorcerer","Wizard"],d:"Reaction: up to 5 falling creatures descend slowly, no falling damage."},
+{n:"Fog Cloud",l:1,c:["Druid","Ranger","Sorcerer","Wizard"],d:"20-ft radius sphere of fog, Heavily Obscured. Concentration, 1 hour."},
+{n:"Goodberry",l:1,c:["Druid","Ranger"],d:"Create 10 berries; eating one restores 1 HP and nourishes for a day."},
+{n:"Grease",l:1,c:["Sorcerer","Wizard"],d:"10-ft square becomes slick: DEX save or fall Prone."},
+{n:"Guiding Bolt",l:1,c:["Cleric"],d:"Ranged spell attack, 4d6 radiant; next attack on the target has Advantage."},
+{n:"Healing Word",l:1,c:["Bard","Cleric","Druid"],d:"Bonus Action, 60 ft: restore 2d4 + spellcasting mod HP."},
+{n:"Hellish Rebuke",l:1,c:["Warlock"],d:"Reaction when damaged: attacker makes DEX save, 2d10 fire (half on success)."},
+{n:"Heroism",l:1,c:["Bard","Paladin"],d:"Willing creature is immune to Frightened and gains temp HP each turn. Concentration."},
+{n:"Hunter's Mark",l:1,c:["Ranger"],d:"Mark a creature: +1d6 force on your weapon hits against it. Bonus Action. Concentration."},
+{n:"Identify",l:1,c:["Bard","Wizard"],d:"Learn an item's magical properties. Ritual."},
+{n:"Inflict Wounds",l:1,c:["Cleric"],d:"Melee spell attack: 2d10 necrotic."},
+{n:"Jump",l:1,c:["Druid","Ranger","Sorcerer","Wizard"],d:"Touched creature's jump distance triples for 1 minute."},
+{n:"Longstrider",l:1,c:["Bard","Druid","Ranger","Wizard"],d:"Touched creature's Speed increases 10 ft for 1 hour."},
+{n:"Mage Armor",l:1,c:["Sorcerer","Wizard"],d:"Unarmored willing creature's base AC becomes 13 + DEX for 8 hours."},
+{n:"Magic Missile",l:1,c:["Sorcerer","Wizard"],d:"Three darts automatically hit for 1d4+1 force each."},
+{n:"Protection from Evil and Good",l:1,c:["Cleric","Paladin","Warlock","Wizard"],d:"Aberrations, celestials, elementals, fey, fiends, undead have Disadvantage to hit the target. Concentration."},
+{n:"Shield",l:1,c:["Sorcerer","Wizard"],d:"Reaction: +5 AC until your next turn and immune to Magic Missile."},
+{n:"Shield of Faith",l:1,c:["Cleric","Paladin"],d:"Bonus Action: +2 AC to a creature. Concentration, 10 min."},
+{n:"Sleep",l:1,c:["Bard","Sorcerer","Wizard"],d:"5d8 HP of creatures fall unconscious, lowest current HP first."},
+{n:"Speak with Animals",l:1,c:["Bard","Druid","Ranger"],d:"Comprehend and communicate with Beasts for 10 minutes. Ritual."},
+{n:"Thunderwave",l:1,c:["Bard","Druid","Sorcerer","Wizard"],d:"15-ft cube: CON save, 2d8 thunder and pushed 10 ft (half damage on success)."},
+{n:"Aid",l:2,c:["Bard","Cleric","Paladin","Ranger"],d:"Up to 3 creatures gain +5 HP maximum and current for 8 hours."},
+{n:"Barkskin",l:2,c:["Druid","Ranger"],d:"Willing creature's AC becomes at least 17 for 1 hour."},
+{n:"Blindness/Deafness",l:2,c:["Bard","Cleric","Sorcerer","Wizard"],d:"CON save or Blinded or Deafened for 1 minute (save each turn)."},
+{n:"Blur",l:2,c:["Sorcerer","Wizard"],d:"Attack rolls against you have Disadvantage. Concentration, 1 min."},
+{n:"Darkness",l:2,c:["Sorcerer","Warlock","Wizard"],d:"15-ft radius of magical darkness that darkvision can't pierce. Concentration."},
+{n:"Enhance Ability",l:2,c:["Bard","Cleric","Druid","Sorcerer","Wizard"],d:"Target has Advantage on checks with one ability. Concentration, 1 hour."},
+{n:"Find Steed",l:2,c:["Paladin"],d:"Summon an otherworldly spirit as a loyal mount."},
+{n:"Flaming Sphere",l:2,c:["Druid","Sorcerer","Wizard"],d:"5-ft fiery sphere you move as a Bonus Action: DEX save or 2d6 fire. Concentration."},
+{n:"Hold Person",l:2,c:["Bard","Cleric","Druid","Sorcerer","Warlock","Wizard"],d:"Humanoid: WIS save or Paralyzed for 1 minute (save each turn). Concentration."},
+{n:"Invisibility",l:2,c:["Bard","Sorcerer","Warlock","Wizard"],d:"Touched creature is Invisible for 1 hour or until it attacks or casts. Concentration."},
+{n:"Lesser Restoration",l:2,c:["Bard","Cleric","Druid","Paladin","Ranger"],d:"End one disease or condition: Blinded, Deafened, Paralyzed, or Poisoned."},
+{n:"Magic Weapon",l:2,c:["Paladin","Ranger","Sorcerer","Wizard"],d:"A weapon becomes +1 magical. Bonus Action. Concentration, 1 hour."},
+{n:"Mirror Image",l:2,c:["Bard","Sorcerer","Warlock","Wizard"],d:"Three illusory duplicates misdirect attacks for 1 minute."},
+{n:"Misty Step",l:2,c:["Sorcerer","Warlock","Wizard"],d:"Bonus Action: teleport up to 30 ft to a spot you can see."},
+{n:"Moonbeam",l:2,c:["Druid"],d:"5-ft radius beam: CON save, 2d10 radiant each turn a creature enters or starts there. Concentration."},
+{n:"Pass without Trace",l:2,c:["Druid","Ranger"],d:"You and allies within 30 ft gain +10 Stealth and leave no tracks. Concentration."},
+{n:"Prayer of Healing",l:2,c:["Cleric"],d:"10-minute prayer: up to 5 creatures regain 2d8 + mod HP and gain a Short Rest's benefit."},
+{n:"Scorching Ray",l:2,c:["Sorcerer","Wizard"],d:"Three rays, each a ranged spell attack for 2d6 fire."},
+{n:"See Invisibility",l:2,c:["Bard","Sorcerer","Wizard"],d:"See Invisible creatures and into the Ethereal Plane for 1 hour."},
+{n:"Shatter",l:2,c:["Bard","Sorcerer","Warlock","Wizard"],d:"10-ft sphere of ringing noise: CON save, 3d8 thunder (half on success)."},
+{n:"Silence",l:2,c:["Bard","Cleric","Ranger"],d:"20-ft sphere where no sound exists; no verbal spells. Ritual. Concentration."},
+{n:"Spider Climb",l:2,c:["Sorcerer","Warlock","Wizard"],d:"Touched creature walks on walls and ceilings; Climb Speed equal to Speed. Concentration."},
+{n:"Spike Growth",l:2,c:["Druid","Ranger"],d:"20-ft radius of hidden spikes: 2d4 piercing per 5 ft moved. Concentration."},
+{n:"Spiritual Weapon",l:2,c:["Cleric"],d:"Bonus Action: floating weapon attacks for 1d8 + mod force. Concentration, 1 min."},
+{n:"Suggestion",l:2,c:["Bard","Sorcerer","Warlock","Wizard"],d:"WIS save or the creature follows a reasonable-sounding course of action. Concentration, 8 hr."},
+{n:"Web",l:2,c:["Sorcerer","Wizard"],d:"20-ft cube of sticky webs: DEX save or Restrained. Concentration, 1 hour."},
+{n:"Animate Dead",l:3,c:["Cleric","Wizard"],d:"Turn bones or a corpse into a skeleton or zombie servant."},
+{n:"Beacon of Hope",l:3,c:["Cleric"],d:"Chosen creatures have Advantage on WIS and Death Saves and heal maximally. Concentration."},
+{n:"Call Lightning",l:3,c:["Druid"],d:"Storm cloud: call a bolt each turn, DEX save, 3d10 lightning. Concentration, 10 min."},
+{n:"Conjure Animals",l:3,c:["Druid","Ranger"],d:"Summon nature spirits that damage nearby enemies. Concentration, 10 min."},
+{n:"Counterspell",l:3,c:["Sorcerer","Warlock","Wizard"],d:"Reaction: interrupt a spell being cast (CON save vs. your DC to fail it)."},
+{n:"Daylight",l:3,c:["Cleric","Druid","Paladin","Ranger","Sorcerer"],d:"60-ft radius of sunlight-bright light for 1 hour; dispels magical darkness."},
+{n:"Dispel Magic",l:3,c:["Bard","Cleric","Druid","Paladin","Ranger","Sorcerer","Warlock","Wizard"],d:"End spells of level 3 or lower on a target (check for higher)."},
+{n:"Fear",l:3,c:["Bard","Sorcerer","Warlock","Wizard"],d:"30-ft cone: WIS save or drop held items and be Frightened, fleeing. Concentration."},
+{n:"Fireball",l:3,c:["Sorcerer","Wizard"],d:"20-ft radius explosion: DEX save, 8d6 fire (half on success)."},
+{n:"Fly",l:3,c:["Sorcerer","Warlock","Wizard"],d:"Touched creature gains 60-ft Fly Speed. Concentration, 10 min."},
+{n:"Haste",l:3,c:["Sorcerer","Wizard"],d:"Double Speed, +2 AC, extra limited action; lethargy when it ends. Concentration."},
+{n:"Hypnotic Pattern",l:3,c:["Bard","Sorcerer","Warlock","Wizard"],d:"30-ft cube: WIS save or Charmed and Incapacitated, gazing. Concentration."},
+{n:"Lightning Bolt",l:3,c:["Sorcerer","Wizard"],d:"100-ft line: DEX save, 8d6 lightning (half on success)."},
+{n:"Magic Circle",l:3,c:["Cleric","Paladin","Warlock","Wizard"],d:"10-ft cylinder wards against a chosen creature type for 1 hour."},
+{n:"Mass Healing Word",l:3,c:["Cleric"],d:"Bonus Action: up to 6 creatures regain 2d4 + mod HP."},
+{n:"Protection from Energy",l:3,c:["Cleric","Druid","Ranger","Sorcerer","Wizard"],d:"Resistance to acid, cold, fire, lightning, or thunder. Concentration, 1 hour."},
+{n:"Remove Curse",l:3,c:["Cleric","Paladin","Warlock","Wizard"],d:"All curses on a creature or object end."},
+{n:"Revivify",l:3,c:["Cleric","Druid","Paladin","Ranger"],d:"Return a creature dead less than 1 minute to life with 1 HP (300 GP diamond)."},
+{n:"Sleet Storm",l:3,c:["Druid","Sorcerer","Wizard"],d:"40-ft radius of ice and sleet: Heavily Obscured, DEX save or Prone. Concentration."},
+{n:"Slow",l:3,c:["Bard","Sorcerer","Wizard"],d:"Up to 6 creatures: WIS save or half Speed, -2 AC and DEX saves, limited actions. Concentration."},
+{n:"Speak with Dead",l:3,c:["Bard","Cleric"],d:"Ask a corpse five questions."},
+{n:"Spirit Guardians",l:3,c:["Cleric"],d:"15-ft radius of protective spirits: WIS save, 3d8 radiant or necrotic; halves enemy Speed. Concentration."},
+{n:"Vampiric Touch",l:3,c:["Sorcerer","Warlock","Wizard"],d:"Melee spell attack: 3d6 necrotic and you regain half as HP. Concentration."},
+{n:"Water Breathing",l:3,c:["Druid","Ranger","Sorcerer","Wizard"],d:"Up to 10 creatures breathe underwater for 24 hours. Ritual."}
+];
+
+// Random tables for personality (autoroll style)
+const RP_TABLES = {
+  traits: ["I always have a plan for what to do when things go wrong.","I am incredibly slow to trust, but fiercely loyal once I do.","I quote sacred texts and proverbs in almost every situation.","Nothing can shake my optimistic attitude.","I face problems head-on; the simplest solution is a straight line.","I enjoy being strong and like breaking things.","I use polysyllabic words that convey the impression of great erudition.","I've read every book in the world's greatest libraries, or I like to boast that I have."],
+  ideals: ["Tradition. The stories and laws of the past must be preserved. (Lawful)","Freedom. Chains are meant to be broken, as are those who would forge them. (Chaotic)","Charity. I always try to help those in need, no matter the cost. (Good)","Power. I will do whatever it takes to gain power over others. (Evil)","Balance. All things must exist in equilibrium. (Neutral)","Glory. I must earn glory in battle, for myself and my clan. (Any)","Knowledge. The path to power and improvement is through understanding. (Neutral)","Redemption. There is a spark of good in everyone. (Good)"],
+  bonds: ["I would die to recover an ancient relic of my faith that was lost long ago.","My weapon was a gift from a mentor I failed. I carry their memory into battle.","I owe everything to another adventurer who saved my life.","Everything I do is for my family, whom I have not seen in years.","I protect those who cannot protect themselves.","I am the last of my line, and I will not let my legacy die.","A powerful enemy took everything from me. Revenge will be mine.","My hometown was destroyed; its survivors look to me for hope."],
+  flaws: ["I judge others harshly, and myself even more severely.","I can't resist a pretty face.","Gold shines brighter than honor, and I follow the shine.","I can't keep a secret to save my life, or anyone else's.","I am suspicious of strangers and expect the worst of them.","Once I pick a goal, I become obsessed with it to the detriment of all else.","I remember every insult I've received and nurse a silent grudge.","I follow orders, even when I suspect they're wrong."]
+};
+
 // Key features gained at each level (SRD 5.2, abbreviated)
 const CLASS_LEVELS = {
   "Barbarian": {2:["Reckless Attack","Danger Sense"],3:["Subclass: Path of the Berserker (Frenzy)","Primal Knowledge"],5:["Extra Attack","Fast Movement (+10 ft)"],7:["Feral Instinct","Instinctive Pounce"],9:["Brutal Strike"],11:["Relentless Rage"],13:["Improved Brutal Strike"],15:["Persistent Rage"],17:["Improved Brutal Strike (2 effects)"],18:["Indomitable Might"],20:["Primal Champion (+4 STR and CON, max 25)"]},
@@ -521,9 +748,11 @@ const NAMES = {
 
 // ---------- STATE ----------
 const state = {
-  name:"", cls:"", species:"", background:"", alignment:"",
+  name:"", cls:"", species:"", background:"", alignment:"", playerName:"", xp:"",
   scores:{STR:null,DEX:null,CON:null,INT:null,WIS:null,CHA:null},
-  skills:[], level:1, dieRolls:[], loadedId:null
+  skills:[], spells:[], level:1, dieRolls:[], loadedId:null,
+  traits:"", ideals:"", bonds:"", flaws:"", notes:"",
+  tempHp:0, inspiration:false, deathS:0, deathF:0
 };
 let sheetTargetId = "sheet";
 
@@ -595,10 +824,69 @@ function randomizeSkills() {
   renderSkillChoices();
 }
 
+// ---------- SPELL CHOICES ----------
+// Cantrips known / level-1 spells prepared at level 1 (SRD 5.2)
+const SPELL_COUNTS = { Bard:[2,4], Cleric:[3,4], Druid:[2,4], Paladin:[0,2], Ranger:[0,2], Sorcerer:[4,2], Warlock:[2,2], Wizard:[3,4] };
+
+function renderSpellChoices() {
+  const sec = document.getElementById("spellSection");
+  const box = document.getElementById("spellChoices");
+  const caster = state.cls && CLASSES[state.cls].spellcaster;
+  sec.style.display = caster ? "" : "none";
+  if (!caster) return;
+  const counts = SPELL_COUNTS[state.cls];
+  const q = (document.getElementById("spellSearch").value||"").toLowerCase();
+  const mine = SPELLS.filter(s=>s.c.includes(state.cls) && (!q || s.n.toLowerCase().includes(q) || s.d.toLowerCase().includes(q)));
+  let html = `<div style="color:var(--muted);margin-bottom:.2rem">At level 1: ${counts[0]?counts[0]+" cantrips, ":""}${counts[1]} level-1 spells. Higher-level spells unlock as you level.</div>`;
+  [0,1,2,3].forEach(lv=>{
+    const group = mine.filter(s=>s.l===lv);
+    if (!group.length) return;
+    html += `<div class="spell-lvl-h">${lv===0?"Cantrips":"Level "+lv}</div>` + group.map(s=>
+      `<label class="spell-row" title="${s.d.replace(/"/g,'&quot;')}"><input type="checkbox" value="${s.n}" ${state.spells.includes(s.n)?"checked":""}> ${s.n} <small style="color:var(--muted)">${s.d}</small></label>`).join("");
+  });
+  box.innerHTML = html;
+  box.querySelectorAll("input[type=checkbox]").forEach(cb=>{
+    cb.addEventListener("change", ()=>{
+      if (cb.checked) state.spells.push(cb.value);
+      else state.spells = state.spells.filter(s=>s!==cb.value);
+      renderSheet();
+    });
+  });
+}
+
+function randomizeSpells() {
+  state.spells = [];
+  const caster = state.cls && CLASSES[state.cls].spellcaster;
+  if (!caster) return;
+  const [nCan, nOne] = SPELL_COUNTS[state.cls];
+  const pick = (pool,n)=>{ const p=[...pool]; const out=[]; while(out.length<n && p.length){ out.push(p.splice(Math.floor(Math.random()*p.length),1)[0].n); } return out; };
+  state.spells = [
+    ...pick(SPELLS.filter(s=>s.c.includes(state.cls)&&s.l===0), nCan),
+    ...pick(SPELLS.filter(s=>s.c.includes(state.cls)&&s.l===1), nOne)
+  ];
+  renderSpellChoices();
+}
+document.getElementById("btnRandSpells").addEventListener("click", ()=>{ randomizeSpells(); renderSheet(); });
+document.getElementById("spellSearch").addEventListener("input", renderSpellChoices);
+
+// ---------- PERSONALITY & NOTES ----------
+const RP_FIELDS = { rpTraits:"traits", rpIdeals:"ideals", rpBonds:"bonds", rpFlaws:"flaws", rpNotes:"notes", playerName:"playerName", xpField:"xp" };
+Object.entries(RP_FIELDS).forEach(([id,key])=>{
+  document.getElementById(id).addEventListener("input", e=>{ state[key]=e.target.value; renderSheet(); });
+});
+document.querySelectorAll("button[data-rp]").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    const key = b.dataset.rp;
+    state[key] = rand(RP_TABLES[key]);
+    document.getElementById("rp"+key[0].toUpperCase()+key.slice(1)).value = state[key];
+    renderSheet();
+  });
+});
+
 // ---------- RANDOMIZERS ----------
 const randomizers = {
   name: () => { state.name = rand(NAMES.first)+" "+rand(NAMES.last); document.getElementById("charName").value = state.name; },
-  class: () => { state.cls = rand(Object.keys(CLASSES)); document.getElementById("selClass").value = state.cls; randomizeSkills(); },
+  class: () => { state.cls = rand(Object.keys(CLASSES)); document.getElementById("selClass").value = state.cls; randomizeSkills(); randomizeSpells(); },
   species: () => { state.species = rand(Object.keys(SPECIES)); document.getElementById("selSpecies").value = state.species; },
   background: () => { state.background = rand(Object.keys(BACKGROUNDS)); document.getElementById("selBackground").value = state.background; randomizeSkills(); },
   alignment: () => { state.alignment = rand(ALIGNMENTS); document.getElementById("selAlignment").value = state.alignment; }
@@ -652,7 +940,7 @@ document.getElementById("charName").addEventListener("input", e=>{ state.name=e.
   document.getElementById(id).addEventListener("change", e=>{
     const key = {selClass:"cls",selSpecies:"species",selBackground:"background",selAlignment:"alignment"}[id];
     state[key] = e.target.value;
-    if (id==="selClass") { state.skills=[]; state.level=1; state.dieRolls=[]; renderSkillChoices(); }
+    if (id==="selClass") { state.skills=[]; state.spells=[]; state.level=1; state.dieRolls=[]; renderSkillChoices(); renderSpellChoices(); }
     if (id==="selBackground") renderSkillChoices();
     renderSheet();
   });
@@ -660,20 +948,29 @@ document.getElementById("charName").addEventListener("input", e=>{ state.name=e.
 
 document.getElementById("btnRandomAll").addEventListener("click", ()=>{
   state.level=1; state.dieRolls=[]; state.loadedId=null;
+  state.tempHp=0; state.inspiration=false; state.deathS=0; state.deathF=0;
   Object.values(randomizers).forEach(f=>f());
   setScores(ABILITIES.map(()=>roll4d6()));
   optimizeForClass();
   randomizeSkills();
+  ["traits","ideals","bonds","flaws"].forEach(k=>{
+    state[k] = rand(RP_TABLES[k]);
+    document.getElementById("rp"+k[0].toUpperCase()+k.slice(1)).value = state[k];
+  });
   renderSheet();
 });
 
 document.getElementById("btnClear").addEventListener("click", ()=>{
   state.name=""; state.cls=""; state.species=""; state.background=""; state.alignment="";
   state.level=1; state.dieRolls=[]; state.loadedId=null; state.maxHp=null; state.curHp=null;
-  state.skills=[]; ABILITIES.forEach(a=>{ state.scores[a]=null; document.getElementById("ab_"+a).value=""; });
+  state.skills=[]; state.spells=[]; state.playerName=""; state.xp="";
+  state.traits=""; state.ideals=""; state.bonds=""; state.flaws=""; state.notes="";
+  state.tempHp=0; state.inspiration=false; state.deathS=0; state.deathF=0;
+  ABILITIES.forEach(a=>{ state.scores[a]=null; document.getElementById("ab_"+a).value=""; });
   document.getElementById("charName").value="";
   ["selClass","selSpecies","selBackground","selAlignment"].forEach(id=>document.getElementById(id).value="");
-  renderSkillChoices(); renderSheet();
+  ["rpTraits","rpIdeals","rpBonds","rpFlaws","rpNotes","playerName","xpField"].forEach(id=>document.getElementById(id).value="");
+  renderSkillChoices(); renderSpellChoices(); renderSheet();
 });
 
 // ---------- SHEET RENDER ----------
@@ -749,22 +1046,71 @@ function renderSheet() {
   const traits = sp ? sp.traits : [];
   const canLevel = c && haveScores && state.level < 20;
 
+  // Attacks from carried weapons
+  const strMod = state.scores.STR!=null ? mod(state.scores.STR) : 0;
+  const attacks = [];
+  if (c) {
+    const seen = new Set();
+    [...c.equipment, ...(bg?bg.equipment:[])].forEach(item=>{
+      Object.keys(WEAPONS).forEach(w=>{
+        if (item.includes(w) && !seen.has(w)) {
+          seen.add(w);
+          const wd = WEAPONS[w];
+          const abMod = wd.rng ? dexMod : wd.fin ? Math.max(strMod,dexMod) : strMod;
+          attacks.push({name:w, bonus:abMod+profBonus, dmg:`${wd.dmg}${abMod?` ${abMod>0?"+":""}${abMod}`:""}`});
+        }
+      });
+    });
+    attacks.push({name:"Unarmed Strike", bonus:strMod+profBonus, dmg:`${Math.max(1,1+strMod)} bludgeoning`});
+  }
+
+  // Spellcasting numbers
+  const castAb = c && c.spellcaster;
+  const castMod = castAb && state.scores[castAb]!=null ? mod(state.scores[castAb]) : 0;
+  const chosenSpells = SPELLS.filter(s=>state.spells.includes(s.n));
+
+  const attackRows = attacks.map(a=>
+    `<li class="rollable" onclick="rollD20('${a.name} Attack',${a.bonus})" title="Click to roll attack">${a.name} <b>${fmtMod(a.bonus)}</b> <small style="color:var(--muted)">${a.dmg}</small></li>`).join("");
+
+  const spellBlock = castAb ? `
+    <h3 class="section">Spellcasting (${ABILITY_NAMES[castAb]})</h3>
+    <ul class="clean">
+      <li>Spell Save DC <b>${8+profBonus+castMod}</b> · <span class="rollable" onclick="rollD20('Spell Attack',${profBonus+castMod})" title="Click to roll" style="color:var(--accent)">Spell Attack ${fmtMod(profBonus+castMod)} 🎲</span></li>
+      ${[0,1,2,3].map(lv=>{
+        const g = chosenSpells.filter(s=>s.l===lv);
+        return g.length ? `<li><b>${lv===0?"Cantrips":"Level "+lv}:</b> ${g.map(s=>`<span title="${s.d.replace(/"/g,'&quot;')}" style="border-bottom:1px dotted var(--muted);cursor:help">${s.n}</span>`).join(", ")}</li>` : "";
+      }).join("")}
+      ${!chosenSpells.length ? '<li style="color:var(--muted)">No spells chosen yet: pick them in the Spells list on the left.</li>' : ""}
+    </ul>` : "";
+
+  const rp = [["Personality Traits",state.traits],["Ideals",state.ideals],["Bonds",state.bonds],["Flaws",state.flaws],["Backstory & Notes",state.notes]].filter(x=>x[1]);
+  const rpBlock = rp.length ? `
+    <h3 class="section">Personality</h3>
+    <ul class="clean">${rp.map(([k,v])=>`<li><b>${k}:</b> ${v.replace(/</g,"&lt;")}</li>`).join("")}</ul>` : "";
+
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
       <h2>${state.name || "Unnamed Hero"}</h2>
       ${canLevel?`<button onclick="levelUp()" style="font-weight:bold" title="Advance to level ${state.level+1}">⬆ Level Up</button>`:""}
     </div>
-    <div class="tagline">Level ${state.level} ${state.species||"?"} ${state.cls||"?"} · ${state.background||"no background"} · ${state.alignment||"unaligned"}</div>
+    <div class="tagline">Level ${state.level} ${state.species||"?"} ${state.cls||"?"} · ${state.background||"no background"} · ${state.alignment||"unaligned"}${state.playerName?` · played by ${state.playerName.replace(/</g,"&lt;")}`:""}${state.xp?` · ${state.xp.toString().replace(/</g,"&lt;")} XP`:""}</div>
 
     <div class="vitals">
       <div class="vital"><div class="v">${ac}</div><div class="k">ARMOR CLASS</div><div style="font-size:.65rem;color:var(--muted)">${acNote}</div></div>
-      <div class="vital"><div class="v">${hp!=null?`${state.curHp} / ${hp}`:"--"}</div><div class="k">HIT POINTS</div>
-        ${hp!=null?`<div class="hp-tracker"><button class="hp-dmg" onclick="changeHp(-1)" title="Take damage">-1</button><button class="hp-dmg" onclick="changeHp(-5)">-5</button><button class="hp-heal" onclick="changeHp(1)" title="Heal">+1</button><button class="hp-heal" onclick="changeHp(5)">+5</button></div>`:""}
+      <div class="vital"><div class="v">${hp!=null?`${state.curHp} / ${hp}`:"--"}${state.tempHp?` <small style="color:#7bc98b">+${state.tempHp}</small>`:""}</div><div class="k">HIT POINTS${state.tempHp?" + TEMP":""}</div>
+        ${hp!=null?`<div class="hp-tracker"><button class="hp-dmg" onclick="changeHp(-1)" title="Take damage">-1</button><button class="hp-dmg" onclick="changeHp(-5)">-5</button><button class="hp-heal" onclick="changeHp(1)" title="Heal">+1</button><button class="hp-heal" onclick="changeHp(5)">+5</button><button onclick="changeTempHp(1)" title="Add Temporary HP">+Temp</button>${state.tempHp?`<button onclick="changeTempHp(-1)" title="Remove Temporary HP">-Temp</button>`:""}</div>`:""}
+        ${hp!=null && state.curHp===0 ? `<div class="death-saves">DEATH SAVES
+          <span>✔ ${[1,2,3].map(i=>`<span class="pip" onclick="deathPip('S',${i})">${state.deathS>=i?"●":"○"}</span>`).join("")}</span>
+          <span>✘ ${[1,2,3].map(i=>`<span class="pip" onclick="deathPip('F',${i})">${state.deathF>=i?"●":"○"}</span>`).join("")}</span>
+          ${state.deathS>=3?"<b style='color:#7bc98b'>STABLE</b>":state.deathF>=3?"<b style='color:var(--accent2)'>DEAD</b>":""}
+        </div>`:""}
       </div>
       <div class="vital rollable" onclick="rollD20('Initiative',${dexMod})" title="Click to roll initiative"><div class="v">${fmtMod(dexMod)}</div><div class="k">INITIATIVE 🎲</div></div>
       <div class="vital"><div class="v">${sp?sp.speed:30} ft</div><div class="k">SPEED</div></div>
       <div class="vital"><div class="v">+${profBonus}</div><div class="k">PROF. BONUS</div></div>
+      <div class="vital"><div class="v">${c?`${state.level}d${c.hitDie}`:"--"}</div><div class="k">HIT DICE</div></div>
       <div class="vital"><div class="v">${passivePerception}</div><div class="k">PASSIVE PERC.</div></div>
+      <div class="vital rollable" onclick="toggleInspiration()" title="Toggle Heroic Inspiration"><div class="v">${state.inspiration?"★":"☆"}</div><div class="k">INSPIRATION</div></div>
     </div>
 
     <div class="statgrid">
@@ -779,6 +1125,8 @@ function renderSheet() {
       <div>
         <h3 class="section">Saving Throws</h3>
         <ul class="clean">${saveRows}</ul>
+        ${attacks.length?`<h3 class="section">Attacks</h3><ul class="clean">${attackRows}</ul>`:""}
+        ${spellBlock}
         <h3 class="section">Skills</h3>
         <ul class="clean">${skillRows}</ul>
       </div>
@@ -796,7 +1144,14 @@ function renderSheet() {
         <h3 class="section">Equipment</h3>
         <ul class="clean">${equipment.map(e=>`<li>${e}</li>`).join("") || "<li>--</li>"}</ul>
       </div>
-    </div>`;
+    </div>
+    ${rpBlock}
+    <h3 class="section" style="cursor:pointer;user-select:none" onclick="toggleRollLog()" title="Show or hide past rolls">📜 Roll History ${showRollLog?"▾":"▸"} <small style="color:var(--muted)">(${rollLog.length})</small></h3>
+    ${showRollLog ? `
+      <ul class="clean">${rollLog.length ? rollLog.map(r=>
+        `<li><b>${r.what}</b> · ${r.dice} = <b style="color:var(--accent)">${r.result}</b> <small style="color:var(--muted)">${r.at}</small></li>`).join("")
+        : '<li style="color:var(--muted)">No rolls yet: click a stat, save, skill, or attack to roll.</li>'}</ul>
+      ${rollLog.length?`<button onclick="clearRollLog()" style="margin-top:.4rem;font-size:.8rem">Clear history</button>`:""}` : ""}`;
 }
 
 // ---------- TABS ----------
@@ -844,9 +1199,22 @@ function applyCharacter(ch) {
   state.name = ch.name; state.cls = ch.cls; state.species = ch.species;
   state.background = ch.background; state.alignment = ch.alignment;
   state.scores = {...ch.scores}; state.skills = [...(ch.skills||[])];
+  state.spells = [...(ch.spells||[])];
   state.level = ch.level || 1; state.dieRolls = [...(ch.dieRolls||[])];
   state.maxHp = ch.maxHp ?? null; state.curHp = ch.curHp ?? ch.maxHp ?? null;
   state.loadedId = ch.id ?? null;
+  state.playerName = ch.playerName||""; state.xp = ch.xp||"";
+  state.traits = ch.traits||""; state.ideals = ch.ideals||""; state.bonds = ch.bonds||""; state.flaws = ch.flaws||""; state.notes = ch.notes||"";
+  state.tempHp = ch.tempHp||0; state.inspiration = !!ch.inspiration;
+  state.deathS = ch.deathS||0; state.deathF = ch.deathF||0;
+  document.getElementById("rpTraits").value = state.traits;
+  document.getElementById("rpIdeals").value = state.ideals;
+  document.getElementById("rpBonds").value = state.bonds;
+  document.getElementById("rpFlaws").value = state.flaws;
+  document.getElementById("rpNotes").value = state.notes;
+  document.getElementById("playerName").value = state.playerName;
+  document.getElementById("xpField").value = state.xp;
+  renderSpellChoices();
   document.getElementById("charName").value = state.name || "";
   document.getElementById("selClass").value = state.cls || "";
   document.getElementById("selSpecies").value = state.species || "";
@@ -1028,8 +1396,13 @@ const RULES = [
 {c:"Character",t:"Size",d:"Your species determines size: Small (Gnome, Halfling, and optionally Human/Tiefling) or Medium. Small and Medium creatures occupy a 5-foot space and function identically in almost all rules; Small creatures can't wield Heavy weapons effectively (Disadvantage)."},
 {c:"Character",t:"Coins and Equipment",d:"The gold piece (GP) is the standard coin: 1 GP = 10 silver (SP) = 100 copper (CP); 1 platinum (PP) = 10 GP. Starting equipment comes from your class and background. Packs (Explorer's, Dungeoneer's, etc.) bundle common gear like rations, rope, torches, and a tinderbox."},
 {c:"Character",t:"Tool Proficiencies",d:"Proficiency with a tool (Thieves' Tools, Calligrapher's Supplies, a Gaming Set, a Musical Instrument) lets you add your Proficiency Bonus to ability checks using it. Thieves' Tools are used to pick locks and disarm traps (usually DEX checks)."},
-{c:"Character",t:"Passive Perception (sheet)",d:"10 + WIS modifier + Proficiency Bonus if proficient in Perception. The GM compares hidden creatures' Stealth checks and subtle details against it: no roll needed. See also Passive Perception under Rules."}
+{c:"Character",t:"Passive Perception (sheet)",d:"10 + WIS modifier + Proficiency Bonus if proficient in Perception. The GM compares hidden creatures' Stealth checks and subtle details against it: no roll needed. See also Passive Perception under Rules."},
+{c:"Character",t:"Personality Traits, Ideals, Bonds, Flaws",d:"Roleplaying anchors from the classic character sheet. Traits: small behaviors and mannerisms that make you distinct. Ideals: the principles you believe in most strongly. Bonds: connections to people, places, and events that drive you. Flaws: weaknesses an enemy (or a DM) could exploit. Playing to them well can earn Heroic Inspiration."},
+{c:"Character",t:"Attacks (sheet)",d:"Each weapon lists its attack bonus (ability modifier + Proficiency Bonus) and damage (weapon die + the same ability modifier). Melee weapons use STR; ranged weapons use DEX; Finesse weapons (dagger, scimitar, shortsword) use either. Click an attack on the sheet to roll it."},
+{c:"Character",t:"Spell List (sheet)",d:"Casters prepare a limited list of spells: choose them in the Spells section of the creator. Cantrips are cast at will; leveled spells expend spell slots. Your Spell Save DC is 8 + Proficiency Bonus + spellcasting ability modifier; your spell attack is Proficiency Bonus + the same modifier. Search any spell by name here in the rules reference."}
 ];
+// Spells are searchable alongside the rules
+SPELLS.forEach(s=>RULES.push({c:s.l===0?"Spell · Cantrip":"Spell · Level "+s.l, t:s.n, d:s.d+" ("+s.c.join(", ")+")"}));
 
 const rulesInput = document.getElementById("rulesSearch");
 function renderRules(q) {
@@ -1046,9 +1419,28 @@ renderRules("");
 
 // ---------- DICE ROLLING & HP ----------
 let toastTimer = null;
+
+// Roll history (kept in the browser, most recent first)
+let rollLog = [];
+try { rollLog = JSON.parse(localStorage.getItem("dnd-srd-rolllog")) || []; } catch(e) {}
+let showRollLog = false;
+function logRoll(what, dice, result) {
+  rollLog.unshift({what, dice, result, at: new Date().toLocaleTimeString()});
+  if (rollLog.length > 50) rollLog.length = 50;
+  try { localStorage.setItem("dnd-srd-rolllog", JSON.stringify(rollLog)); } catch(e) {}
+  if (showRollLog) renderSheet();
+}
+function toggleRollLog() { showRollLog = !showRollLog; renderSheet(); }
+function clearRollLog() {
+  rollLog = [];
+  try { localStorage.setItem("dnd-srd-rolllog", "[]"); } catch(e) {}
+  renderSheet();
+}
+
 function rollD20(what, modifier) {
   const d = 1 + Math.floor(Math.random()*20);
   const total = d + modifier;
+  logRoll(what, `d20 (${d}) ${modifier>=0?"+":"-"} ${Math.abs(modifier)}`, total);
   const toast = document.getElementById("rollToast");
   toast.querySelector(".what").textContent = what;
   const totalEl = toast.querySelector(".total");
@@ -1063,6 +1455,7 @@ function rollD20(what, modifier) {
 
 function rollDie(sides) {
   const d = 1 + Math.floor(Math.random()*sides);
+  logRoll("d"+sides, `d${sides} (${d})`, d);
   const toast = document.getElementById("rollToast");
   toast.querySelector(".what").textContent = "d" + sides;
   const totalEl = toast.querySelector(".total");
@@ -1076,7 +1469,33 @@ function rollDie(sides) {
 
 function changeHp(delta) {
   if (state.maxHp==null) return;
+  if (delta < 0 && state.tempHp > 0) {
+    const absorbed = Math.min(state.tempHp, -delta);
+    state.tempHp -= absorbed;
+    delta += absorbed;
+  }
+  const before = state.curHp;
   state.curHp = Math.max(0, Math.min(state.maxHp, state.curHp + delta));
+  if (state.curHp > 0 && before === 0) { state.deathS = 0; state.deathF = 0; }
+  renderSheet();
+  persistLoaded();
+}
+
+function changeTempHp(delta) {
+  state.tempHp = Math.max(0, (state.tempHp||0) + delta);
+  renderSheet();
+  persistLoaded();
+}
+
+function toggleInspiration() {
+  state.inspiration = !state.inspiration;
+  renderSheet();
+  persistLoaded();
+}
+
+function deathPip(kind, n) {
+  const key = kind === "S" ? "deathS" : "deathF";
+  state[key] = state[key] >= n ? n - 1 : n;
   renderSheet();
   persistLoaded();
 }
@@ -1094,34 +1513,92 @@ function persistLoaded() {
   saveStore(list);
 }
 
-// ---------- LEVEL UP ----------
+// ---------- LEVEL UP (in-page, nothing applies until Confirm) ----------
+let pendingLvl = null;
+
 function levelUp() {
   if (!state.cls || state.level >= 20) return;
+  const newLevel = state.level + 1;
+  pendingLvl = {
+    newLevel,
+    hpGain: null, hpMode: null,
+    asi: {},
+    hasAsi: (ASI_LEVELS[state.cls] || ASI_LEVELS.default).includes(newLevel)
+  };
+  renderLvlModal();
+  document.getElementById("lvlOverlay").classList.add("open");
+}
+
+function renderLvlModal() {
+  if (!pendingLvl) return;
   const c = CLASSES[state.cls];
-  state.level++;
   const avg = c.hitDie/2 + 1;
-  const useRoll = confirm(`Level ${state.level}! Roll your d${c.hitDie} for Hit Points?\n\nOK = roll the die · Cancel = take the average (${avg})`);
-  const gain = useRoll ? 1 + Math.floor(Math.random()*c.hitDie) : avg;
-  state.dieRolls.push(gain);
+  const feats = CLASS_LEVELS[state.cls][pendingLvl.newLevel] || [];
+  const asiTotal = Object.values(pendingLvl.asi).reduce((a,b)=>a+b,0);
 
-  const asiLevels = ASI_LEVELS[state.cls] || ASI_LEVELS.default;
-  if (asiLevels.includes(state.level)) {
-    const inp = prompt(`Level ${state.level} grants an Ability Score Improvement!\n\nEnter one ability for +2 (e.g. CON) or two separated by a comma for +1 each (e.g. STR,WIS).\nCancel to skip (take a feat instead and adjust manually).`);
-    if (inp) {
-      const parts = inp.toUpperCase().split(",").map(s=>s.trim()).filter(Boolean);
-      const valid = parts.every(p=>ABILITIES.includes(p)) && (parts.length===1 || parts.length===2);
-      if (!valid) { alert("Didn't recognize that: no changes applied. You can edit scores manually on the Create tab."); }
-      else {
-        const bump = parts.length===1 ? 2 : 1;
-        parts.forEach(p=>{
-          state.scores[p] = Math.min(20, (state.scores[p]||10) + bump);
-          document.getElementById("ab_"+p).value = state.scores[p];
-        });
-      }
-    }
-  }
+  document.getElementById("lvlModal").innerHTML = `
+    <h3>Level ${pendingLvl.newLevel}!</h3>
+    <div style="color:var(--muted);font-style:italic">${state.name || "Your hero"} the ${state.species} ${state.cls} grows stronger.</div>
 
+    ${feats.length?`<div class="lvl-step"><div class="k">New Features</div>${feats.map(f=>`<div>· ${f}</div>`).join("")}</div>`:""}
+
+    <div class="lvl-step">
+      <div class="k">Hit Points · d${c.hitDie} + CON</div>
+      ${pendingLvl.hpGain==null
+        ? `<button onclick="lvlHp('roll')">🎲 Roll the d${c.hitDie}</button>
+           <button onclick="lvlHp('avg')">Take average (${avg})</button>`
+        : `<b style="font-size:1.2rem">+${pendingLvl.hpGain}</b> ${pendingLvl.hpMode==="roll"?"rolled":"average"} on the die, + CON modifier applied automatically.`}
+    </div>
+
+    ${pendingLvl.hasAsi?`<div class="lvl-step">
+      <div class="k">Ability Score Improvement · ${2-asiTotal} point${2-asiTotal===1?"":"s"} left</div>
+      <div style="font-size:.85rem;color:var(--muted);margin-bottom:.3rem">Tap an ability to add +1 (twice for +2). Tap again to remove. Leave unspent to take a feat instead and adjust manually later.</div>
+      ${ABILITIES.map(a=>{
+        const n = pendingLvl.asi[a]||0;
+        const capped = (state.scores[a]||10) + n >= 20;
+        return `<span class="asi-chip ${n?"picked":""}" onclick="lvlAsi('${a}')" title="${capped?"At the 20 cap":""}">${a} ${state.scores[a]||"--"}${n?` → ${state.scores[a]+n}`:""}</span>`;
+      }).join("")}
+    </div>`:""}
+
+    <div class="lvl-actions">
+      <button onclick="lvlCancel()">Cancel</button>
+      <button class="lvl-confirm" onclick="lvlConfirm()" ${pendingLvl.hpGain==null?"disabled":""}>Confirm Level ${pendingLvl.newLevel}</button>
+    </div>`;
+}
+
+function lvlHp(mode) {
+  const c = CLASSES[state.cls];
+  pendingLvl.hpMode = mode;
+  pendingLvl.hpGain = mode==="roll" ? 1 + Math.floor(Math.random()*c.hitDie) : c.hitDie/2 + 1;
+  if (mode==="roll") logRoll(`Level ${pendingLvl.newLevel} HP`, `d${c.hitDie} (${pendingLvl.hpGain})`, pendingLvl.hpGain);
+  renderLvlModal();
+}
+
+function lvlAsi(ab) {
+  const cur = pendingLvl.asi[ab]||0;
+  const total = Object.values(pendingLvl.asi).reduce((a,b)=>a+b,0);
+  // Each tap adds +1 while points and the 20 cap allow; one more tap clears it
+  if (total < 2 && (state.scores[ab]||10) + cur < 20) pendingLvl.asi[ab] = cur + 1;
+  else delete pendingLvl.asi[ab];
+  renderLvlModal();
+}
+
+function lvlCancel() {
+  pendingLvl = null;
+  document.getElementById("lvlOverlay").classList.remove("open");
+}
+
+function lvlConfirm() {
+  if (!pendingLvl || pendingLvl.hpGain==null) return;
+  state.level = pendingLvl.newLevel;
+  state.dieRolls.push(pendingLvl.hpGain);
+  Object.entries(pendingLvl.asi).forEach(([ab,n])=>{
+    state.scores[ab] = Math.min(20, (state.scores[ab]||10) + n);
+    document.getElementById("ab_"+ab).value = state.scores[ab];
+  });
+  const gain = pendingLvl.hpGain, mode = pendingLvl.hpMode;
   const newFeats = (CLASS_LEVELS[state.cls][state.level]||[]).join(", ");
+  lvlCancel();
   renderSheet();
   persistLoaded();
   const toast = document.getElementById("rollToast");
@@ -1129,11 +1606,15 @@ function levelUp() {
   const totalEl = toast.querySelector(".total");
   totalEl.textContent = "Level " + state.level;
   totalEl.className = "total crit";
-  toast.querySelector(".detail").textContent = `+${gain} HP${useRoll?" (rolled)":""}${newFeats?" · "+newFeats:""}`;
+  toast.querySelector(".detail").textContent = `+${gain} HP${mode==="roll"?" (rolled)":""}${newFeats?" · "+newFeats:""}`;
   toast.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>toast.classList.remove("show"), 6000);
 }
+
+// Close the modal from the backdrop or Escape (same as Cancel: nothing applied)
+document.getElementById("lvlOverlay").addEventListener("click", e=>{ if (e.target.id==="lvlOverlay") lvlCancel(); });
+document.addEventListener("keydown", e=>{ if (e.key==="Escape" && pendingLvl) lvlCancel(); });
 
 // ---------- THEME ----------
 const THEME_KEY = "dnd-srd-theme";
@@ -1156,6 +1637,7 @@ try {
 
 updateSavedCount();
 renderSkillChoices();
+renderSpellChoices();
 renderSheet();
 </script>
 </body>
