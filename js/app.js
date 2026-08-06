@@ -10,23 +10,24 @@ const state = {
 };
 let sheetTargetId = "sheet";
 
-// Small inline die icon matching the Dice of Fate shapes
+// Inline die icon with the die name inside the shape, like the Dice of Fate
 function dieIcon(sides) {
-  const shapes = {
-    4:'<polygon points="32,8 58,54 6,54"/>',
-    6:'<rect x="13" y="13" width="38" height="38"/>',
-    8:'<polygon points="32,5 59,32 32,59 5,32"/>',
-    10:'<polygon points="32,5 57,25 49,57 15,57 7,25"/>',
-    12:'<polygon points="32,7 58,26 48,58 16,58 6,26"/>',
-    20:'<polygon points="32,8 53,20 53,44 32,56 11,44 11,20"/>'
-  };
-  return `<svg class="die-ico" viewBox="0 0 64 64" aria-hidden="true">${shapes[sides]||shapes[20]}</svg>`;
+  const cfg = {
+    4:{shape:'<polygon points="32,8 58,54 6,54"/>', y:48, f:19},
+    6:{shape:'<rect x="13" y="13" width="38" height="38"/>', y:38, f:19},
+    8:{shape:'<polygon points="32,5 59,32 32,59 5,32"/>', y:38, f:17},
+    10:{shape:'<polygon points="32,5 57,25 49,57 15,57 7,25"/>', y:41, f:16},
+    12:{shape:'<polygon points="32,7 58,26 48,58 16,58 6,26"/>', y:41, f:16},
+    20:{shape:'<polygon points="32,8 53,20 53,44 32,56 11,44 11,20"/>', y:38, f:16}
+  }[sides] || {shape:'<polygon points="32,8 53,20 53,44 32,56 11,44 11,20"/>', y:38, f:15};
+  return `<svg class="die-ico" viewBox="0 0 64 64" role="img" aria-label="d${sides}">${cfg.shape}<text x="32" y="${cfg.y}" font-size="${cfg.f}">d${sides}</text></svg>`;
 }
-// Prepend the matching die icon to a dice-notation string like "d20 (13) + 4" or "2d6 (3, 5)"
-function diceHtml(dice) {
-  const m = String(dice).match(/d(\d+)/);
-  return m ? `${dieIcon(+m[1])} ${dice}` : dice;
+// Replace every dice mention in a string with the labeled shape: "2d6" -> 2x [d6 icon]
+function allDice(str) {
+  return String(str).replace(/(\d+)?d(4|6|8|10|12|20)\b/g, (m,n,s)=>`${n && +n>1 ? n+"×" : ""}${dieIcon(+s)}`);
 }
+// Kept for existing call sites
+function diceHtml(dice) { return allDice(dice); }
 
 // Reduce a sheet line to a term the reference lookup can resolve
 function refTermFrom(s) {
@@ -129,13 +130,31 @@ function randomizeSkills() {
 }
 
 // ---------- SPELL CHOICES ----------
-// Current-level spell counts and highest castable spell level (capped at 3, this tool's data range)
-function spellCounts() {
-  const cant = CANTRIPS_KNOWN[state.cls] ? CANTRIPS_KNOWN[state.cls][state.level-1] : 0;
-  const prep = PREPARED_SPELLS[state.cls] ? PREPARED_SPELLS[state.cls][state.level-1] : 0;
-  const lvs = getSlotRows().map(r=>r.lv);
+// Spell counts and highest castable spell level (capped at 3, this tool's data range);
+// pass a level to preview a different level
+function spellCounts(atLevel) {
+  const lvl = atLevel || state.level;
+  const cant = CANTRIPS_KNOWN[state.cls] ? CANTRIPS_KNOWN[state.cls][lvl-1] : 0;
+  const prep = PREPARED_SPELLS[state.cls] ? PREPARED_SPELLS[state.cls][lvl-1] : 0;
+  const lvs = getSlotRows(lvl).map(r=>r.lv);
   const maxCast = Math.min(3, lvs.length ? Math.max(...lvs) : 1);
   return { cant, prep, maxCast };
+}
+// Randomly add class spells until the given counts are met; returns the names added
+function fillSpellsRandomly(cant, prep, maxCast) {
+  const learned = [];
+  const isCantrip = n => SPELLS.find(s=>s.n===n)?.l === 0;
+  const pickInto = (pool, need) => {
+    const p = pool.filter(s=>!state.spells.includes(s.n));
+    while (need-- > 0 && p.length) {
+      const s = p.splice(Math.floor(Math.random()*p.length), 1)[0];
+      state.spells.push(s.n); learned.push(s.n);
+    }
+  };
+  const have0 = state.spells.filter(isCantrip).length;
+  pickInto(SPELLS.filter(s=>s.c.includes(state.cls)&&s.l===0), cant - have0);
+  pickInto(SPELLS.filter(s=>s.c.includes(state.cls)&&s.l>=1&&s.l<=maxCast), prep - (state.spells.length - state.spells.filter(isCantrip).length));
+  return learned;
 }
 
 function renderSpellChoices() {
@@ -152,7 +171,7 @@ function renderSpellChoices() {
     const group = mine.filter(s=>s.l===lv);
     if (!group.length) return;
     html += `<div class="spell-lvl-h">${lv===0?"Cantrips":"Level "+lv}</div>` + group.map(s=>
-      `<label class="spell-row" title="${s.d.replace(/"/g,'&quot;')}"><input type="checkbox" value="${s.n}" ${state.spells.includes(s.n)?"checked":""}> ${s.n} <small style="color:var(--muted)">${s.d}</small></label>`).join("");
+      `<label class="spell-row" title="${s.d.replace(/"/g,'&quot;')}"><input type="checkbox" value="${s.n}" ${state.spells.includes(s.n)?"checked":""}> ${s.n} <small style="color:var(--muted)">${allDice(s.d)}</small></label>`).join("");
   });
   box.innerHTML = html;
   box.querySelectorAll("input[type=checkbox]").forEach(cb=>{
@@ -352,14 +371,14 @@ function renderSheet() {
   }).join("");
 
   const equipment = [...(c?c.equipment:[]), ...(bg?bg.equipment:[])];
-  const features = [...(c?c.features.map(f=>scaleFeature(state.cls,f,state.level)):[]), ...(bg?["Origin Feat: "+bg.feat]:[])];
+  const features = [...(c?c.features.map(f=>allDice(scaleFeature(state.cls,f,state.level))):[]), ...(bg?["Origin Feat: "+bg.feat]:[])];
   if (c && CLASS_LEVELS[state.cls]) {
     for (let lv=2; lv<=state.level; lv++) {
-      (CLASS_LEVELS[state.cls][lv]||[]).forEach(f=>features.push(`<small style="color:var(--muted)">L${lv}</small> ${f}`));
+      (CLASS_LEVELS[state.cls][lv]||[]).forEach(f=>features.push(`<small style="color:var(--muted)">L${lv}</small> ${allDice(f)}`));
       if ((ASI_LEVELS[state.cls]||ASI_LEVELS.default).includes(lv)) features.push(`<small style="color:var(--muted)">L${lv}</small> Ability Score Improvement or Feat`);
     }
   }
-  const traits = sp ? sp.traits : [];
+  const traits = sp ? sp.traits.map(t=>allDice(t)) : [];
   const canLevel = c && haveScores && state.level < 20 && !state.retired;
   const canAct = c && haveScores && !state.retired;
 
@@ -396,7 +415,7 @@ function renderSheet() {
   const chosenSpells = SPELLS.filter(s=>state.spells.includes(s.n));
 
   const attackRows = attacks.map(a=>
-    `<li class="rollable" onclick="attackRoll('${escQ(a.name)}',${a.bonus},${a.dice?`'${a.dice}'`:"null"},'${a.type}',${a.dmgMod})" title="Click to attack">${a.name} <b>${fmtMod(a.bonus)}</b> <small style="color:var(--muted)">${a.dmg}</small></li>`).join("");
+    `<li class="rollable" onclick="attackRoll('${escQ(a.name)}',${a.bonus},${a.dice?`'${a.dice}'`:"null"},'${a.type}',${a.dmgMod})" title="Click to attack">${a.name} <b>${fmtMod(a.bonus)}</b> <small style="color:var(--muted)">${allDice(a.dmg)}</small></li>`).join("");
 
   const slotRows = getSlotRows().filter(r=>r.total>0).map(r=>{
     const used = state.slotsUsed[r.lv]||0;
@@ -450,7 +469,7 @@ function renderSheet() {
       <div class="vital rollable" onclick="rollD20('Initiative',${dexMod})" title="Click to roll initiative"><div class="v">${fmtMod(dexMod)}</div><div class="k">INITIATIVE 🎲</div></div>
       <div class="vital"><div class="v">${sp?sp.speed:30} ft</div><div class="k">SPEED</div></div>
       <div class="vital"><div class="v">+${profBonus}</div><div class="k">PROF. BONUS</div></div>
-      <div class="vital"><div class="v">${c?`${state.level}d${c.hitDie}`:"--"}</div><div class="k">HIT DICE</div></div>
+      <div class="vital"><div class="v">${c?`${state.level}× ${dieIcon(c.hitDie)}`:"--"}</div><div class="k">HIT DICE</div></div>
       <div class="vital"><div class="v">${passivePerception}</div><div class="k">PASSIVE PERC.</div></div>
       <div class="vital rollable" onclick="toggleInspiration()" title="Toggle Heroic Inspiration"><div class="v">${state.inspiration?"★":"☆"}</div><div class="k">INSPIRATION</div></div>
     </div>
@@ -717,7 +736,7 @@ function renderRules(q) {
     r.t.toLowerCase().includes(q) || r.d.toLowerCase().includes(q) || r.c.toLowerCase().includes(q));
   const hi = txt => q ? txt.replace(new RegExp("("+q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi"), "<mark>$1</mark>") : txt;
   document.getElementById("rulesResults").innerHTML = hits.length
-    ? hits.map(r=>`<div class="rule-card"><div class="cat">${r.c}</div><h4>${hi(r.t)}</h4><p>${hi(r.d)}</p></div>`).join("")
+    ? hits.map(r=>`<div class="rule-card"><div class="cat">${r.c}</div><h4>${allDice(hi(r.t))}</h4><p>${allDice(hi(r.d))}</p></div>`).join("")
     : '<div class="empty">No rules matched. Try another term.</div>';
 }
 rulesInput.addEventListener("input", ()=>renderRules(rulesInput.value));
@@ -757,7 +776,7 @@ function rollD20(what, modifier) {
   totalEl.textContent = total;
   totalEl.className = "total" + (d===20?" crit":d===1?" fumble":"");
   toast.querySelector(".detail").innerHTML =
-    `${dieIcon(20)} d20 (${d}) ${modifier>=0?"+":"-"} ${Math.abs(modifier)}` + (d===20?" · NAT 20!":d===1?" · Nat 1":"");
+    allDice(`d20 (${d}) ${modifier>=0?"+":"-"} ${Math.abs(modifier)}`) + (d===20?" · NAT 20!":d===1?" · Nat 1":"");
   toast.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>toast.classList.remove("show"), 3500);
@@ -767,7 +786,7 @@ function rollDie(sides) {
   const d = 1 + Math.floor(Math.random()*sides);
   logRoll("d"+sides, `d${sides} (${d})`, d);
   const toast = document.getElementById("rollToast");
-  toast.querySelector(".what").innerHTML = `${dieIcon(sides)} d${sides}`;
+  toast.querySelector(".what").innerHTML = dieIcon(sides);
   const totalEl = toast.querySelector(".total");
   totalEl.textContent = d;
   totalEl.className = "total" + (sides===20 && d===20 ? " crit" : sides===20 && d===1 ? " fumble" : "");
@@ -840,7 +859,8 @@ function levelUp() {
     newLevel,
     rolledValue: null, hpMode: null,
     asi: {},
-    hasAsi: (ASI_LEVELS[state.cls] || ASI_LEVELS.default).includes(newLevel)
+    hasAsi: (ASI_LEVELS[state.cls] || ASI_LEVELS.default).includes(newLevel),
+    spellMode: CLASSES[state.cls].spellcaster ? "random" : null
   };
   renderLvlModal();
   document.getElementById("lvlOverlay").classList.add("open");
@@ -867,11 +887,25 @@ function renderLvlModal() {
     ${feats.length?`<div class="lvl-step"><div class="k">New Features</div>${feats.map(f=>`<div>· ${ref(f.split(" (")[0].replace(/^Subclass: /,""))}${f.includes(" (")?" ("+f.split(" (").slice(1).join(" ("):""}</div>`).join("")}</div>`:""}
 
     <div class="lvl-step">
-      <div class="k">${ref("Hit Points")} · d${c.hitDie} + CON</div>
-      <span class="asi-chip ${pendingLvl.hpMode==="roll"?"picked":""}" onclick="lvlHp('roll')">${dieIcon(c.hitDie)} ${pendingLvl.rolledValue!=null?`Rolled: ${pendingLvl.rolledValue}`:`Roll the d${c.hitDie}`}</span>
+      <div class="k">${ref("Hit Points")} · ${dieIcon(c.hitDie)} + CON</div>
+      <span class="asi-chip ${pendingLvl.hpMode==="roll"?"picked":""}" onclick="lvlHp('roll')">${pendingLvl.rolledValue!=null?`${dieIcon(c.hitDie)} Rolled: ${pendingLvl.rolledValue}`:`Roll the ${dieIcon(c.hitDie)}`}</span>
       <span class="asi-chip ${pendingLvl.hpMode==="avg"?"picked":""}" onclick="lvlHp('avg')">Take average (${avg})</span>
       ${gain!=null?`<div style="margin-top:.4rem">Will gain <b>+${gain}</b> on the die, + CON modifier, when you confirm.</div>`:""}
     </div>
+
+    ${pendingLvl.spellMode?(()=>{
+      const now = spellCounts(state.level), nxt = spellCounts(pendingLvl.newLevel);
+      const gains = [];
+      if (nxt.cant > now.cant) gains.push(`${nxt.cant-now.cant} new cantrip${nxt.cant-now.cant>1?"s":""}`);
+      if (nxt.prep > now.prep) gains.push(`${nxt.prep-now.prep} more prepared spell${nxt.prep-now.prep>1?"s":""}`);
+      if (nxt.maxCast > now.maxCast) gains.push(`<b>level ${nxt.maxCast} spells unlocked!</b>`);
+      return `<div class="lvl-step">
+      <div class="k">${ref("Spell Slots","Spells")} · ${nxt.cant?nxt.cant+" cantrips, ":""}${nxt.prep} prepared at level ${pendingLvl.newLevel}</div>
+      ${gains.length?`<div style="margin-bottom:.35rem">You gain ${gains.join(", ")}.</div>`:`<div style="margin-bottom:.35rem;color:var(--muted)">No new spell picks at this level.</div>`}
+      <span class="asi-chip ${pendingLvl.spellMode==="random"?"picked":""}" onclick="lvlSpellMode('random')">🎲 Choose new spells for me</span>
+      <span class="asi-chip ${pendingLvl.spellMode==="manual"?"picked":""}" onclick="lvlSpellMode('manual')">✍️ I'll pick them myself</span>
+      </div>`;
+    })():""}
 
     ${pendingLvl.hasAsi?`<div class="lvl-step">
       <div class="k">${ref("Ability Score Improvement")} · ${2-asiTotal} point${2-asiTotal===1?"":"s"} left</div>
@@ -899,6 +933,8 @@ function lvlHp(mode) {
   renderLvlModal();
 }
 
+function lvlSpellMode(m) { pendingLvl.spellMode = m; renderLvlModal(); }
+
 function lvlAsi(ab) {
   const cur = pendingLvl.asi[ab]||0;
   const total = Object.values(pendingLvl.asi).reduce((a,b)=>a+b,0);
@@ -925,7 +961,16 @@ function lvlConfirm() {
   });
   const mode = pendingLvl.hpMode;
   const newFeats = (CLASS_LEVELS[state.cls][state.level]||[]).join(", ");
-  logEvent("level", `<b>Level ${state.level}</b> ${state.cls}: +${gain} HP die (${mode==="roll"?"rolled":"average"})${asiText?` · ASI: ${asiText}`:""}${newFeats?` · gained: ${newFeats}`:""}`);
+  // New spells at the new level: auto-pick or leave to the player
+  let learned = [], manualSpells = false;
+  if (pendingLvl.spellMode === "random") {
+    const { cant, prep, maxCast } = spellCounts(state.level);
+    learned = fillSpellsRandomly(cant, prep, maxCast);
+    if (learned.length) renderSpellChoices();
+  } else if (pendingLvl.spellMode === "manual") {
+    manualSpells = true;
+  }
+  logEvent("level", `<b>Level ${state.level}</b> ${state.cls}: +${gain} HP die (${mode==="roll"?"rolled":"average"})${asiText?` · ASI: ${asiText}`:""}${newFeats?` · gained: ${newFeats}`:""}${learned.length?` · learned: ${learned.join(", ")}`:""}`);
   lvlCancel();
   renderSheet();
   persistLoaded();
@@ -934,7 +979,7 @@ function lvlConfirm() {
   const totalEl = toast.querySelector(".total");
   totalEl.textContent = "Level " + state.level;
   totalEl.className = "total crit";
-  toast.querySelector(".detail").textContent = `+${gain} HP${mode==="roll"?" (rolled)":""}${newFeats?" · "+newFeats:""}`;
+  toast.querySelector(".detail").textContent = `+${gain} HP${mode==="roll"?" (rolled)":""}${learned.length?` · learned ${learned.join(", ")}`:""}${manualSpells?" · pick your new spells in the Spells list":""}${newFeats?" · "+newFeats:""}`;
   toast.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>toast.classList.remove("show"), 6000);
@@ -978,8 +1023,8 @@ function renderRestModal() {
     <div style="color:var(--muted);font-style:italic">At least 1 hour of light activity. Spend ${refLink("Hit Point Dice")} to recover HP.</div>
     <div class="lvl-step">
       <div class="k">${refLink("Hit Point Dice")} · ${hdLeft} of ${state.level} d${c.hitDie} remaining</div>
-      ${pendingRest.rolls.length ? pendingRest.rolls.map(r=>`<div>· ${dieIcon(c.hitDie)} d${c.hitDie} (${r.roll}) ${conMod>=0?"+":"-"} ${Math.abs(conMod)} = <b>${r.gain}</b> HP</div>`).join("") : `<div style="color:var(--muted)">No dice spent yet.</div>`}
-      ${hdLeft>0 ? `<button onclick="restRollHd()" style="margin-top:.4rem">🎲 Spend a Hit Die (d${c.hitDie} ${conMod>=0?"+":"-"} ${Math.abs(conMod)})</button>` : `<div style="color:var(--muted);margin-top:.3rem">No Hit Dice left.</div>`}
+      ${pendingRest.rolls.length ? pendingRest.rolls.map(r=>`<div>· ${dieIcon(c.hitDie)} (${r.roll}) ${conMod>=0?"+":"-"} ${Math.abs(conMod)} = <b>${r.gain}</b> HP</div>`).join("") : `<div style="color:var(--muted)">No dice spent yet.</div>`}
+      ${hdLeft>0 ? `<button onclick="restRollHd()" style="margin-top:.4rem">🎲 Spend a Hit Die (${dieIcon(c.hitDie)} ${conMod>=0?"+":"-"} ${Math.abs(conMod)})</button>` : `<div style="color:var(--muted);margin-top:.3rem">No Hit Dice left.</div>`}
     </div>
     <div class="lvl-step"><div class="k">${refLink("Healing")}</div>
       Recover <b>${Math.min(healed,cap)}</b> HP (${state.curHp} → ${Math.min(state.maxHp, state.curHp+healed)} of ${state.maxHp})${state.cls==="Warlock"?` · ${refLink("Pact Magic","Pact spell slots")} refresh on a Short Rest.`:""}
@@ -1004,6 +1049,7 @@ function restRollHd() {
 
 function restCancel() {
   pendingRest = null;
+  pendingLR = null;
   document.getElementById("restOverlay").classList.remove("open");
 }
 
@@ -1024,8 +1070,11 @@ function restFinish() {
   renderSheet(); persistLoaded();
 }
 
+let pendingLR = null;
+
 function longRest() {
   if (!state.cls || state.maxHp==null) return;
+  if (!pendingLR) pendingLR = { spellMode: "keep" };
   const healed = state.maxHp - state.curHp;
   const regain = Math.max(1, Math.floor(state.level/2));
   const hdBack = Math.min(state.hdUsed, regain);
@@ -1041,6 +1090,13 @@ function longRest() {
       ${(state.deathS||state.deathF)?`<div>· ${refLink("Death Saving Throws")} reset</div>`:""}
       <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem">Only one Long Rest per 24 hours. An hour of combat or strenuous activity causes a ${refLink("Rest Interruption")}.</div>
     </div>
+    ${CLASSES[state.cls].spellcaster?`<div class="lvl-step">
+      <div class="k">Change Prepared ${refLink("Spell Slots","Spells")}</div>
+      <div style="font-size:.85rem;color:var(--muted);margin-bottom:.35rem">A night's rest lets a caster prepare a different set of spells.</div>
+      <span class="asi-chip ${pendingLR.spellMode==="keep"?"picked":""}" onclick="lrSpellMode('keep')">Keep current spells</span>
+      <span class="asi-chip ${pendingLR.spellMode==="random"?"picked":""}" onclick="lrSpellMode('random')">🎲 Prepare a random new set</span>
+      <span class="asi-chip ${pendingLR.spellMode==="manual"?"picked":""}" onclick="lrSpellMode('manual')">✍️ I'll re-pick them myself</span>
+    </div>`:""}
     <div class="lvl-actions">
       <button onclick="restInterrupted('Long Rest')" title="The rest was broken: no benefits">✋ Interrupted</button>
       <button onclick="restCancel()">Cancel</button>
@@ -1049,6 +1105,8 @@ function longRest() {
   document.getElementById("restOverlay").classList.add("open");
 }
 
+function lrSpellMode(m) { pendingLR.spellMode = m; longRest(); }
+
 function longRestConfirm() {
   const healed = state.maxHp - state.curHp;
   const regain = Math.max(1, Math.floor(state.level/2));
@@ -1056,7 +1114,15 @@ function longRestConfirm() {
   state.curHp = state.maxHp; state.tempHp = 0;
   state.slotsUsed = {}; state.hdUsed = Math.max(0, state.hdUsed - regain);
   state.deathS = 0; state.deathF = 0; state.stable = false;
-  logEvent("longrest", `<b>Long Rest</b>: HP fully restored${healed?` (+${healed})`:""}, spell slots refreshed${hdBack?`, recovered ${hdBack} Hit ${hdBack===1?"Die":"Dice"}`:""}`);
+  let spellNote = "";
+  if (pendingLR && pendingLR.spellMode === "random") {
+    randomizeSpells();
+    spellNote = `, prepared a new set of spells (${state.spells.join(", ")})`;
+  } else if (pendingLR && pendingLR.spellMode === "manual") {
+    spellNote = ", ready to prepare new spells (edit them in the Spells list)";
+  }
+  logEvent("longrest", `<b>Long Rest</b>: HP fully restored${healed?` (+${healed})`:""}, spell slots refreshed${hdBack?`, recovered ${hdBack} Hit ${hdBack===1?"Die":"Dice"}`:""}${spellNote}`);
+  pendingLR = null;
   restCancel();
   renderSheet(); persistLoaded();
 }
@@ -1184,7 +1250,7 @@ function refLookup(term) {
   if (!hits.length) hits = RULES.filter(r=>r.d.toLowerCase().includes(q)).slice(0,3);
   document.getElementById("refModal").innerHTML = `
     <h3>${term}</h3>
-    ${hits.length ? hits.map(r=>`<div class="rule-card"><div class="cat">${r.c}</div><h4>${r.t}</h4><p>${r.d}</p></div>`).join("")
+    ${hits.length ? hits.map(r=>`<div class="rule-card"><div class="cat">${r.c}</div><h4>${allDice(r.t)}</h4><p>${allDice(r.d)}</p></div>`).join("")
       : `<div class="rule-card"><p>No reference entry found. Try the Rules Reference tab's search.</p></div>`}
     <div class="lvl-actions"><button onclick="refClose()">Close</button></div>`;
   document.getElementById("refOverlay").classList.add("open");
@@ -1214,14 +1280,14 @@ function renderAtkModal() {
     <div class="lvl-step">
       <div class="k">Attack Roll · vs target's AC</div>
       <div style="font-size:1.6rem"><b style="${crit?"color:#7bc98b":fumble?"color:var(--accent2)":""}">${a.total}</b>
-        <small style="color:var(--muted)">${dieIcon(20)} d20 (${a.d20}) ${a.bonus>=0?"+":"-"} ${Math.abs(a.bonus)}</small></div>
+        <small style="color:var(--muted)">${allDice(`d20 (${a.d20}) ${a.bonus>=0?"+":"-"} ${Math.abs(a.bonus)}`)}</small></div>
       ${crit?'<b style="color:#7bc98b">NATURAL 20 · Critical Hit! Roll the damage dice twice.</b>':fumble?'<b style="color:var(--accent2)">Natural 1 · automatic miss.</b>':""}
     </div>
     <div class="lvl-step">
       <div class="k">Damage${a.type && a.type!=="spell"?` · ${a.type}`:""}</div>
       ${a.dice
         ? (a.dmgResult==null
-          ? `<button onclick="atkDamage()">🎲 Roll damage (${crit?"2×":""}${a.dice}${a.dmgMod?` ${a.dmgMod>0?"+":""}${a.dmgMod}`:""})</button>`
+          ? `<button onclick="atkDamage()">🎲 Roll damage (${crit?"2×":""}${allDice(a.dice)}${a.dmgMod?` ${a.dmgMod>0?"+":""}${a.dmgMod}`:""})</button>`
           : `<div style="font-size:1.4rem"><b>${a.dmgResult}</b> <small style="color:var(--muted)">${diceHtml(a.dmgDetail)}</small></div>`)
         : (a.type==="spell"
           ? `<div style="color:var(--muted);font-size:.85rem;margin-bottom:.3rem">Roll your spell's damage dice${crit?" twice (crit!)":""}:</div>`
@@ -1229,7 +1295,7 @@ function renderAtkModal() {
       <div style="margin-top:.4rem">
         <span style="color:var(--muted);font-size:.8rem">Extra dice:</span>
         ${[4,6,8,10,12].map(s=>`<button style="padding:.25rem .5rem;font-size:.8rem" onclick="atkExtra(${s})">+d${s}</button>`).join(" ")}
-        ${a.extra.length?`<div style="margin-top:.3rem">${a.extra.map(r=>`${dieIcon(r.s)} d${r.s} (${r.v})`).join(" + ")} = <b>${extraSum}</b></div>`:""}
+        ${a.extra.length?`<div style="margin-top:.3rem">${a.extra.map(r=>`${dieIcon(r.s)} (${r.v})`).join(" + ")} = <b>${extraSum}</b></div>`:""}
       </div>
       ${grand && (a.dmgResult!=null || a.extra.length) ? `<div style="margin-top:.4rem;border-top:1px solid var(--line);padding-top:.3rem">Total damage: <b style="font-size:1.2rem">${grand}</b></div>` : ""}
     </div>
@@ -1271,7 +1337,7 @@ function spellDetail(name) {
   document.getElementById("spellModal").innerHTML = `
     <h3>${s.n}</h3>
     <div style="color:var(--muted);font-style:italic;margin-bottom:.5rem">${s.l===0?"Cantrip":"Level "+s.l} · ${s.c.join(", ")}</div>
-    <div class="lvl-step">${s.d}</div>
+    <div class="lvl-step">${allDice(s.d)}</div>
     <div class="lvl-step"><div class="k">Cast</div>
       ${s.l===0 ? `<button onclick="castSpell('${escQ(s.n)}',0)">✨ Cast cantrip (no slot)</button>` : (rows || '<span style="color:var(--muted)">No spell slots of this level.</span>')}
     </div>

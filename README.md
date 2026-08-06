@@ -22,8 +22,8 @@ The sheet is a live play surface, not a printout:
 - ⚔️ Attack overlay rolls to-hit and damage (crits double your dice automatically), with extra-dice buttons for Sneak Attack and friends
 - ✨ **Cast spells** from the sheet: click a spell for details and cast options; slots are tracked as clickable pips (full, half, and pact casters all supported)
 - ❤️ Hit point, temp HP, and Heroic Inspiration tracking
-- ⛺🌙 **Short and Long Rest overlays** that spend hit dice, restore HP and spell slots, and handle interruptions — nothing applies until you confirm
-- ⬆️ **Level up to 20** through an in-page flow: per-class features that scale correctly (Rage, Sneak Attack, Martial Arts, spell counts...), rolled or average HP, tap-to-assign ability score improvements, cancel anytime
+- ⛺🌙 **Short and Long Rest overlays** that spend hit dice, restore HP and spell slots, and handle interruptions — nothing applies until you confirm, and casters can swap their prepared spells overnight (random or hand-picked)
+- ⬆️ **Level up to 20** through an in-page flow: per-class features that scale correctly (Rage, Sneak Attack, Martial Arts, spell counts...), rolled or average HP, tap-to-assign ability score improvements, new spells rolled for you or picked yourself, cancel anytime
 - 💀 At 0 HP the sheet locks into a **dying overlay**: automated death saves, stabilization, resurrection, or an honorable 🪦 retirement — and dead heroes can be ✨ resurrected later from their sheet
 - 📖 **History log** of every roll, rest, cast, level-up, edit, and near-death experience
 

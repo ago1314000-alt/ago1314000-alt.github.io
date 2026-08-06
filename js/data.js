@@ -294,12 +294,14 @@ const PREPARED_SPELLS = {
 const FULL_SLOTS = {1:[2],2:[3],3:[4,2],4:[4,3],5:[4,3,2],6:[4,3,3],7:[4,3,3,1],8:[4,3,3,2],9:[4,3,3,3,1],10:[4,3,3,3,2],11:[4,3,3,3,2,1],12:[4,3,3,3,2,1],13:[4,3,3,3,2,1,1],14:[4,3,3,3,2,1,1],15:[4,3,3,3,2,1,1,1],16:[4,3,3,3,2,1,1,1],17:[4,3,3,3,2,1,1,1,1],18:[4,3,3,3,3,1,1,1,1],19:[4,3,3,3,3,2,1,1,1],20:[4,3,3,3,3,2,2,1,1]};
 const HALF_SLOTS = {1:[2],2:[2],3:[3],4:[3],5:[4,2],6:[4,2],7:[4,3],8:[4,3],9:[4,3,2],10:[4,3,2],11:[4,3,3],12:[4,3,3],13:[4,3,3,1],14:[4,3,3,1],15:[4,3,3,2],16:[4,3,3,2],17:[4,3,3,3,1],18:[4,3,3,3,1],19:[4,3,3,3,2],20:[4,3,3,3,2]};
 function pactSlots(lvl){ return lvl>=17?{n:4,l:5}:lvl>=11?{n:3,l:5}:lvl>=9?{n:2,l:5}:lvl>=7?{n:2,l:4}:lvl>=5?{n:2,l:3}:lvl>=3?{n:2,l:2}:lvl>=2?{n:2,l:1}:{n:1,l:1}; }
-// Returns [{lv, total}] slot rows for the current class/level (pact:true for Warlock)
-function getSlotRows() {
+// Returns [{lv, total}] slot rows for the current class (pact:true for Warlock);
+// pass a level to preview a different level, defaults to the current one
+function getSlotRows(atLevel) {
+  const lvl = atLevel || state.level;
   if (!state.cls || !CLASSES[state.cls].spellcaster) return [];
-  if (state.cls==="Warlock") { const p = pactSlots(state.level); return [{lv:p.l, total:p.n, pact:true}]; }
+  if (state.cls==="Warlock") { const p = pactSlots(lvl); return [{lv:p.l, total:p.n, pact:true}]; }
   const table = ["Paladin","Ranger"].includes(state.cls) ? HALF_SLOTS : FULL_SLOTS;
-  return (table[state.level]||[]).map((n,i)=>({lv:i+1, total:n}));
+  return (table[lvl]||[]).map((n,i)=>({lv:i+1, total:n}));
 }
 
 const ALIGNMENTS = ["Lawful Good","Neutral Good","Chaotic Good","Lawful Neutral","True Neutral","Chaotic Neutral","Lawful Evil","Neutral Evil","Chaotic Evil"];

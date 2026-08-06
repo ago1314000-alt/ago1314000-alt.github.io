@@ -183,10 +183,15 @@
   .slot-pip.filled { background: currentColor; }
   .slot-pip:hover { transform: scale(1.2); }
 
-  /* Inline die icons */
+  /* Inline die icons: the die name sits inside the shape */
   .die-ico {
-    width: .95em; height: .95em; vertical-align: -.12em; display: inline-block;
-    fill: none; stroke: currentColor; stroke-width: 6; stroke-linejoin: round;
+    width: 1.6em; height: 1.6em; vertical-align: -.45em; display: inline-block;
+  }
+  .die-ico polygon, .die-ico rect {
+    fill: none; stroke: currentColor; stroke-width: 4; stroke-linejoin: round;
+  }
+  .die-ico text {
+    fill: currentColor; stroke: none; font-weight: bold; text-anchor: middle; font-family: inherit;
   }
 
   /* Rules reference */
@@ -309,8 +314,9 @@
     .saved-card .btns button { padding: .55rem .8rem; }
     #rollToast {
       left: .6rem; right: .6rem;
-      bottom: calc(.6rem + env(safe-area-inset-bottom, 0px));
-      min-width: 0; text-align: center;
+      /* sit above the fixed bottom nav bar */
+      bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+      min-width: 0; text-align: center; z-index: 95;
     }
     /* 16px inputs stop iOS Safari from auto-zooming on focus */
     select, input[type=text], input[type=number] { font-size: 16px; }
