@@ -11,7 +11,7 @@ A complete D&D character builder, live character sheet, and rules companion for 
 - 🎲 **Randomize everything** with one click (always fully rested), roll individual choices with per-field dice buttons, or pick it all by hand — or use **Add Random Character** on the Characters tab for an instant saved hero
 - 🛡️ All **12 classes**, **9 species**, and **4 backgrounds** from the SRD
 - 💪 Ability scores via 4d6-drop-lowest, standard array, or one-click **optimize for class**
-- ✨ Full **spell picker** for casters: SRD spells from cantrips through level 3, with class-filtered lists, level-scaled known/prepared counts, and random selection
+- ✨ Full **spell picker** for casters: 227 SRD spells from cantrips through level 9, with class-filtered lists, level-scaled known/prepared counts, and random selection
 - 📜 Personality traits, ideals, bonds, and flaws, hand-written or rolled from tables, plus freeform backstory notes
 
 ## 🗡️ Play at the Table
@@ -23,7 +23,9 @@ The sheet is a live play surface, not a printout:
 - 🔆 **Class resources** tracked as spendable pips — Rage, Channel Divinity, Second Wind, Action Surge, Bardic Inspiration, Focus and Sorcery Points, Lay On Hands — refilled by the right rest
 - 🌀 **Concentration**: casting a concentration spell flags it, and taking damage prompts the CON save at the correct DC, breaking it on a failure
 - ⚔️ Attack overlay rolls to-hit and damage (crits double your dice automatically), with extra-dice buttons for Sneak Attack and friends
-- ✨ **Cast spells** from the sheet: click a spell for details and cast options; slots are tracked as clickable pips (full, half, and pact casters all supported)
+- ✨ **Cast spells** from the sheet: click a spell for details, cast options, and roll buttons — spell attacks, save-based damage, and healing all roll for you; slots are tracked as clickable pips (full, half, and pact casters all supported)
+- 🎒 **Add equipment** as you loot it, from the SRD list or typed in freehand; weapons flow straight into your Attacks
+- 📝 A **Notes** box on the sheet that saves as you type
 - ❤️ Hit point, temp HP, and Heroic Inspiration tracking
 - ⛺🌙 **Short and Long Rest overlays** that spend hit dice, restore HP and spell slots, and handle interruptions — nothing applies until you confirm, and casters can swap their prepared spells overnight (random or hand-picked)
 - ⬆️ **Level up to 20** through an in-page flow: per-class features that scale correctly (Rage, Sneak Attack, Martial Arts, spell counts...), rolled or average HP, tap-to-assign ability score improvements, new spells rolled for you or picked yourself, cancel anytime

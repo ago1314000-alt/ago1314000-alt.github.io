@@ -144,7 +144,7 @@ function spellCounts(atLevel) {
   const cant = CANTRIPS_KNOWN[state.cls] ? CANTRIPS_KNOWN[state.cls][lvl-1] : 0;
   const prep = PREPARED_SPELLS[state.cls] ? PREPARED_SPELLS[state.cls][lvl-1] : 0;
   const lvs = getSlotRows(lvl).map(r=>r.lv);
-  const maxCast = Math.min(3, lvs.length ? Math.max(...lvs) : 1);
+  const maxCast = lvs.length ? Math.max(...lvs) : 1;
   return { cant, prep, maxCast };
 }
 // ---------- SHARED SPELL PICKER (level up and long rest) ----------
@@ -165,7 +165,7 @@ function spellPickerHtml(ctx, counts) {
           :`<span style="color:var(--good)">· ready</span>`}
     ${(left0<0||left1<0)?`<span style="color:var(--accent2)">· over the limit, uncheck some</span>`:""}
   </div><div class="picker-box">`;
-  [0,1,2,3].forEach(lv=>{
+  SPELL_LEVELS.forEach(lv=>{
     const g = pool.filter(s=>s.l===lv);
     if (!g.length) return;
     html += `<div class="spell-lvl-h">${lv===0?"Cantrips":"Level "+lv}</div>` + g.map(s=>{
@@ -210,8 +210,8 @@ function renderSpellChoices() {
   const { cant, prep, maxCast } = spellCounts();
   const q = (document.getElementById("spellSearch").value||"").toLowerCase();
   const mine = SPELLS.filter(s=>s.c.includes(state.cls) && (!q || s.n.toLowerCase().includes(q) || s.d.toLowerCase().includes(q)));
-  let html = `<div style="color:var(--muted);margin-bottom:.2rem">At level ${state.level}: ${cant?cant+" cantrips known, ":""}${prep} spells prepared, spell levels up to ${maxCast}. (Spells through level 3 are included here.)</div>`;
-  [0,1,2,3].forEach(lv=>{
+  let html = `<div style="color:var(--muted);margin-bottom:.2rem">At level ${state.level}: ${cant?cant+" cantrips known, ":""}${prep} spells prepared, spell levels up to ${maxCast}.</div>`;
+  SPELL_LEVELS.forEach(lv=>{
     const group = mine.filter(s=>s.l===lv);
     if (!group.length) return;
     html += `<div class="spell-lvl-h">${lv===0?"Cantrips":"Level "+lv}</div>` + group.map(s=>
@@ -518,7 +518,7 @@ function renderSheet() {
     <ul class="clean">
       <li>Spell Save DC <b>${8+profBonus+castMod}</b> · <span class="rollable" onclick="attackRoll('Spell Attack',${profBonus+castMod},null,'spell',0)" title="Click to roll" style="color:var(--accent)">Spell Attack ${fmtMod(profBonus+castMod)} 🎲</span></li>
       ${slotRows}
-      ${[0,1,2,3].map(lv=>{
+      ${SPELL_LEVELS.map(lv=>{
         const g = chosenSpells.filter(s=>s.l===lv);
         return g.length ? `<li><b>${lv===0?"Cantrips":"Level "+lv}:</b> ${g.map(s=>`<span onclick="spellDetail('${escQ(s.n)}')" title="${s.d.replace(/"/g,'&quot;')}" style="border-bottom:1px dotted var(--muted);cursor:pointer">${s.n}</span>`).join(", ")}</li>` : "";
       }).join("")}
