@@ -65,12 +65,18 @@
     width: 100%;
   }
   textarea { resize: vertical; }
-  /* Level-up modal */
-  #lvlOverlay {
+  /* Modal overlays (level up, rests, dying) */
+  .overlay {
     position: fixed; inset: 0; z-index: 100; display: none;
     background: rgba(0,0,0,.55); align-items: center; justify-content: center; padding: 1rem;
   }
-  #lvlOverlay.open { display: flex; }
+  .overlay.open { display: flex; }
+  #downOverlay { background: rgba(60,0,0,.75); z-index: 120; }
+  #refOverlay { z-index: 130; }
+  .ref-link { text-decoration: underline dotted; cursor: pointer; }
+  .ref-link:hover { color: var(--accent); }
+  .death-big { text-align: center; font-size: 2rem; margin: .3rem 0; }
+  .down-pips { text-align: center; font-size: 1.4rem; letter-spacing: .2rem; margin: .3rem 0; }
   .lvl-modal {
     background: var(--panel); border: 2px solid var(--accent); border-radius: 12px;
     max-width: 560px; width: 100%; max-height: 90vh; overflow-y: auto;
@@ -470,7 +476,10 @@
   </div>
 </div>
 
-<div id="lvlOverlay"><div class="lvl-modal" id="lvlModal"></div></div>
+<div id="lvlOverlay" class="overlay"><div class="lvl-modal" id="lvlModal"></div></div>
+<div id="restOverlay" class="overlay"><div class="lvl-modal" id="restModal"></div></div>
+<div id="downOverlay" class="overlay"><div class="lvl-modal" id="downModal"></div></div>
+<div id="refOverlay" class="overlay"><div class="lvl-modal" id="refModal"></div></div>
 
 <div id="rollToast"><div class="what"></div><div class="total"></div><div class="detail"></div></div>
 
@@ -739,6 +748,18 @@ const CLASS_LEVELS = {
 };
 const ASI_LEVELS = { default:[4,8,12,16,19], Fighter:[4,6,8,12,14,16,19], Rogue:[4,8,10,12,16,19] };
 
+// Spell slots per character level (SRD 5.2)
+const FULL_SLOTS = {1:[2],2:[3],3:[4,2],4:[4,3],5:[4,3,2],6:[4,3,3],7:[4,3,3,1],8:[4,3,3,2],9:[4,3,3,3,1],10:[4,3,3,3,2],11:[4,3,3,3,2,1],12:[4,3,3,3,2,1],13:[4,3,3,3,2,1,1],14:[4,3,3,3,2,1,1],15:[4,3,3,3,2,1,1,1],16:[4,3,3,3,2,1,1,1],17:[4,3,3,3,2,1,1,1,1],18:[4,3,3,3,3,1,1,1,1],19:[4,3,3,3,3,2,1,1,1],20:[4,3,3,3,3,2,2,1,1]};
+const HALF_SLOTS = {1:[],2:[2],3:[3],4:[3],5:[4,2],6:[4,2],7:[4,3],8:[4,3],9:[4,3,2],10:[4,3,2],11:[4,3,3],12:[4,3,3],13:[4,3,3,1],14:[4,3,3,1],15:[4,3,3,2],16:[4,3,3,2],17:[4,3,3,3,1],18:[4,3,3,3,1],19:[4,3,3,3,2],20:[4,3,3,3,2]};
+function pactSlots(lvl){ return lvl>=17?{n:4,l:5}:lvl>=11?{n:3,l:5}:lvl>=9?{n:2,l:5}:lvl>=7?{n:2,l:4}:lvl>=5?{n:2,l:3}:lvl>=3?{n:2,l:2}:lvl>=2?{n:2,l:1}:{n:1,l:1}; }
+// Returns [{lv, total}] slot rows for the current class/level (pact:true for Warlock)
+function getSlotRows() {
+  if (!state.cls || !CLASSES[state.cls].spellcaster) return [];
+  if (state.cls==="Warlock") { const p = pactSlots(state.level); return [{lv:p.l, total:p.n, pact:true}]; }
+  const table = ["Paladin","Ranger"].includes(state.cls) ? HALF_SLOTS : FULL_SLOTS;
+  return (table[state.level]||[]).map((n,i)=>({lv:i+1, total:n}));
+}
+
 const ALIGNMENTS = ["Lawful Good","Neutral Good","Chaotic Good","Lawful Neutral","True Neutral","Chaotic Neutral","Lawful Evil","Neutral Evil","Chaotic Evil"];
 
 const NAMES = {
@@ -752,7 +773,8 @@ const state = {
   scores:{STR:null,DEX:null,CON:null,INT:null,WIS:null,CHA:null},
   skills:[], spells:[], level:1, dieRolls:[], loadedId:null,
   traits:"", ideals:"", bonds:"", flaws:"", notes:"",
-  tempHp:0, inspiration:false, deathS:0, deathF:0
+  tempHp:0, inspiration:false, deathS:0, deathF:0,
+  slotsUsed:{}, hdUsed:0, stable:false
 };
 let sheetTargetId = "sheet";
 
@@ -940,7 +962,7 @@ document.getElementById("charName").addEventListener("input", e=>{ state.name=e.
   document.getElementById(id).addEventListener("change", e=>{
     const key = {selClass:"cls",selSpecies:"species",selBackground:"background",selAlignment:"alignment"}[id];
     state[key] = e.target.value;
-    if (id==="selClass") { state.skills=[]; state.spells=[]; state.level=1; state.dieRolls=[]; renderSkillChoices(); renderSpellChoices(); }
+    if (id==="selClass") { state.skills=[]; state.spells=[]; state.level=1; state.dieRolls=[]; state.slotsUsed={}; state.hdUsed=0; renderSkillChoices(); renderSpellChoices(); }
     if (id==="selBackground") renderSkillChoices();
     renderSheet();
   });
@@ -949,6 +971,7 @@ document.getElementById("charName").addEventListener("input", e=>{ state.name=e.
 document.getElementById("btnRandomAll").addEventListener("click", ()=>{
   state.level=1; state.dieRolls=[]; state.loadedId=null;
   state.tempHp=0; state.inspiration=false; state.deathS=0; state.deathF=0;
+  state.slotsUsed={}; state.hdUsed=0; state.stable=false;
   Object.values(randomizers).forEach(f=>f());
   setScores(ABILITIES.map(()=>roll4d6()));
   optimizeForClass();
@@ -960,18 +983,20 @@ document.getElementById("btnRandomAll").addEventListener("click", ()=>{
   renderSheet();
 });
 
-document.getElementById("btnClear").addEventListener("click", ()=>{
+document.getElementById("btnClear").addEventListener("click", clearCreator);
+function clearCreator() {
   state.name=""; state.cls=""; state.species=""; state.background=""; state.alignment="";
   state.level=1; state.dieRolls=[]; state.loadedId=null; state.maxHp=null; state.curHp=null;
   state.skills=[]; state.spells=[]; state.playerName=""; state.xp="";
   state.traits=""; state.ideals=""; state.bonds=""; state.flaws=""; state.notes="";
   state.tempHp=0; state.inspiration=false; state.deathS=0; state.deathF=0;
+  state.slotsUsed={}; state.hdUsed=0; state.stable=false;
   ABILITIES.forEach(a=>{ state.scores[a]=null; document.getElementById("ab_"+a).value=""; });
   document.getElementById("charName").value="";
   ["selClass","selSpecies","selBackground","selAlignment"].forEach(id=>document.getElementById(id).value="");
   ["rpTraits","rpIdeals","rpBonds","rpFlaws","rpNotes","playerName","xpField"].forEach(id=>document.getElementById(id).value="");
   renderSkillChoices(); renderSpellChoices(); renderSheet();
-});
+}
 
 // ---------- SHEET RENDER ----------
 function renderSheet() {
@@ -983,6 +1008,7 @@ function renderSheet() {
   const haveScores = ABILITIES.every(a=>state.scores[a]!=null);
   if (!state.cls && !state.species && !haveScores) {
     el.innerHTML = '<div class="empty">Choose options on the left (or hit <b>Randomize All</b>) to generate a character sheet.</div>';
+    renderDownOverlay();
     return;
   }
   const c = state.cls ? CLASSES[state.cls] : null;
@@ -1072,10 +1098,20 @@ function renderSheet() {
   const attackRows = attacks.map(a=>
     `<li class="rollable" onclick="rollD20('${a.name} Attack',${a.bonus})" title="Click to roll attack">${a.name} <b>${fmtMod(a.bonus)}</b> <small style="color:var(--muted)">${a.dmg}</small></li>`).join("");
 
+  const slotRows = getSlotRows().filter(r=>r.total>0).map(r=>{
+    const used = state.slotsUsed[r.lv]||0;
+    const pips = Array.from({length:r.total},(_,i)=>{
+      const filled = i < r.total-used;
+      return `<span class="pip" style="cursor:pointer;font-size:1.05rem" onclick="${filled?`spendSlot(${r.lv})`:`restoreSlot(${r.lv})`}" title="${filled?"Click to expend":"Click to restore"}">${filled?"●":"○"}</span>`;
+    }).join(" ");
+    return `<li><b>${r.pact?`Pact Slots (Level ${r.lv})`:`Level ${r.lv} Slots`}:</b> ${pips}</li>`;
+  }).join("");
+
   const spellBlock = castAb ? `
     <h3 class="section">Spellcasting (${ABILITY_NAMES[castAb]})</h3>
     <ul class="clean">
       <li>Spell Save DC <b>${8+profBonus+castMod}</b> · <span class="rollable" onclick="rollD20('Spell Attack',${profBonus+castMod})" title="Click to roll" style="color:var(--accent)">Spell Attack ${fmtMod(profBonus+castMod)} 🎲</span></li>
+      ${slotRows}
       ${[0,1,2,3].map(lv=>{
         const g = chosenSpells.filter(s=>s.l===lv);
         return g.length ? `<li><b>${lv===0?"Cantrips":"Level "+lv}:</b> ${g.map(s=>`<span title="${s.d.replace(/"/g,'&quot;')}" style="border-bottom:1px dotted var(--muted);cursor:help">${s.n}</span>`).join(", ")}</li>` : "";
@@ -1091,7 +1127,11 @@ function renderSheet() {
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
       <h2>${state.name || "Unnamed Hero"}</h2>
-      ${canLevel?`<button onclick="levelUp()" style="font-weight:bold" title="Advance to level ${state.level+1}">⬆ Level Up</button>`:""}
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+        ${c&&haveScores?`<button onclick="shortRest()" title="1+ hour: spend Hit Dice to heal">⛺ Short Rest</button>
+        <button onclick="longRest()" title="8 hours: restore HP, spell slots, and half your Hit Dice">🌙 Long Rest</button>`:""}
+        ${canLevel?`<button onclick="levelUp()" style="font-weight:bold" title="Advance to level ${state.level+1}">⬆ Level Up</button>`:""}
+      </div>
     </div>
     <div class="tagline">Level ${state.level} ${state.species||"?"} ${state.cls||"?"} · ${state.background||"no background"} · ${state.alignment||"unaligned"}${state.playerName?` · played by ${state.playerName.replace(/</g,"&lt;")}`:""}${state.xp?` · ${state.xp.toString().replace(/</g,"&lt;")} XP`:""}</div>
 
@@ -1146,12 +1186,13 @@ function renderSheet() {
       </div>
     </div>
     ${rpBlock}
-    <h3 class="section" style="cursor:pointer;user-select:none" onclick="toggleRollLog()" title="Show or hide past rolls">📜 Roll History ${showRollLog?"▾":"▸"} <small style="color:var(--muted)">(${rollLog.length})</small></h3>
+    <h3 class="section" style="cursor:pointer;user-select:none" onclick="toggleRollLog()" title="Rolls, level-ups, edits, rests, and status changes">📜 History ${showRollLog?"▾":"▸"} <small style="color:var(--muted)">(${histLog.length})</small></h3>
     ${showRollLog ? `
-      <ul class="clean">${rollLog.length ? rollLog.map(r=>
-        `<li><b>${r.what}</b> · ${r.dice} = <b style="color:var(--accent)">${r.result}</b> <small style="color:var(--muted)">${r.at}</small></li>`).join("")
-        : '<li style="color:var(--muted)">No rolls yet: click a stat, save, skill, or attack to roll.</li>'}</ul>
-      ${rollLog.length?`<button onclick="clearRollLog()" style="margin-top:.4rem;font-size:.8rem">Clear history</button>`:""}` : ""}`;
+      <ul class="clean">${histLog.length ? histLog.map(r=>
+        `<li>${HIST_ICONS[r.type]||"·"} ${r.text}${r.who?` <small style="color:var(--muted)">· ${r.who}</small>`:""} <small style="color:var(--muted)">${r.at}</small></li>`).join("")
+        : '<li style="color:var(--muted)">Nothing yet: rolls, level-ups, rests, edits, and dramatic events will be recorded here.</li>'}</ul>
+      ${histLog.length?`<button onclick="clearRollLog()" style="margin-top:.4rem;font-size:.8rem">Clear history</button>`:""}` : ""}`;
+  renderDownOverlay();
 }
 
 // ---------- TABS ----------
@@ -1162,7 +1203,12 @@ document.querySelectorAll(".tabs button").forEach(b=>{
     b.classList.add("active");
     document.getElementById("tab-"+b.dataset.tab).classList.add("active");
     if (b.dataset.tab==="saved") renderSavedList();
-    if (b.dataset.tab==="create") { sheetTargetId = "sheet"; renderSheet(); }
+    if (b.dataset.tab==="create") {
+      // Leaving a saved-character view: give the creator a fresh start
+      const wasViewing = sheetTargetId === "savedSheet";
+      sheetTargetId = "sheet";
+      if (wasViewing) clearCreator(); else renderSheet();
+    }
   });
 });
 
@@ -1176,6 +1222,30 @@ function updateSavedCount() {
   document.getElementById("savedCount").textContent = n ? `(${n})` : "";
 }
 
+// Human-readable field-by-field diff for the history log
+function charDiff(o, n) {
+  const d = [];
+  const flat = {name:"Name", cls:"Class", species:"Species", background:"Background", alignment:"Alignment", level:"Level", playerName:"Player", xp:"XP"};
+  Object.entries(flat).forEach(([k,label])=>{
+    if ((o[k]??"") !== (n[k]??"")) d.push(`${label}: ${o[k]||"(blank)"} → ${n[k]||"(blank)"}`);
+  });
+  ABILITIES.forEach(a=>{
+    if ((o.scores?.[a]??null) !== (n.scores?.[a]??null)) d.push(`${a}: ${o.scores?.[a]??"--"} → ${n.scores?.[a]??"--"}`);
+  });
+  const listDiff = (label, oa, na) => {
+    const added = (na||[]).filter(x=>!(oa||[]).includes(x));
+    const removed = (oa||[]).filter(x=>!(na||[]).includes(x));
+    if (added.length) d.push(`${label} added: ${added.join(", ")}`);
+    if (removed.length) d.push(`${label} removed: ${removed.join(", ")}`);
+  };
+  listDiff("Skills", o.skills, n.skills);
+  listDiff("Spells", o.spells, n.spells);
+  ["traits","ideals","bonds","flaws","notes"].forEach(k=>{
+    if ((o[k]||"") !== (n[k]||"")) d.push(`${k[0].toUpperCase()+k.slice(1)} edited`);
+  });
+  return d;
+}
+
 document.getElementById("btnSave").addEventListener("click", ()=>{
   if (!state.cls || !state.species) { alert("Pick at least a class and species before saving."); return; }
   const list = loadStore();
@@ -1184,15 +1254,24 @@ document.getElementById("btnSave").addEventListener("click", ()=>{
   const existingIdx = state.loadedId ? list.findIndex(ch => ch.id === state.loadedId) : -1;
   if (existingIdx >= 0) {
     snapshot.id = state.loadedId;
+    const diffs = charDiff(list[existingIdx], snapshot);
+    if (diffs.length) logEvent("edit", `<b>Edited</b>: ${diffs.join("; ")}`);
     list[existingIdx] = snapshot;
+    saveStore(list);
+    updateSavedCount();
+    // Return to the Saved tab showing this character, with a fresh creator form
+    const id = snapshot.id;
+    clearCreator();
+    document.querySelector('.tabs button[data-tab="saved"]').click();
+    viewCharacter(id);
   } else {
     snapshot.id = Date.now();
     state.loadedId = snapshot.id;
     list.push(snapshot);
+    saveStore(list);
+    updateSavedCount(); renderSheet();
+    alert(`Saved ${snapshot.name || "Unnamed Hero"}.`);
   }
-  saveStore(list);
-  updateSavedCount(); renderSheet();
-  alert(`${existingIdx>=0?"Updated":"Saved"} ${snapshot.name || "Unnamed Hero"}.`);
 });
 
 function applyCharacter(ch) {
@@ -1207,6 +1286,7 @@ function applyCharacter(ch) {
   state.traits = ch.traits||""; state.ideals = ch.ideals||""; state.bonds = ch.bonds||""; state.flaws = ch.flaws||""; state.notes = ch.notes||"";
   state.tempHp = ch.tempHp||0; state.inspiration = !!ch.inspiration;
   state.deathS = ch.deathS||0; state.deathF = ch.deathF||0;
+  state.slotsUsed = {...(ch.slotsUsed||{})}; state.hdUsed = ch.hdUsed||0; state.stable = !!ch.stable;
   document.getElementById("rpTraits").value = state.traits;
   document.getElementById("rpIdeals").value = state.ideals;
   document.getElementById("rpBonds").value = state.bonds;
@@ -1227,6 +1307,7 @@ function applyCharacter(ch) {
 function loadCharacter(id) {
   const ch = loadStore().find(c=>c.id===id);
   if (!ch) return;
+  sheetTargetId = "sheet";
   applyCharacter(ch);
   document.querySelector('.tabs button[data-tab="create"]').click();
 }
@@ -1401,8 +1482,11 @@ const RULES = [
 {c:"Character",t:"Attacks (sheet)",d:"Each weapon lists its attack bonus (ability modifier + Proficiency Bonus) and damage (weapon die + the same ability modifier). Melee weapons use STR; ranged weapons use DEX; Finesse weapons (dagger, scimitar, shortsword) use either. Click an attack on the sheet to roll it."},
 {c:"Character",t:"Spell List (sheet)",d:"Casters prepare a limited list of spells: choose them in the Spells section of the creator. Cantrips are cast at will; leveled spells expend spell slots. Your Spell Save DC is 8 + Proficiency Bonus + spellcasting ability modifier; your spell attack is Proficiency Bonus + the same modifier. Search any spell by name here in the rules reference."}
 ];
-// Spells are searchable alongside the rules
+// Spells, classes, species, and backgrounds are searchable alongside the rules
 SPELLS.forEach(s=>RULES.push({c:s.l===0?"Spell · Cantrip":"Spell · Level "+s.l, t:s.n, d:s.d+" ("+s.c.join(", ")+")"}));
+Object.entries(CLASSES).forEach(([n,c])=>RULES.push({c:"Class", t:n, d:`Hit Die d${c.hitDie}. Saving throws: ${c.saves.join(" and ")}. Armor: ${c.armor}. Weapons: ${c.weapons}. Level 1 features: ${c.features.join("; ")}.`}));
+Object.entries(SPECIES).forEach(([n,s])=>RULES.push({c:"Species", t:n, d:`${s.size}, Speed ${s.speed} ft. Traits: ${s.traits.join("; ")}.`}));
+Object.entries(BACKGROUNDS).forEach(([n,b])=>RULES.push({c:"Background", t:n, d:`Ability scores: ${b.abilities.join(", ")}. Origin feat: ${b.feat}. Skills: ${b.skills.join(", ")}. Tool: ${b.tool}.`}));
 
 const rulesInput = document.getElementById("rulesSearch");
 function renderRules(q) {
@@ -1420,20 +1504,24 @@ renderRules("");
 // ---------- DICE ROLLING & HP ----------
 let toastTimer = null;
 
-// Roll history (kept in the browser, most recent first)
-let rollLog = [];
-try { rollLog = JSON.parse(localStorage.getItem("dnd-srd-rolllog")) || []; } catch(e) {}
+// History: rolls, level-ups, edits, rests, and status events (most recent first)
+let histLog = [];
+try { histLog = JSON.parse(localStorage.getItem("dnd-srd-history")) || []; } catch(e) {}
 let showRollLog = false;
-function logRoll(what, dice, result) {
-  rollLog.unshift({what, dice, result, at: new Date().toLocaleTimeString()});
-  if (rollLog.length > 50) rollLog.length = 50;
-  try { localStorage.setItem("dnd-srd-rolllog", JSON.stringify(rollLog)); } catch(e) {}
+const HIST_ICONS = { roll:"🎲", level:"⬆️", edit:"✏️", rest:"⛺", longrest:"🌙", status:"💀", heal:"❤️" };
+function logEvent(type, text) {
+  histLog.unshift({type, text, who: state.name || "", at: new Date().toLocaleString()});
+  if (histLog.length > 200) histLog.length = 200;
+  try { localStorage.setItem("dnd-srd-history", JSON.stringify(histLog)); } catch(e) {}
   if (showRollLog) renderSheet();
+}
+function logRoll(what, dice, result) {
+  logEvent("roll", `<b>${what}</b> · ${dice} = <b style="color:var(--accent)">${result}</b>`);
 }
 function toggleRollLog() { showRollLog = !showRollLog; renderSheet(); }
 function clearRollLog() {
-  rollLog = [];
-  try { localStorage.setItem("dnd-srd-rolllog", "[]"); } catch(e) {}
+  histLog = [];
+  try { localStorage.setItem("dnd-srd-history", "[]"); } catch(e) {}
   renderSheet();
 }
 
@@ -1476,7 +1564,14 @@ function changeHp(delta) {
   }
   const before = state.curHp;
   state.curHp = Math.max(0, Math.min(state.maxHp, state.curHp + delta));
-  if (state.curHp > 0 && before === 0) { state.deathS = 0; state.deathF = 0; }
+  if (before > 0 && state.curHp === 0) {
+    state.stable = false;
+    logEvent("status", `<b>Down!</b> Dropped to 0 HP`);
+  }
+  if (state.curHp > 0 && before === 0) {
+    state.deathS = 0; state.deathF = 0; state.stable = false;
+    logEvent("heal", `<b>Back on their feet</b> with ${state.curHp} HP`);
+  }
   renderSheet();
   persistLoaded();
 }
@@ -1521,12 +1616,17 @@ function levelUp() {
   const newLevel = state.level + 1;
   pendingLvl = {
     newLevel,
-    hpGain: null, hpMode: null,
+    rolledValue: null, hpMode: null,
     asi: {},
     hasAsi: (ASI_LEVELS[state.cls] || ASI_LEVELS.default).includes(newLevel)
   };
   renderLvlModal();
   document.getElementById("lvlOverlay").classList.add("open");
+}
+
+function lvlHpGain() {
+  if (!pendingLvl || !pendingLvl.hpMode) return null;
+  return pendingLvl.hpMode==="roll" ? pendingLvl.rolledValue : CLASSES[state.cls].hitDie/2 + 1;
 }
 
 function renderLvlModal() {
@@ -1535,23 +1635,24 @@ function renderLvlModal() {
   const avg = c.hitDie/2 + 1;
   const feats = CLASS_LEVELS[state.cls][pendingLvl.newLevel] || [];
   const asiTotal = Object.values(pendingLvl.asi).reduce((a,b)=>a+b,0);
+  const gain = lvlHpGain();
+  const ref = t => `<span class="ref-link" onclick="refLookup('${escQ(t)}')" title="What is this?">${t}</span>`;
 
   document.getElementById("lvlModal").innerHTML = `
     <h3>Level ${pendingLvl.newLevel}!</h3>
-    <div style="color:var(--muted);font-style:italic">${state.name || "Your hero"} the ${state.species} ${state.cls} grows stronger.</div>
+    <div style="color:var(--muted);font-style:italic">${state.name || "Your hero"} the ${ref(state.species)} ${ref(state.cls)} grows stronger. Nothing is applied until you confirm.</div>
 
-    ${feats.length?`<div class="lvl-step"><div class="k">New Features</div>${feats.map(f=>`<div>· ${f}</div>`).join("")}</div>`:""}
+    ${feats.length?`<div class="lvl-step"><div class="k">New Features</div>${feats.map(f=>`<div>· ${ref(f.split(" (")[0].replace(/^Subclass: /,""))}${f.includes(" (")?" ("+f.split(" (").slice(1).join(" ("):""}</div>`).join("")}</div>`:""}
 
     <div class="lvl-step">
-      <div class="k">Hit Points · d${c.hitDie} + CON</div>
-      ${pendingLvl.hpGain==null
-        ? `<button onclick="lvlHp('roll')">🎲 Roll the d${c.hitDie}</button>
-           <button onclick="lvlHp('avg')">Take average (${avg})</button>`
-        : `<b style="font-size:1.2rem">+${pendingLvl.hpGain}</b> ${pendingLvl.hpMode==="roll"?"rolled":"average"} on the die, + CON modifier applied automatically.`}
+      <div class="k">${ref("Hit Points")} · d${c.hitDie} + CON</div>
+      <span class="asi-chip ${pendingLvl.hpMode==="roll"?"picked":""}" onclick="lvlHp('roll')">🎲 ${pendingLvl.rolledValue!=null?`Rolled: ${pendingLvl.rolledValue}`:`Roll the d${c.hitDie}`}</span>
+      <span class="asi-chip ${pendingLvl.hpMode==="avg"?"picked":""}" onclick="lvlHp('avg')">Take average (${avg})</span>
+      ${gain!=null?`<div style="margin-top:.4rem">Will gain <b>+${gain}</b> on the die, + CON modifier, when you confirm.</div>`:""}
     </div>
 
     ${pendingLvl.hasAsi?`<div class="lvl-step">
-      <div class="k">Ability Score Improvement · ${2-asiTotal} point${2-asiTotal===1?"":"s"} left</div>
+      <div class="k">${ref("Ability Score Improvement")} · ${2-asiTotal} point${2-asiTotal===1?"":"s"} left</div>
       <div style="font-size:.85rem;color:var(--muted);margin-bottom:.3rem">Tap an ability to add +1 (twice for +2). Tap again to remove. Leave unspent to take a feat instead and adjust manually later.</div>
       ${ABILITIES.map(a=>{
         const n = pendingLvl.asi[a]||0;
@@ -1562,15 +1663,17 @@ function renderLvlModal() {
 
     <div class="lvl-actions">
       <button onclick="lvlCancel()">Cancel</button>
-      <button class="lvl-confirm" onclick="lvlConfirm()" ${pendingLvl.hpGain==null?"disabled":""}>Confirm Level ${pendingLvl.newLevel}</button>
+      <button class="lvl-confirm" onclick="lvlConfirm()" ${gain==null?"disabled":""}>Confirm Level ${pendingLvl.newLevel}</button>
     </div>`;
 }
 
 function lvlHp(mode) {
   const c = CLASSES[state.cls];
+  if (mode==="roll" && pendingLvl.rolledValue==null) {
+    pendingLvl.rolledValue = 1 + Math.floor(Math.random()*c.hitDie);
+    logRoll(`Level ${pendingLvl.newLevel} HP`, `d${c.hitDie} (${pendingLvl.rolledValue})`, pendingLvl.rolledValue);
+  }
   pendingLvl.hpMode = mode;
-  pendingLvl.hpGain = mode==="roll" ? 1 + Math.floor(Math.random()*c.hitDie) : c.hitDie/2 + 1;
-  if (mode==="roll") logRoll(`Level ${pendingLvl.newLevel} HP`, `d${c.hitDie} (${pendingLvl.hpGain})`, pendingLvl.hpGain);
   renderLvlModal();
 }
 
@@ -1589,15 +1692,18 @@ function lvlCancel() {
 }
 
 function lvlConfirm() {
-  if (!pendingLvl || pendingLvl.hpGain==null) return;
+  const gain = lvlHpGain();
+  if (!pendingLvl || gain==null) return;
   state.level = pendingLvl.newLevel;
-  state.dieRolls.push(pendingLvl.hpGain);
+  state.dieRolls.push(gain);
+  const asiText = Object.entries(pendingLvl.asi).map(([ab,n])=>`${ab} +${n}`).join(", ");
   Object.entries(pendingLvl.asi).forEach(([ab,n])=>{
     state.scores[ab] = Math.min(20, (state.scores[ab]||10) + n);
     document.getElementById("ab_"+ab).value = state.scores[ab];
   });
-  const gain = pendingLvl.hpGain, mode = pendingLvl.hpMode;
+  const mode = pendingLvl.hpMode;
   const newFeats = (CLASS_LEVELS[state.cls][state.level]||[]).join(", ");
+  logEvent("level", `<b>Level ${state.level}</b> ${state.cls}: +${gain} HP die (${mode==="roll"?"rolled":"average"})${asiText?` · ASI: ${asiText}`:""}${newFeats?` · gained: ${newFeats}`:""}`);
   lvlCancel();
   renderSheet();
   persistLoaded();
@@ -1615,6 +1721,184 @@ function lvlConfirm() {
 // Close the modal from the backdrop or Escape (same as Cancel: nothing applied)
 document.getElementById("lvlOverlay").addEventListener("click", e=>{ if (e.target.id==="lvlOverlay") lvlCancel(); });
 document.addEventListener("keydown", e=>{ if (e.key==="Escape" && pendingLvl) lvlCancel(); });
+
+// ---------- SPELL SLOTS ----------
+function spendSlot(lv) {
+  const row = getSlotRows().find(r=>r.lv===lv);
+  if (!row) return;
+  state.slotsUsed[lv] = Math.min(row.total, (state.slotsUsed[lv]||0) + 1);
+  renderSheet(); persistLoaded();
+}
+function restoreSlot(lv) {
+  state.slotsUsed[lv] = Math.max(0, (state.slotsUsed[lv]||0) - 1);
+  renderSheet(); persistLoaded();
+}
+
+// ---------- RESTS ----------
+let pendingRest = null;
+
+function shortRest() {
+  if (!state.cls || state.maxHp==null) return;
+  pendingRest = { rolls: [] };
+  renderRestModal();
+  document.getElementById("restOverlay").classList.add("open");
+}
+
+function renderRestModal() {
+  if (!pendingRest) return;
+  const c = CLASSES[state.cls];
+  const conMod = state.scores.CON!=null ? mod(state.scores.CON) : 0;
+  const hdLeft = state.level - state.hdUsed - pendingRest.rolls.length;
+  const healed = pendingRest.rolls.reduce((a,r)=>a+r.gain,0);
+  const cap = state.maxHp - state.curHp;
+  document.getElementById("restModal").innerHTML = `
+    <h3>⛺ Short Rest</h3>
+    <div style="color:var(--muted);font-style:italic">At least 1 hour of light activity. Spend Hit Point Dice to recover HP.</div>
+    <div class="lvl-step">
+      <div class="k">Hit Point Dice · ${hdLeft} of ${state.level} d${c.hitDie} remaining</div>
+      ${pendingRest.rolls.length ? pendingRest.rolls.map(r=>`<div>· d${c.hitDie} (${r.roll}) ${conMod>=0?"+":"-"} ${Math.abs(conMod)} = <b>${r.gain}</b> HP</div>`).join("") : `<div style="color:var(--muted)">No dice spent yet.</div>`}
+      ${hdLeft>0 ? `<button onclick="restRollHd()" style="margin-top:.4rem">🎲 Spend a Hit Die (d${c.hitDie} ${conMod>=0?"+":"-"} ${Math.abs(conMod)})</button>` : `<div style="color:var(--muted);margin-top:.3rem">No Hit Dice left.</div>`}
+    </div>
+    <div class="lvl-step"><div class="k">Healing</div>
+      Recover <b>${Math.min(healed,cap)}</b> HP (${state.curHp} → ${Math.min(state.maxHp, state.curHp+healed)} of ${state.maxHp})${state.cls==="Warlock"?" · Pact spell slots refresh on a Short Rest.":""}
+    </div>
+    <div class="lvl-actions">
+      <button onclick="restCancel()">Cancel</button>
+      <button class="lvl-confirm" onclick="restFinish()">Finish Rest</button>
+    </div>`;
+}
+
+function restRollHd() {
+  const c = CLASSES[state.cls];
+  const conMod = state.scores.CON!=null ? mod(state.scores.CON) : 0;
+  const roll = 1 + Math.floor(Math.random()*c.hitDie);
+  const gain = Math.max(0, roll + conMod);
+  logRoll("Hit Die", `d${c.hitDie} (${roll}) ${conMod>=0?"+":"-"} ${Math.abs(conMod)}`, gain);
+  pendingRest.rolls.push({roll, gain});
+  renderRestModal();
+}
+
+function restCancel() {
+  pendingRest = null;
+  document.getElementById("restOverlay").classList.remove("open");
+}
+
+function restFinish() {
+  const spent = pendingRest.rolls.length;
+  const healed = Math.min(pendingRest.rolls.reduce((a,r)=>a+r.gain,0), state.maxHp - state.curHp);
+  state.curHp += healed;
+  state.hdUsed += spent;
+  let extra = "";
+  if (state.cls==="Warlock") { state.slotsUsed = {}; extra = ", Pact slots restored"; }
+  logEvent("rest", `<b>Short Rest</b>: spent ${spent} Hit ${spent===1?"Die":"Dice"}, healed ${healed} HP${extra}`);
+  restCancel();
+  renderSheet(); persistLoaded();
+}
+
+function longRest() {
+  if (!state.cls || state.maxHp==null) return;
+  const healed = state.maxHp - state.curHp;
+  const regain = Math.max(1, Math.floor(state.level/2));
+  const hdBack = Math.min(state.hdUsed, regain);
+  state.curHp = state.maxHp; state.tempHp = 0;
+  state.slotsUsed = {}; state.hdUsed = Math.max(0, state.hdUsed - regain);
+  state.deathS = 0; state.deathF = 0; state.stable = false;
+  logEvent("longrest", `<b>Long Rest</b>: HP fully restored${healed?` (+${healed})`:""}, spell slots refreshed${hdBack?`, recovered ${hdBack} Hit ${hdBack===1?"Die":"Dice"}`:""}`);
+  renderSheet(); persistLoaded();
+}
+
+// ---------- DYING / DEAD OVERLAY ----------
+function renderDownOverlay() {
+  const el = document.getElementById("downOverlay");
+  const show = state.cls && state.maxHp!=null && state.curHp===0;
+  el.classList.toggle("open", !!show);
+  if (!show) return;
+  const who = state.name || "Your hero";
+  const dead = state.deathF >= 3;
+  const stable = state.stable || state.deathS >= 3;
+  const pips = k => [1,2,3].map(i=>state[k]>=i?"●":"○").join(" ");
+  document.getElementById("downModal").innerHTML = dead ? `
+    <div class="death-big">💀</div>
+    <h3 style="text-align:center">${who} has died</h3>
+    <p style="text-align:center;color:var(--muted)">Three Death Saving Throws failed. But in a world of magic, death is not always the end...</p>
+    <div class="lvl-actions" style="flex-wrap:wrap">
+      <button onclick="revive(1,'Revivify')">✨ Revivify (1 HP)</button>
+      <button onclick="revive(state.maxHp,'Resurrection')">🌟 Resurrection (full HP)</button>
+    </div>`
+  : stable ? `
+    <div class="death-big">😮‍💨</div>
+    <h3 style="text-align:center">${who} is Stable</h3>
+    <p style="text-align:center;color:var(--muted)">Unconscious at 0 HP but no longer dying. They wake with 1 HP after 1d4 hours, or sooner if healed.</p>
+    <div class="lvl-actions" style="flex-wrap:wrap">
+      <button onclick="revive(1,'Waking up')">⏰ Wake with 1 HP</button>
+      <button onclick="changeHp(5)">❤️ Healed (+5 HP)</button>
+    </div>`
+  : `
+    <div class="death-big">🩸</div>
+    <h3 style="text-align:center">${who} is dying!</h3>
+    <div class="down-pips">Successes ${pips("deathS")} · Failures ${pips("deathF")}</div>
+    <p style="text-align:center;color:var(--muted);font-size:.9rem">At the start of each of your turns, make a Death Saving Throw: 10+ succeeds. Three successes stabilize you; three failures and you die. A 20 brings you back with 1 HP; a 1 counts as two failures.</p>
+    <div class="lvl-actions">
+      <button class="lvl-confirm" onclick="rollDeathSave()">🎲 Death Saving Throw</button>
+    </div>
+    <div class="lvl-actions" style="flex-wrap:wrap">
+      <button onclick="changeHp(1)">❤️ Healed (+1)</button>
+      <button onclick="changeHp(5)">❤️ (+5)</button>
+      <button onclick="downStabilize()">🩹 Stabilized</button>
+      <button onclick="downDamage(1)">💥 Hit (+1 ✘)</button>
+      <button onclick="downDamage(2)">💥 Crit (+2 ✘)</button>
+    </div>`;
+}
+
+function rollDeathSave() {
+  const d = 1 + Math.floor(Math.random()*20);
+  logRoll("Death Save", `d20 (${d})`, d);
+  if (d === 20) { revive(1, "a natural 20 on the Death Save"); return; }
+  if (d === 1) state.deathF = Math.min(3, state.deathF + 2);
+  else if (d >= 10) state.deathS = Math.min(3, state.deathS + 1);
+  else state.deathF = Math.min(3, state.deathF + 1);
+  if (state.deathS >= 3) { state.stable = true; logEvent("status", `<b>Stabilized</b>: three Death Save successes`); }
+  if (state.deathF >= 3) logEvent("status", `<b>Died</b>: three Death Save failures`);
+  renderSheet(); persistLoaded();
+}
+
+function downStabilize() {
+  state.stable = true;
+  logEvent("status", `<b>Stabilized</b> (Medicine check or Spare the Dying)`);
+  renderSheet(); persistLoaded();
+}
+
+function downDamage(n) {
+  const wasDying = state.deathF < 3;
+  state.deathF = Math.min(3, state.deathF + n);
+  state.stable = false;
+  if (wasDying && state.deathF >= 3) logEvent("status", `<b>Died</b>: struck down while dying`);
+  renderSheet(); persistLoaded();
+}
+
+function revive(hp, how) {
+  state.curHp = Math.min(state.maxHp, Math.max(1, hp));
+  state.deathS = 0; state.deathF = 0; state.stable = false;
+  logEvent("heal", `<b>Back from the brink</b>: ${how}, up with ${state.curHp} HP`);
+  renderSheet(); persistLoaded();
+}
+
+// ---------- REFERENCE LOOKUP ----------
+const escQ = s => s.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+function refLookup(term) {
+  const q = term.toLowerCase();
+  let hits = RULES.filter(r=>r.t.toLowerCase()===q);
+  if (!hits.length) hits = RULES.filter(r=>r.t.toLowerCase().includes(q));
+  if (!hits.length) hits = RULES.filter(r=>r.d.toLowerCase().includes(q)).slice(0,3);
+  document.getElementById("refModal").innerHTML = `
+    <h3>${term}</h3>
+    ${hits.length ? hits.map(r=>`<div class="rule-card"><div class="cat">${r.c}</div><h4>${r.t}</h4><p>${r.d}</p></div>`).join("")
+      : `<div class="rule-card"><p>No reference entry found. Try the Rules Reference tab's search.</p></div>`}
+    <div class="lvl-actions"><button onclick="refClose()">Close</button></div>`;
+  document.getElementById("refOverlay").classList.add("open");
+}
+function refClose() { document.getElementById("refOverlay").classList.remove("open"); }
+document.addEventListener("click", e=>{ if (e.target.id==="refOverlay") refClose(); });
 
 // ---------- THEME ----------
 const THEME_KEY = "dnd-srd-theme";
