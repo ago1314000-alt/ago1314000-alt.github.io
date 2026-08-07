@@ -9,7 +9,7 @@ const state = {
   slotsUsed:{}, hdUsed:0, stable:false, retired:false,
   resUsed:{}, conc:null, gear:[], dropped:[],
   conditions:[], coins:{pp:0,gp:0,ep:0,sp:0,cp:0},
-  attuned:[], subclass:"", feats:[]
+  attuned:[], subclass:"", customSub:null, feats:[]
 };
 let sheetTargetId = "sheet";
 let sheetSpellFilter = "";
@@ -115,7 +115,7 @@ function toggleCondition(name) {
 // those too or "undo the level up" would leave the sheet half-advanced.
 const UNDO_KEYS = ["curHp","tempHp","maxHp","deathS","deathF","stable","slotsUsed","resUsed",
                    "conditions","hdUsed","conc","coins","attuned","inspiration","gear","dropped",
-                   "level","dieRolls","scores","skills","spells","subclass","feats","xp"];
+                   "level","dieRolls","scores","skills","spells","subclass","customSub","feats","xp"];
 let undoStack = [];
 function pushUndo(label) {
   const snap = {};
@@ -217,38 +217,120 @@ function addXp() {
 }
 
 // ---------- SUBCLASS ----------
+// SRD 5.2 ships one subclass per class. Anything else a table plays (a
+// Player's Handbook subclass, or the DM's homebrew) is entered by hand and
+// lives on the character as state.customSub.
+const OTHER_SUB = "__other__";
 function subclassChoices() { return state.cls ? Object.keys(SUBCLASSES[state.cls]||{}) : []; }
-function subclassDue() { return !!(state.cls && state.level >= SUBCLASS_LEVEL && !state.subclass && subclassChoices().length); }
+function subclassDue() { return !!(state.cls && state.level >= SUBCLASS_LEVEL && !state.subclass); }
+function isCustomSub() { return !!state.customSub; }
+// Features earned by this character's subclass at its current level, from the
+// SRD table or from the hand-entered list
+function mySubclassFeatures(atLevel) {
+  const lvl = atLevel || state.level;
+  if (isCustomSub()) {
+    return (state.customSub.feats||[])
+      .filter(x=>lvl >= x.lv)
+      .sort((a,b)=>a.lv-b.lv)
+      .map(x=>({lv:x.lv, f:x.f}));
+  }
+  return subclassFeatures(state.cls, state.subclass, lvl);
+}
 function pickSubclass(name) {
   state.subclass = name;
+  state.customSub = null;
   logEvent("level", `<b>Subclass chosen</b>: ${name}`);
   refClose();
   renderSheet(); persistLoaded();
 }
-// Overlay for choosing a subclass from the sheet, for heroes who reached
-// level 3 before this existed
+function saveCustomSub() {
+  const name = (document.getElementById("customSubName").value||"").trim();
+  if (!name) { alert("Give your subclass a name first."); return; }
+  const desc = (document.getElementById("customSubDesc").value||"").trim();
+  const first = !state.customSub;
+  state.subclass = name;
+  state.customSub = { d: desc, feats: (state.customSub && state.customSub.feats) || [] };
+  logEvent("level", `<b>Subclass ${first?"chosen":"updated"}</b>: ${name} <small>(custom)</small>`);
+  renderSheet(); persistLoaded();
+  openSubclassPicker();
+}
+function addCustomSubFeature() {
+  if (!state.customSub) return;
+  const lv = parseInt(document.getElementById("customFeatLv").value, 10) || SUBCLASS_LEVEL;
+  const f = (document.getElementById("customFeatText").value||"").trim();
+  if (!f) { document.getElementById("customFeatText").focus(); return; }
+  state.customSub.feats = [...(state.customSub.feats||[]), { lv: Math.max(1, Math.min(20, lv)), f }];
+  logEvent("level", `<b>${state.subclass}</b>: added level ${lv} feature "${f}"`);
+  renderSheet(); persistLoaded();
+  openSubclassPicker();
+}
+function removeCustomSubFeature(i) {
+  if (!state.customSub) return;
+  const gone = state.customSub.feats.splice(i,1)[0];
+  if (gone) logEvent("level", `<b>${state.subclass}</b>: removed "${gone.f}"`);
+  renderSheet(); persistLoaded();
+  openSubclassPicker();
+}
+
+// One overlay handles choosing a subclass and editing a custom one, both from
+// the sheet and for heroes who passed level 3 before subclasses existed
 function openSubclassPicker() {
   const opts = subclassChoices();
+  const custom = isCustomSub();
   document.getElementById("refModal").innerHTML = `
-    <h3>Choose your ${state.cls} Subclass</h3>
+    <h3>${state.subclass?"Your":"Choose your"} ${state.cls} Subclass</h3>
     <div class="lvl-step">At level ${SUBCLASS_LEVEL} you commit to a specialty, and it keeps giving you features as you climb.
-      SRD 5.2 publishes one subclass per class, so this is your ${state.cls}'s path.</div>
+      SRD 5.2 publishes one subclass per class; pick <b>Other</b> to enter any subclass your table uses instead.</div>
     <div class="lvl-step">
       <div class="k">Options · click one to choose it</div>
       <div class="picker-box">
         ${opts.map(n=>{
           const sc = SUBCLASSES[state.cls][n];
           const levels = Object.keys(sc.f).map(Number).sort((a,b)=>a-b);
-          return `<div class="chooser-row${state.subclass===n?" current":""}" onclick="pickSubclass('${escQ(n)}')">
-            <div><b>${n}</b>${state.subclass===n?' <small style="color:var(--accent)">· current</small>':""}</div>
+          const cur = !custom && state.subclass===n;
+          return `<div class="chooser-row${cur?" current":""}" onclick="pickSubclass('${escQ(n)}')">
+            <div><b>${n}</b> <small style="color:var(--muted)">· SRD</small>${cur?' <small style="color:var(--accent)">· current</small>':""}</div>
             <div style="font-size:.85rem;color:var(--muted)">${sc.d}</div>
             <div style="font-size:.8rem;margin-top:.2rem">${levels.map(lv=>`<b>L${lv}</b> ${allDice(sc.f[lv].map(f=>f.split(" (")[0]).join(", "))}`).join(" · ")}</div>
           </div>`;
         }).join("")}
+        <div class="chooser-row${custom?" current":""}" onclick="document.getElementById('customSubName').focus()">
+          <div><b>Other</b> <small style="color:var(--muted)">· your own</small>${custom?' <small style="color:var(--accent)">· current</small>':""}</div>
+          <div style="font-size:.85rem;color:var(--muted)">Any subclass from another book, or one your DM made up. Name it below and add its features as you earn them.</div>
+        </div>
       </div>
     </div>
+    <div class="lvl-step">
+      <div class="k">Other · name your own</div>
+      <div class="row" style="margin-bottom:.4rem">
+        <input type="text" id="customSubName" placeholder="e.g. Path of the Storm Herald" value="${escAttr(custom?state.subclass:"")}">
+        <button onclick="saveCustomSub()">${custom?"Update":"Use this"}</button>
+      </div>
+      <textarea id="customSubDesc" rows="2" placeholder="What is it about? (optional)">${escHtml(custom?(state.customSub.d||""):"")}</textarea>
+    </div>
+    ${custom?`<div class="lvl-step">
+      <div class="k">${escHtml(state.subclass)} features</div>
+      ${(state.customSub.feats||[]).length ? `<ul class="clean">${state.customSub.feats
+          .map((x,i)=>({x,i}))
+          .sort((a,b)=>a.x.lv-b.x.lv)
+          .map(({x,i})=>`<li><small style="color:var(--muted)">L${x.lv}</small> ${allDice(escHtml(x.f))}
+            <button class="gear-btn" style="float:right" title="Remove this feature" onclick="removeCustomSubFeature(${i})">−</button></li>`).join("")}</ul>`
+        : `<div style="color:var(--muted);font-size:.85rem">No features yet. Add them as you earn them, or all at once.</div>`}
+      <div class="row" style="margin-top:.5rem">
+        <select id="customFeatLv" style="flex:0 0 6.5rem">
+          ${Array.from({length:20},(_,i)=>i+1).map(lv=>`<option value="${lv}" ${lv===SUBCLASS_LEVEL?"selected":""}>Level ${lv}</option>`).join("")}
+        </select>
+        <input type="text" id="customFeatText" placeholder="e.g. Storm Aura (10-ft aura, 2d6 lightning)">
+        <button onclick="addCustomSubFeature()">Add</button>
+      </div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem">Features show on your sheet once you reach their level. Dice you write, like 2d6, get their die shape.</div>
+    </div>`:""}
     <div class="lvl-actions"><button onclick="refClose()">Close</button></div>`;
   document.getElementById("refOverlay").classList.add("open");
+  const n = document.getElementById("customSubName");
+  if (n) n.addEventListener("keydown", e=>{ if (e.key==="Enter") saveCustomSub(); });
+  const t = document.getElementById("customFeatText");
+  if (t) t.addEventListener("keydown", e=>{ if (e.key==="Enter") addCustomSubFeature(); });
 }
 
 // ---------- FEATS ----------
@@ -263,6 +345,10 @@ function allFeats() {
 function featDef(name) { return FEATS[name] || FEATS[String(name).split(" (")[0]]; }
 
 // ---------- HELPERS ----------
+// Player-entered text (custom subclass names and features) goes through these
+// before it reaches markup
+const escHtml = s => String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const escAttr = s => escHtml(s).replace(/"/g,"&quot;");
 const rand = arr => arr[Math.floor(Math.random()*arr.length)];
 const mod = s => Math.floor((s-10)/2);
 const fmtMod = m => (m>=0?"+":"")+m;
@@ -513,7 +599,7 @@ document.getElementById("charName").addEventListener("input", e=>{ state.name=e.
   document.getElementById(id).addEventListener("change", e=>{
     const key = {selClass:"cls",selSpecies:"species",selBackground:"background",selAlignment:"alignment"}[id];
     state[key] = e.target.value;
-    if (id==="selClass") { state.skills=[]; state.spells=[]; state.level=1; state.dieRolls=[]; state.slotsUsed={}; state.hdUsed=0; state.resUsed={}; state.conc=null; state.gear=[]; state.dropped=[]; state.subclass=""; state.feats=[]; state.attuned=[]; renderSkillChoices(); renderSpellChoices(); }
+    if (id==="selClass") { state.skills=[]; state.spells=[]; state.level=1; state.dieRolls=[]; state.slotsUsed={}; state.hdUsed=0; state.resUsed={}; state.conc=null; state.gear=[]; state.dropped=[]; state.subclass=""; state.customSub=null; state.feats=[]; state.attuned=[]; renderSkillChoices(); renderSpellChoices(); }
     if (id==="selBackground") {
       // Free up any class pick the new background already grants, so the
       // player keeps their full allotment of distinct proficiencies
@@ -532,7 +618,7 @@ document.getElementById("btnRandomAll").addEventListener("click", ()=>{
   // Fresh heroes arrive fully rested: force HP to recompute from scratch
   state.maxHp=null; state.curHp=null; state.resUsed={}; state.conc=null; state.gear=[]; state.dropped=[];
   state.conditions=[]; state.coins={pp:0,gp:0,ep:0,sp:0,cp:0};
-  state.attuned=[]; state.subclass=""; state.feats=[];
+  state.attuned=[]; state.subclass=""; state.customSub=null; state.feats=[];
   undoStack = [];
   Object.values(randomizers).forEach(f=>f());
   setScores(ABILITIES.map(()=>roll4d6()));
@@ -555,7 +641,7 @@ function clearCreator() {
   state.slotsUsed={}; state.hdUsed=0; state.stable=false; state.retired=false;
   state.resUsed={}; state.conc=null; state.gear=[]; state.dropped=[];
   state.conditions=[]; state.coins={pp:0,gp:0,ep:0,sp:0,cp:0};
-  state.attuned=[]; state.subclass=""; state.feats=[];
+  state.attuned=[]; state.subclass=""; state.customSub=null; state.feats=[];
   undoStack = [];
   ABILITIES.forEach(a=>{ state.scores[a]=null; document.getElementById("ab_"+a).value=""; });
   document.getElementById("charName").value="";
@@ -714,18 +800,34 @@ function renderSheet() {
   }).join("");
 
   const equipment = currentEquipment();
+  // Level 1 class features head the list; everything gained later is collected
+  // with the level it arrived at, then shown in level order
   const features = [...(c?c.features.map(f=>allDice(scaleFeature(state.cls,f,state.level))):[])];
+  const later = [];
+  const tag = lv => `<small style="color:var(--muted)">L${lv}</small> `;
   if (c && CLASS_LEVELS[state.cls]) {
     for (let lv=2; lv<=state.level; lv++) {
-      (CLASS_LEVELS[state.cls][lv]||[]).forEach(f=>features.push(`<small style="color:var(--muted)">L${lv}</small> ${allDice(f)}`));
+      (CLASS_LEVELS[state.cls][lv]||[]).forEach(f=>{
+        // The class table names the SRD subclass at level 3. Once a subclass has
+        // actually been chosen, name that one: its features are listed below.
+        if (/^Subclass:/.test(f) && state.subclass) {
+          later.push({lv, html: tag(lv)+"Subclass: "+escHtml(state.subclass)});
+        } else {
+          later.push({lv, html: tag(lv)+allDice(f)});
+        }
+      });
     }
   }
-  // Subclass features, tagged with the level they arrived at
-  subclassFeatures(state.cls, state.subclass, state.level).forEach(({lv,f})=>
-    features.push(`<small style="color:var(--muted)">L${lv}</small> ${allDice(f)}`));
+  // Subclass features, tagged with the level they arrived at. A custom
+  // subclass holds the player's own words, so they are escaped and open the
+  // subclass editor rather than a reference lookup that cannot exist.
+  mySubclassFeatures().forEach(({lv,f})=>later.push(isCustomSub()
+    ? {lv, html: tag(lv)+allDice(escHtml(f)), act:"openSubclassPicker()", tip:"Your own subclass feature: click to edit"}
+    : {lv, html: tag(lv)+allDice(f)}));
   // Feats: the background's origin feat plus anything taken at an ASI level
-  allFeats().forEach(f=>features.push(
-    `<small style="color:var(--muted)">L${f.at}</small> ${f.origin?"Origin Feat: ":"Feat: "}${f.n}`));
+  allFeats().forEach(f=>later.push({lv:f.at, html: tag(f.at)+(f.origin?"Origin Feat: ":"Feat: ")+f.n}));
+  later.sort((a,b)=>a.lv-b.lv);
+  later.forEach(x=>features.push(x.act ? {html:x.html, act:x.act, tip:x.tip} : x.html));
   const traits = sp ? sp.traits.map(t=>allDice(t)) : [];
   const canLevel = c && haveScores && state.level < 20 && !state.retired;
   const canAct = c && haveScores && !state.retired;
@@ -836,7 +938,7 @@ function renderSheet() {
     ${rollModeLabel()?`<div class="mode-banner${rollMode==="dis"?" dis":""}">Rolling with ${rollModeLabel()} · <span onclick="setRollMode('${rollMode}')" style="cursor:pointer;text-decoration:underline">back to normal</span></div>`:""}
     ${state.conc?`<div class="conc-banner">🌀 Concentrating on <b>${state.conc}</b> <button onclick="dropConc('dropped')" title="Stop concentrating">✕</button></div>`:""}
     ${subclassDue()?`<div class="warn-banner">⚠ You reached level ${SUBCLASS_LEVEL} without choosing a subclass. <span class="ref-link" onclick="openSubclassPicker()">Choose your ${state.cls} subclass</span> to pick up its features.</div>`:""}
-    <div class="tagline">Level ${state.level} ${state.species||"?"} ${state.cls||"?"}${state.subclass?` <span class="ref-link" onclick="refLookup('${escQ(state.subclass)}')">(${state.subclass})</span>`:""} · ${state.background||"no background"} · ${state.alignment||"unaligned"}${state.playerName?` · played by ${state.playerName.replace(/</g,"&lt;")}`:""}</div>
+    <div class="tagline">Level ${state.level} ${state.species||"?"} ${state.cls||"?"}${state.subclass?` <span class="ref-link" onclick="${isCustomSub()?"openSubclassPicker()":`refLookup('${escQ(state.subclass)}')`}" title="${isCustomSub()?"Your own subclass: click to edit it or add features":"What is this?"}">(${escHtml(state.subclass)}${isCustomSub()?" ✎":""})</span>`:""} · ${state.background||"no background"} · ${state.alignment||"unaligned"}${state.playerName?` · played by ${state.playerName.replace(/</g,"&lt;")}`:""}</div>
     ${canAct && hp!=null?`<div class="quickbar">
       <button class="hp-dmg" onclick="changeHp(-1)" title="Take 1 damage">−</button>
       <span class="qb-hp${bloodied?" bloodied":""}">${state.curHp}/${hp}${state.tempHp?` +${state.tempHp}`:""}</span>
@@ -892,8 +994,12 @@ function renderSheet() {
         <ul class="clean">${skillRows}</ul>
       </div>
       <div>
-        <h3 class="section">Features &amp; Traits</h3>
-        <ul class="clean">${features.map(f=>`<li class="rollable" onclick="refLookup('${escQ(refTermFrom(f))}')" title="Click for details">${f}</li>`).join("") || "<li>--</li>"}</ul>
+        <h3 class="section">Features &amp; Traits${isCustomSub()?` <button class="gear-btn" style="float:right" title="Edit ${escAttr(state.subclass)} and its features" onclick="openSubclassPicker()">✎ ${escHtml(state.subclass)}</button>`:""}</h3>
+        <ul class="clean">${features.map(f=>
+          typeof f === "object"
+            ? `<li class="rollable" onclick="${f.act}" title="${f.tip}">${f.html}</li>`
+            : `<li class="rollable" onclick="refLookup('${escQ(refTermFrom(f))}')" title="Click for details">${f}</li>`
+        ).join("") || "<li>--</li>"}</ul>
         <h3 class="section">Species Traits${sp?` (${sp.size}, ${state.species})`:""}</h3>
         <ul class="clean">${traits.map(t=>`<li class="rollable" onclick="refLookup('${escQ(refTermFrom(t))}')" title="Click for details">${t}</li>`).join("") || "<li>--</li>"}</ul>
         <h3 class="section">Proficiencies</h3>
@@ -1054,6 +1160,7 @@ function applyCharacter(ch) {
   state.conditions = [...(ch.conditions||[])];
   state.coins = {...{pp:0,gp:0,ep:0,sp:0,cp:0}, ...(ch.coins||{})};
   state.attuned = [...(ch.attuned||[])]; state.subclass = ch.subclass||"";
+  state.customSub = ch.customSub ? JSON.parse(JSON.stringify(ch.customSub)) : null;
   state.feats = (ch.feats||[]).map(f=>({...f}));
   undoStack = [];
   document.getElementById("rpTraits").value = state.traits;
@@ -1486,22 +1593,29 @@ function renderLvlModal() {
 
     ${pendingLvl.needSub?`<div class="lvl-step">
       <div class="k">Subclass · required</div>
-      <div style="font-size:.85rem;color:var(--muted);margin-bottom:.35rem">At level ${SUBCLASS_LEVEL} you commit to a specialty that keeps giving you features as you climb. SRD 5.2 publishes one subclass per class.</div>
+      <div style="font-size:.85rem;color:var(--muted);margin-bottom:.35rem">At level ${SUBCLASS_LEVEL} you commit to a specialty that keeps giving you features as you climb. SRD 5.2 publishes one subclass per class; pick <b>Other</b> for anything else your table plays.</div>
       ${subclassChoices().map(n=>{
         const sc = SUBCLASSES[state.cls][n];
         const lvls = Object.keys(sc.f).map(Number).sort((a,b)=>a-b);
         return `<div class="chooser-row${pendingLvl.sub===n?" current":""}" onclick="lvlSub('${escQ(n)}')">
-          <div><b>${n}</b>${pendingLvl.sub===n?' <small style="color:var(--accent)">· chosen</small>':""}</div>
+          <div><b>${n}</b> <small style="color:var(--muted)">· SRD</small>${pendingLvl.sub===n?' <small style="color:var(--accent)">· chosen</small>':""}</div>
           <div style="font-size:.85rem;color:var(--muted)">${sc.d}</div>
           <div style="font-size:.8rem;margin-top:.2rem">${lvls.map(lv=>`<b>L${lv}</b> ${allDice(sc.f[lv].map(x=>x.split(" (")[0]).join(", "))}`).join(" · ")}</div>
         </div>`;
       }).join("")}
+      <div class="chooser-row${pendingLvl.sub===OTHER_SUB?" current":""}" onclick="lvlSub('${OTHER_SUB}')">
+        <div><b>Other</b> <small style="color:var(--muted)">· your own</small>${pendingLvl.sub===OTHER_SUB?' <small style="color:var(--accent)">· chosen</small>':""}</div>
+        <div style="font-size:.85rem;color:var(--muted)">A subclass from another book, or one your DM made up. Name it here and add its features from your sheet afterwards.</div>
+      </div>
+      ${pendingLvl.sub===OTHER_SUB?`<div class="row" style="margin-top:.5rem">
+        <input type="text" id="lvlSubName" placeholder="Name your subclass" value="${escAttr(pendingLvl.subName||"")}">
+      </div>`:""}
     </div>`:""}
-    ${(!pendingLvl.needSub && subclassFeatures(state.cls, state.subclass, pendingLvl.newLevel)
+    ${(!pendingLvl.needSub && mySubclassFeatures(pendingLvl.newLevel)
         .filter(x=>x.lv===pendingLvl.newLevel).length)?`<div class="lvl-step">
-      <div class="k">${state.subclass} Features</div>
-      ${subclassFeatures(state.cls, state.subclass, pendingLvl.newLevel).filter(x=>x.lv===pendingLvl.newLevel)
-        .map(x=>`<div>· ${ref(x.f.split(" (")[0])}${x.f.includes(" (")?" ("+x.f.split(" (").slice(1).join(" ("):""}</div>`).join("")}
+      <div class="k">${escHtml(state.subclass)} Features</div>
+      ${mySubclassFeatures(pendingLvl.newLevel).filter(x=>x.lv===pendingLvl.newLevel)
+        .map(x=>`<div>· ${isCustomSub()?allDice(escHtml(x.f)):ref(x.f.split(" (")[0])+(x.f.includes(" (")?" ("+x.f.split(" (").slice(1).join(" ("):"")}</div>`).join("")}
     </div>`:""}
 
     <div class="lvl-step">
@@ -1544,12 +1658,23 @@ function renderLvlModal() {
       <button onclick="lvlCancel()">Cancel</button>
       <button class="lvl-confirm" onclick="lvlConfirm()" ${lvlBlocker()?`disabled title="${lvlBlocker()}"`:""}>Confirm Level ${pendingLvl.newLevel}</button>
     </div>
-    ${lvlBlocker()?`<div style="text-align:right;color:var(--muted);font-size:.85rem;margin-top:.2rem">${lvlBlocker()}</div>`:""}`;
+    <div id="lvlBlockNote" style="text-align:right;color:var(--muted);font-size:.85rem;margin-top:.2rem">${lvlBlocker()}</div>`;
   bindLvlInputs();
 }
 
 // Keep the feat filter usable across the modal's redraws
 function bindLvlInputs() {
+  // Typing a custom subclass name enables Confirm without redrawing the modal,
+  // which would take the caret with it
+  const sn = document.getElementById("lvlSubName");
+  if (sn) sn.addEventListener("input", e=>{
+    pendingLvl.subName = e.target.value;
+    const btn = document.querySelector("#lvlModal .lvl-confirm");
+    const why = lvlBlocker();
+    if (btn) { btn.disabled = !!why; btn.title = why || ""; }
+    const note = document.getElementById("lvlBlockNote");
+    if (note) note.textContent = why;
+  });
   const f = document.getElementById("featFilter");
   if (!f) return;
   f.addEventListener("input", e=>{
@@ -1560,11 +1685,19 @@ function bindLvlInputs() {
   });
 }
 
+// The custom subclass name, taken from the live input when it exists so the
+// Confirm button reacts as it is typed
+function lvlSubName() {
+  const el = document.getElementById("lvlSubName");
+  return ((el ? el.value : pendingLvl && pendingLvl.subName) || "").trim();
+}
+
 // What still has to be decided before the level can be confirmed
 function lvlBlocker() {
   if (!pendingLvl) return "";
   if (lvlHpGain() == null) return "Choose how to gain hit points first.";
   if (pendingLvl.needSub && !pendingLvl.sub) return "Choose a subclass first.";
+  if (pendingLvl.sub === OTHER_SUB && !lvlSubName()) return "Name your subclass first.";
   if (pendingLvl.hasAsi && pendingLvl.asiMode === "feat" && !pendingLvl.feat) return "Pick a feat, or switch back to ability scores.";
   return "";
 }
@@ -1605,7 +1738,15 @@ function lvlHp(mode) {
 }
 
 function lvlSpellMode(m) { pendingLvl.spellMode = m; renderLvlModal(); }
-function lvlSub(name) { pendingLvl.sub = pendingLvl.sub === name ? null : name; renderLvlModal(); }
+function lvlSub(name) {
+  // Keep whatever was typed before a re-render swaps the input out
+  const typed = document.getElementById("lvlSubName");
+  if (typed) pendingLvl.subName = typed.value;
+  pendingLvl.sub = pendingLvl.sub === name ? null : name;
+  renderLvlModal();
+  const box = document.getElementById("lvlSubName");
+  if (box) box.focus();
+}
 function lvlAsiMode(m) {
   pendingLvl.asiMode = m;
   if (m === "asi") pendingLvl.feat = null; else pendingLvl.asi = {};
@@ -1641,10 +1782,17 @@ function lvlConfirm() {
   // Subclass chosen at this level, and its features from here on
   let subText = "";
   if (pendingLvl.needSub && pendingLvl.sub) {
-    state.subclass = pendingLvl.sub;
-    subText = pendingLvl.sub;
+    if (pendingLvl.sub === OTHER_SUB) {
+      state.subclass = lvlSubName();
+      state.customSub = { d:"", feats:[] };
+      subText = `${state.subclass} (custom)`;
+    } else {
+      state.subclass = pendingLvl.sub;
+      state.customSub = null;
+      subText = pendingLvl.sub;
+    }
   }
-  const subFeats = subclassFeatures(state.cls, state.subclass, state.level)
+  const subFeats = mySubclassFeatures(state.level)
     .filter(x=>x.lv===state.level).map(x=>x.f).join(", ");
   // A feat taken in place of the ability points
   let featText = "";

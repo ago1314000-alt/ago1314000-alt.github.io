@@ -9,7 +9,7 @@ A complete D&D character builder, live character sheet, and rules companion for 
 ## ⚔️ Build a Hero
 
 - 🎲 **Randomize everything** with one click (always fully rested), roll individual choices with per-field dice buttons, or pick it all by hand. There is also **Add Random Character** on the Characters tab for an instant saved hero
-- 🛡️ All **12 classes**, **9 species**, **12 subclasses**, and **4 backgrounds** from the SRD
+- 🛡️ All **12 classes**, **9 species**, **12 subclasses**, and **4 backgrounds** from the SRD, plus an **Other** subclass option for anything your table plays that the SRD cannot publish
 - 💪 Ability scores via 4d6-drop-lowest, standard array, or one-click **optimize for class**
 - ✨ Full **spell picker** for casters: 227 SRD spells from cantrips through level 9, with class-filtered lists, level-scaled known/prepared counts, and random selection
 - 📜 Personality traits, ideals, bonds, and flaws, hand-written or rolled from tables, plus freeform backstory notes
@@ -34,7 +34,7 @@ The sheet is a live play surface, not a printout:
 - 📝 A **Notes** box on the sheet that saves as you type
 - ❤️ Hit point, temp HP, and Heroic Inspiration tracking
 - ⛺🌙 **Short and Long Rest overlays** that spend hit dice, restore HP and spell slots, and handle interruptions. Nothing applies until you confirm, and casters can swap their prepared spells overnight (random or hand-picked)
-- ⬆️ **Level up to 20** through an in-page flow: per-class features that scale correctly (Rage, Sneak Attack, Martial Arts, spell counts...), rolled or average HP, your **subclass** chosen at level 3 with its own features arriving on schedule, ability score improvements **or one of 73 feats**, new spells rolled for you or picked yourself, cancel anytime
+- ⬆️ **Level up to 20** through an in-page flow: per-class features that scale correctly (Rage, Sneak Attack, Martial Arts, spell counts...), rolled or average HP, your **subclass** chosen at level 3 (an SRD one, or your own named subclass with features you enter by level) with its features arriving on schedule, ability score improvements **or one of 73 feats**, new spells rolled for you or picked yourself, cancel anytime
 - 💀 At 0 HP the sheet locks into a **dying overlay**: automated death saves, stabilization, resurrection, or an honorable 🪦 retirement. Dead heroes can be ✨ resurrected later from their sheet
 - 📖 **History log** of every roll, rest, cast, level-up, edit, and near-death experience
 
