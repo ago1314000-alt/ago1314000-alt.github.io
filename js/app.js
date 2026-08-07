@@ -1,4 +1,81 @@
 // App logic for the D&D Character Generator (data lives in data.js)
+// ---------- EXTRA SOURCES (open5e.js, EN Publishing via Open5e) ----------
+// Everything from data.js is SRD 5.2; anything merged in below is tagged with
+// its own source so the reference can label and filter by it.
+const SRC_SRD = "SRD 5.2";
+RULES.forEach(r => { if (!r.src) r.src = SRC_SRD; });
+
+if (typeof A5E_SOURCES !== "undefined") {
+  const srcName = k => (A5E_SOURCES[k] || {}).n || k;
+  const A5E_URL = "https://a5esrd.com/a5esrd";
+
+  // Spells: A5E spell lists are not class-tagged in the data, so these are a
+  // reference library rather than picks for the character sheet.
+  A5E_SPELLS.forEach(s => {
+    const bits = [`Casting Time: ${s.t}.`, `Range: ${s.r}.`, `Components: ${s.c || "None"}.`, `Duration: ${s.u}.`];
+    if (s.conc) bits.push("Concentration.");
+    if (s.rit) bits.push("Ritual.");
+    RULES.push({
+      c: s.l === 0 ? "Spell · Cantrip" : "Spell · Level " + s.l,
+      t: s.n, src: srcName("a5e-ag"), url: A5E_URL,
+      d: `<i>${s.s}${s.l ? ", level " + s.l : " cantrip"}.</i> ${bits.join(" ")}<br><br>${s.d}` +
+         (s.hl ? `<br><br><b>At Higher Levels.</b> ${s.hl}` : "")
+    });
+  });
+  A5E_FEATS.forEach(f => RULES.push({
+    c: "Feat · General", t: f.n, src: srcName("a5e-ag"), url: A5E_URL,
+    d: (f.pre ? `<i>Prerequisite: ${f.pre}.</i><br>` : "") + f.d +
+       (f.b.length ? "<br>" + f.b.map(b => "• " + b).join("<br>") : "")
+  }));
+  A5E_BACKGROUNDS.forEach(b => RULES.push({
+    c: "Background", t: b.n, src: srcName(b.src), url: A5E_URL,
+    d: b.d + b.b.map(x => `<br><br><b>${x.n}.</b> ${x.d}`).join("")
+  }));
+  A5E_CONDITIONS.forEach(c => RULES.push({
+    c: "Condition", t: c.n, src: srcName("a5e-ag"), url: A5E_URL, d: c.d
+  }));
+  A5E_CLASSES.forEach(k => {
+    RULES.push({ c: "Class", t: k.n, src: srcName("a5e-ag"), url: A5E_URL,
+      d: `<i>Hit die d${k.hd}. Saving throws: ${k.saves.join(", ")}.</i><br><br>${k.d}` });
+    // A feature can be listed twice by the source (once as a class feature and
+    // again in an options list); keep the first and merge nothing else in
+    const seenFeat = new Set();
+    const feat = (f, owner) => {
+      if (seenFeat.has(f.n)) return;
+      seenFeat.add(f.n);
+      RULES.push({
+        c: "Feature", t: f.n, src: srcName("a5e-ag"), url: A5E_URL,
+        d: `<i>${owner} feature${f.lv ? ", level " + f.lv.join("/") : ""}.</i><br><br>${f.d}`
+      });
+    };
+    k.f.forEach(f => feat(f, k.n));
+    k.subs.forEach(s => {
+      RULES.push({ c: "Subclass", t: s.n, src: srcName("a5e-ag"), url: A5E_URL,
+        d: `<i>${k.n} archetype.</i><br><br>${s.d}` });
+      s.f.forEach(f => feat(f, s.n));
+    });
+  });
+
+  // The Marshal is shaped like the app's own classes, so it can be played
+  if (typeof A5E_PLAYABLE !== "undefined") {
+    Object.entries(A5E_PLAYABLE).forEach(([name, c]) => {
+      CLASSES[name] = {
+        hitDie: c.hitDie, saves: c.saves, primary: c.primary,
+        skillCount: c.skillCount, skillList: c.skillList,
+        armor: c.armor, weapons: c.weapons,
+        features: c.features, equipment: c.equipment,
+        src: srcName("a5e-ag")
+      };
+      CLASS_LEVELS[name] = c.levels;
+      SUBCLASSES[name] = {};
+      Object.entries(c.subs).forEach(([sub, s]) => {
+        SUBCLASSES[name][sub] = { d: s.d || `A ${name} archetype.`, f: s.f };
+      });
+      CLASS_RESOURCES[name] = CLASS_RESOURCES[name] || [];
+    });
+  }
+}
+
 // ---------- STATE ----------
 const state = {
   name:"", cls:"", species:"", background:"", alignment:"", playerName:"", xp:"",
@@ -1106,6 +1183,7 @@ document.querySelectorAll(".tabs button").forEach(b=>{
     b.classList.add("active");
     document.getElementById("tab-"+b.dataset.tab).classList.add("active");
     if (b.dataset.tab==="saved") renderSavedList();
+    if (b.dataset.tab==="bestiary") loadBestiary();
     if (b.dataset.tab==="create") {
       // Leaving a saved-character view: give the creator a fresh start and drop
       // the old sheet, which would otherwise sit there looking live while its
@@ -1405,31 +1483,174 @@ const rulesInput = document.getElementById("rulesSearch");
 // per-level spell buckets collapse into one "Spell" filter
 const ruleCat = r => r.c.split(" · ")[0];
 let ruleFilter = null;
-function renderRuleCats() {
+let ruleSrc = null;
+// Long lists are capped so a bare search doesn't build thousands of cards
+const RULE_CAP = 200;
+function ruleSources() {
   const counts = {};
-  RULES.forEach(r=>{ const k = ruleCat(r); counts[k] = (counts[k]||0)+1; });
+  RULES.forEach(r=>{ counts[r.src||SRC_SRD] = (counts[r.src||SRC_SRD]||0)+1; });
+  return counts;
+}
+function renderRuleCats() {
+  const pool = ruleSrc ? RULES.filter(r=>(r.src||SRC_SRD)===ruleSrc) : RULES;
+  const counts = {};
+  pool.forEach(r=>{ const k = ruleCat(r); counts[k] = (counts[k]||0)+1; });
   const cats = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);
+  const srcs = ruleSources();
   document.getElementById("ruleCats").innerHTML =
-    `<span class="cat-chip${ruleFilter===null?" picked":""}" onclick="setRuleFilter(null)">All <small>${RULES.length}</small></span>` +
-    cats.map(c=>`<span class="cat-chip${ruleFilter===c?" picked":""}" onclick="setRuleFilter('${escQ(c)}')">${c} <small>${counts[c]}</small></span>`).join("");
+    `<div class="chip-row"><span class="chip-lbl">Source</span>` +
+    `<span class="cat-chip${ruleSrc===null?" picked":""}" onclick="setRuleSrc(null)">All <small>${RULES.length}</small></span>` +
+    Object.keys(srcs).sort((a,b)=>srcs[b]-srcs[a]).map(s=>
+      `<span class="cat-chip${ruleSrc===s?" picked":""}" onclick="setRuleSrc('${escQ(s)}')">${s} <small>${srcs[s]}</small></span>`).join("") +
+    `</div><div class="chip-row"><span class="chip-lbl">Type</span>` +
+    `<span class="cat-chip${ruleFilter===null?" picked":""}" onclick="setRuleFilter(null)">All <small>${pool.length}</small></span>` +
+    cats.map(c=>`<span class="cat-chip${ruleFilter===c?" picked":""}" onclick="setRuleFilter('${escQ(c)}')">${c} <small>${counts[c]}</small></span>`).join("") +
+    `</div>`;
 }
 function setRuleFilter(c) {
   ruleFilter = (ruleFilter === c) ? null : c;
   renderRuleCats();
   renderRules(rulesInput.value);
 }
+function setRuleSrc(s) {
+  ruleSrc = (ruleSrc === s) ? null : s;
+  // A category that doesn't exist in the new source would show an empty list
+  if (ruleSrc && ruleFilter && !RULES.some(r=>(r.src||SRC_SRD)===ruleSrc && ruleCat(r)===ruleFilter)) ruleFilter = null;
+  renderRuleCats();
+  renderRules(rulesInput.value);
+}
 
 function renderRules(q) {
   q = (q||"").trim().toLowerCase();
-  const pool = ruleFilter ? RULES.filter(r=>ruleCat(r)===ruleFilter) : RULES;
+  let pool = RULES;
+  if (ruleSrc) pool = pool.filter(r=>(r.src||SRC_SRD)===ruleSrc);
+  if (ruleFilter) pool = pool.filter(r=>ruleCat(r)===ruleFilter);
   const hits = !q ? pool : pool.filter(r =>
     r.t.toLowerCase().includes(q) || r.d.toLowerCase().includes(q) || r.c.toLowerCase().includes(q));
   const hi = txt => q ? txt.replace(new RegExp("("+q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi"), "<mark>$1</mark>") : txt;
+  const shown = hits.slice(0, RULE_CAP);
+  const where = [ruleSrc, ruleFilter].filter(Boolean).join(" · ");
   document.getElementById("rulesResults").innerHTML = hits.length
-    ? hits.map(r=>`<div class="rule-card"><div class="cat">${r.c}</div><h4>${allDice(hi(r.t))}</h4><p>${allDice(hi(r.d))}</p>${r.url?`<a href="${r.url}" target="_blank" rel="noopener" style="font-size:.85rem">Full description on the SRD ↗</a>`:""}</div>`).join("")
-    : `<div class="empty">Nothing matched${ruleFilter?` in ${ruleFilter}`:""}. Try another term${ruleFilter?` or pick <span class="ref-link" onclick="setRuleFilter(null)">All</span>`:""}.</div>`;
+    ? (hits.length > RULE_CAP
+        ? `<div class="rule-more">Showing the first ${RULE_CAP} of <b>${hits.length}</b> matches. Keep typing, or narrow it with the chips above.</div>` : "") +
+      shown.map(r=>{
+        const src = r.src || SRC_SRD;
+        return `<div class="rule-card"><div class="cat">${r.c}<span class="src-tag${src===SRC_SRD?"":" alt"}">${src}</span></div>
+          <h4>${allDice(hi(r.t))}</h4><p>${allDice(hi(r.d))}</p>
+          ${r.url?`<a href="${r.url}" target="_blank" rel="noopener" style="font-size:.85rem">Full text at ${src===SRC_SRD?"the SRD":"a5esrd.com"} ↗</a>`:""}</div>`;
+      }).join("")
+    : `<div class="empty">Nothing matched${where?` in ${where}`:""}. Try another term${where?` or pick <span class="ref-link" onclick="setRuleSrc(null);setRuleFilter(null)">All</span>`:""}.</div>`;
 }
 rulesInput.addEventListener("input", ()=>renderRules(rulesInput.value));
+
+// ---------- BESTIARY (Monstrous Menagerie, loaded on first visit) ----------
+// A megabyte of stat blocks has no business loading before you ask for it.
+let bestiaryState = "idle";   // idle | loading | ready | failed
+let crFilter = null;
+const BEST_CAP = 60;
+const crLabel = cr => cr === 0.125 ? "1/8" : cr === 0.25 ? "1/4" : cr === 0.5 ? "1/2" : String(cr);
+
+function loadBestiary() {
+  if (bestiaryState !== "idle") return;
+  bestiaryState = "loading";
+  renderBestiary();
+  const s = document.createElement("script");
+  s.src = "js/bestiary.js?v=" + (document.querySelector('script[src*="app.js"]').src.split("v=")[1] || "1");
+  s.onerror = () => { bestiaryState = "failed"; renderBestiary(); };
+  document.body.appendChild(s);
+}
+// bestiary.js calls this once it has defined A5E_CREATURES
+function onBestiaryLoaded() {
+  bestiaryState = "ready";
+  renderCrChips();
+  renderBestiary();
+}
+
+function renderCrChips() {
+  const box = document.getElementById("crChips");
+  if (!box || bestiaryState !== "ready") { if (box) box.innerHTML = ""; return; }
+  const buckets = [
+    ["0-1", c=>c.cr <= 1], ["2-4", c=>c.cr >= 2 && c.cr <= 4], ["5-10", c=>c.cr >= 5 && c.cr <= 10],
+    ["11-16", c=>c.cr >= 11 && c.cr <= 16], ["17+", c=>c.cr >= 17]
+  ];
+  box.innerHTML = `<div class="chip-row"><span class="chip-lbl">Challenge</span>` +
+    `<span class="cat-chip${crFilter===null?" picked":""}" onclick="setCrFilter(null)">All <small>${A5E_CREATURES.length}</small></span>` +
+    buckets.map(([label,fn])=>{
+      const n = A5E_CREATURES.filter(fn).length;
+      return `<span class="cat-chip${crFilter===label?" picked":""}" onclick="setCrFilter('${label}')">CR ${label} <small>${n}</small></span>`;
+    }).join("") + `</div>`;
+}
+function setCrFilter(l) { crFilter = (crFilter === l) ? null : l; renderCrChips(); renderBestiary(); }
+
+function renderBestiary() {
+  const el = document.getElementById("bestResults");
+  if (!el) return;
+  if (bestiaryState === "loading") { el.innerHTML = `<div class="empty">Loading the bestiary...</div>`; return; }
+  if (bestiaryState === "failed") { el.innerHTML = `<div class="empty">The bestiary file could not be loaded. <span class="ref-link" onclick="bestiaryState='idle';loadBestiary()">Try again</span>.</div>`; return; }
+  if (bestiaryState !== "ready") { el.innerHTML = ""; return; }
+  const q = (document.getElementById("bestSearch").value||"").trim().toLowerCase();
+  const inBucket = c => {
+    if (!crFilter) return true;
+    if (crFilter === "0-1") return c.cr <= 1;
+    if (crFilter === "2-4") return c.cr >= 2 && c.cr <= 4;
+    if (crFilter === "5-10") return c.cr >= 5 && c.cr <= 10;
+    if (crFilter === "11-16") return c.cr >= 11 && c.cr <= 16;
+    return c.cr >= 17;
+  };
+  let hits = A5E_CREATURES.filter(inBucket);
+  if (q) hits = hits.filter(c =>
+    c.n.toLowerCase().includes(q) || (c.ty||"").toLowerCase().includes(q) ||
+    (c.sz||"").toLowerCase().includes(q) ||
+    (c.tr||[]).some(t=>t.n.toLowerCase().includes(q)) ||
+    (c.ac2||[]).some(t=>t.n.toLowerCase().includes(q)));
+  hits = hits.slice().sort((a,b)=> a.cr - b.cr || a.n.localeCompare(b.n));
+  const shown = hits.slice(0, BEST_CAP);
+  el.innerHTML = !hits.length
+    ? `<div class="empty">No creature matched. Try a name, a type like <i>dragon</i> or <i>undead</i>, a size, or a trait such as <i>pack tactics</i>.</div>`
+    : (hits.length > BEST_CAP ? `<div class="rule-more">Showing ${BEST_CAP} of <b>${hits.length}</b> creatures, lowest challenge first. Narrow it with the search box or the chips.</div>` : "") +
+      `<div class="best-grid">` + shown.map((c,i)=>`
+        <div class="best-row" onclick="creatureDetail('${escQ(c.n)}')" title="Full stat block">
+          <div class="best-n">${escHtml(c.n)}</div>
+          <div class="best-m">CR ${crLabel(c.cr)} · ${c.sz} ${c.ty}</div>
+          <div class="best-s">AC ${c.ac} · HP ${c.hp} · ${c.spd}</div>
+        </div>`).join("") + `</div>`;
+}
+
+function creatureDetail(name) {
+  const c = A5E_CREATURES.find(x=>x.n===name);
+  if (!c) return;
+  const abs = ["STR","DEX","CON","INT","WIS","CHA"];
+  const line = (k,v) => v ? `<div><b>${k}</b> ${v}</div>` : "";
+  document.getElementById("refModal").innerHTML = `
+    <h3>${escHtml(c.n)}</h3>
+    <div style="color:var(--muted);font-style:italic">${c.sz} ${c.ty} · Challenge ${crLabel(c.cr)}${c.xp?` (${c.xp.toLocaleString()} XP)`:""}</div>
+    <div class="lvl-step">
+      ${line("Armor Class", c.ac + (c.acd?` (${escHtml(c.acd)})`:""))}
+      ${line("Hit Points", c.hp + (c.hd?` (${allDice(escHtml(c.hd))})`:""))}
+      ${line("Speed", escHtml(c.spd))}
+    </div>
+    <div class="statgrid" style="margin-bottom:.7rem">
+      ${abs.map((a,i)=>{
+        const v = c.ab[i] ?? 10, m = Math.floor((v-10)/2);
+        return `<div class="stat rollable" onclick="rollD20('${a} check (${escQ(c.n)})',${m},'chk')" title="Roll a ${a} check for this creature">
+          <div class="nm">${a}</div><div class="mod">${fmtMod(m)}</div><div class="scr">${v}</div></div>`;
+      }).join("")}
+    </div>
+    <div class="lvl-step">
+      ${line("Saving Throws", c.sv && escHtml(c.sv))}
+      ${line("Skills", c.sk && escHtml(c.sk))}
+      ${line("Senses", c.se && escHtml(c.se))}
+      ${line("Languages", c.lg && escHtml(c.lg))}
+      ${line("Defences", c.ri && escHtml(c.ri))}
+    </div>
+    ${(c.tr||[]).length?`<div class="lvl-step"><div class="k">Traits</div>
+      ${c.tr.map(t=>`<div style="margin-bottom:.4rem"><b>${escHtml(t.n)}.</b> ${allDice(t.d)}</div>`).join("")}</div>`:""}
+    ${(c.ac2||[]).length?`<div class="lvl-step"><div class="k">Actions</div>
+      ${c.ac2.map(t=>`<div style="margin-bottom:.4rem"><b>${escHtml(t.n)}.</b> ${allDice(t.d)}</div>`).join("")}</div>`:""}
+    <div style="font-size:.8rem;color:var(--muted)">Monstrous Menagerie &copy; EN Publishing, used under the Open Game License v1.0a. See Settings for the full notice.</div>
+    <div class="lvl-actions"><button onclick="refClose()">Close</button></div>`;
+  document.getElementById("refOverlay").classList.add("open");
+}
 
 // ---------- DICE ROLLING & HP ----------
 let toastTimer = null;
@@ -2634,6 +2855,8 @@ try {
   const cur = JSON.parse(localStorage.getItem("dnd-srd-current"));
   if (cur && (cur.cls || cur.species || cur.name)) applyCharacter(cur);
 } catch(e) {}
+
+document.getElementById("bestSearch").addEventListener("input", renderBestiary);
 
 updateSavedCount();
 checkSharedLink();

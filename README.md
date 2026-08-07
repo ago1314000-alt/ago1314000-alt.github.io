@@ -2,14 +2,14 @@
 
 **▶️ Play it now: [auto-character-generator.github.io](https://auto-character-generator.github.io/)**
 
-A complete D&D character builder, live character sheet, and rules companion for **levels 1-20**, built on the System Reference Document 5.2 (D&D 2024 rules). Plain HTML, CSS, and vanilla JavaScript: no server, no account, no build step. Your characters live in your browser.
+A complete D&D character builder, live character sheet, bestiary, and rules companion for **levels 1-20**, built on the System Reference Document 5.2 (D&D 2024 rules) and EN Publishing's Level Up: Advanced 5th Edition. Plain HTML, CSS, and vanilla JavaScript: no server, no account, no build step. Your characters live in your browser.
 
 ---
 
 ## ⚔️ Build a Hero
 
 - 🎲 **Randomize everything** with one click (always fully rested), roll individual choices with per-field dice buttons, or pick it all by hand. There is also **Add Random Character** on the Characters tab for an instant saved hero
-- 🛡️ All **12 classes**, **9 species**, **12 subclasses**, and **4 backgrounds** from the SRD, plus an **Other** subclass option for anything your table plays that the SRD cannot publish
+- 🛡️ All **12 classes**, **9 species**, **12 subclasses**, and **4 backgrounds** from the SRD, plus the **Marshal** class and its three archetypes from Level Up, and an **Other** subclass option for anything your table plays
 - 💪 Ability scores via 4d6-drop-lowest, standard array, or one-click **optimize for class**
 - ✨ Full **spell picker** for casters: 227 SRD spells from cantrips through level 9, with class-filtered lists, level-scaled known/prepared counts, and random selection
 - 📜 Personality traits, ideals, bonds, and flaws, hand-written or rolled from tables, plus freeform backstory notes
@@ -39,8 +39,9 @@ The sheet is a live play surface, not a printout:
 
 ## 📚 Look Anything Up
 
-- 🔍 A **Reference** tab with 740+ searchable entries: every spell, weapon, and piece of gear, all class features, subclasses, feats, magic items, and species traits, plus conditions, combat actions, spellcasting, and rests
-- 🏷️ **Category chips** with live counts filter the list, and combine with the search box
+- 🔍 A **Reference** tab with **1,250+ searchable entries**: every spell, weapon, and piece of gear, all class features, subclasses, feats, magic items, and species traits, plus conditions, combat actions, spellcasting, and rests
+- 🏷️ **Source and category chips** with live counts filter the list and combine with the search box, so you can stay in the SRD or reach into the Level Up books
+- 🐉 A **Bestiary** of **586 creatures** from the Monstrous Menagerie: search by name, type, size, or trait, filter by challenge rating, and open a full stat block with rollable ability checks. The megabyte of stat blocks only loads when you open the tab
 - ℹ️ Nearly everything is clickable: sheet features, species traits, equipment, the level-up and rest overlays, and the Basics page all open in-place reference definitions
 - 🧭 A beginner-friendly **Basics** tab (the whole game on one page, with clickable dice-shaped icons)
 
@@ -55,8 +56,15 @@ The sheet is a live play surface, not a printout:
 
 ## 🚀 Run It
 
-Visit **[auto-character-generator.github.io](https://auto-character-generator.github.io/)**, or clone and open `index.html` in any browser. Structure: `index.html` (markup), `css/style.css` (both themes), `js/data.js` (all SRD content), `js/app.js` (app logic). No dependencies; works offline once loaded.
+Visit **[auto-character-generator.github.io](https://auto-character-generator.github.io/)**, or clone and open `index.html` in any browser. Structure: `index.html` (markup), `css/style.css` (both themes), `js/data.js` (SRD content), `js/open5e.js` (Level Up spells, feats, backgrounds, conditions, and the Marshal), `js/bestiary.js` (creatures, loaded on demand), `js/app.js` (app logic). No dependencies; works offline once loaded.
 
 ## 📄 License
 
-Uses content from the SRD 5.2 by Wizards of the Coast LLC, licensed under the [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/legalcode). Not affiliated with or endorsed by Wizards of the Coast.
+Built from freely licensed game content. Full attribution is in the app under **Settings**.
+
+- **System Reference Document 5.2** (c) 2025 Wizards of the Coast LLC, licensed under the [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/legalcode).
+- **Level Up: Advanced 5th Edition** *Adventurer's Guide*, *Dungeon Delver's Guide*, and *Gate Pass Gazette* (c) EN Publishing, dual licensed CC BY 4.0 / OGL 1.0a and used here under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/legalcode). See [a5esrd.com](https://a5esrd.com/a5esrd).
+- **Level Up: Monstrous Menagerie** (c) 2021 EN Publishing, author Paul Hughes, released under the Open Game License v1.0a only and used here under that licence. See [OGL.txt](OGL.txt) for the licence and its Section 15 notice.
+- EN Publishing content was retrieved through the [Open5e](https://open5e.com) API.
+
+Content has been abridged and reformatted. Not affiliated with, endorsed, or sponsored by any of these publishers. Dungeons & Dragons is a trademark of Wizards of the Coast LLC; Level Up: Advanced 5th Edition is a trademark of EN Publishing.

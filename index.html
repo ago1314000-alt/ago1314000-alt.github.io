@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Auto Character Generator (D&D SRD 5.2)</title>
-<link rel="stylesheet" href="css/style.css?v=67">
+<link rel="stylesheet" href="css/style.css?v=71">
 </head>
 <body>
 <div class="app">
@@ -31,6 +31,8 @@
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg><span class="tab-label">Basics</span></button>
   <button data-tab="rules" title="Search spells, gear, features, and rules">
     <svg viewBox="0 0 24 24"><path d="M4 5h6a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4z"/><path d="M20 5h-6a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h6z"/></svg><span class="tab-label">Reference</span></button>
+  <button data-tab="bestiary" title="Monsters from the Monstrous Menagerie">
+    <svg viewBox="0 0 24 24"><path d="M4 11c0-3 2.5-5 5-5h6c2.5 0 5 2 5 5v3a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M8 6L6 3M16 6l2-3"/><circle cx="9.5" cy="12" r="1"/><circle cx="14.5" cy="12" r="1"/><path d="M10 16h4"/></svg><span class="tab-label">Bestiary</span></button>
   <button data-tab="settings" title="Settings">
     <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="7" cy="17" r="2"/></svg><span class="tab-label">Settings</span></button>
 </nav>
@@ -241,6 +243,19 @@
   </div>
 </div>
 
+<div class="tabpage maxw" id="tab-bestiary">
+  <div class="panel">
+    <h3 class="section" style="margin-top:0">Bestiary</h3>
+    <div style="color:var(--muted);font-size:.9rem;margin-bottom:.6rem">
+      586 creatures from EN Publishing's <b>Monstrous Menagerie</b> for Level Up: Advanced 5th Edition.
+      Close enough to 5th edition to drop into a game, and a useful lookup either way.
+    </div>
+    <div id="crChips" class="cat-chips"></div>
+    <input type="text" id="bestSearch" placeholder="Search creatures by name, type, size, or trait... (e.g. dragon, undead, huge, pack tactics)">
+    <div id="bestResults"></div>
+  </div>
+</div>
+
 <div class="tabpage maxw" id="tab-settings">
   <div class="panel">
     <h3 class="section" style="margin-top:0">Settings</h3>
@@ -255,10 +270,60 @@
     <h3 class="section">About</h3>
     <p style="margin:.2rem 0">Created by <a href="https://github.com/dangeratio" target="_blank" rel="noopener">dangeratio</a>.</p>
     <p style="margin:.2rem 0">Report issues at <a href="https://github.com/auto-character-generator/auto-character-generator.github.io/issues" target="_blank" rel="noopener">GitHub</a>.</p>
+
+    <h3 class="section">Sources &amp; Attribution</h3>
+    <p style="margin:.2rem 0 .6rem;color:var(--muted);font-size:.9rem">
+      This tool is built from freely licensed game content. Every source below is credited as its
+      licence requires. This app is not affiliated with, endorsed, or sponsored by any of these publishers.
+    </p>
+
+    <div class="attrib">
+      <div class="attrib-h">System Reference Document 5.2 <span class="lic">CC BY 4.0</span></div>
+      <p>The core rules, classes, species, spells, and equipment.
+        <b>System Reference Document 5.2</b> &copy; 2025 Wizards of the Coast LLC, available at
+        <a href="https://dnd.wizards.com/resources/systems-reference-document" target="_blank" rel="noopener">dnd.wizards.com</a>,
+        licensed under the
+        <a href="https://creativecommons.org/licenses/by/4.0/legalcode" target="_blank" rel="noopener">Creative Commons Attribution 4.0 International License</a>.
+        Content has been abridged, reformatted, and combined with the sources below.</p>
+    </div>
+
+    <div class="attrib">
+      <div class="attrib-h">Level Up: Advanced 5th Edition <span class="lic">CC BY 4.0 / OGL 1.0a</span></div>
+      <p>Additional spells, feats, backgrounds, conditions, and the Marshal class, from
+        <b>Adventurer's Guide</b>, <b>Dungeon Delver's Guide</b>, and <b>Gate Pass Gazette</b>,
+        &copy; EN Publishing, available at
+        <a href="https://a5esrd.com/a5esrd" target="_blank" rel="noopener">a5esrd.com</a>.
+        Dual licensed under the
+        <a href="https://creativecommons.org/licenses/by/4.0/legalcode" target="_blank" rel="noopener">Creative Commons Attribution 4.0 International License</a>
+        and the Open Game License v1.0a; used here under CC BY 4.0. Content has been abridged and reformatted.</p>
+    </div>
+
+    <div class="attrib">
+      <div class="attrib-h">Monstrous Menagerie <span class="lic">OGL 1.0a</span></div>
+      <p>The 586 creatures in the Bestiary. <b>Level Up: Monstrous Menagerie</b> &copy; 2021 EN Publishing,
+        author Paul Hughes. Released under the Open Game License v1.0a only, so it is used here under
+        that licence rather than CC BY.
+        <a href="OGL.txt" target="_blank" rel="noopener">Read the Open Game License v1.0a and Section 15 copyright notice</a>.</p>
+    </div>
+
+    <div class="attrib">
+      <div class="attrib-h">Open5e <span class="lic">API</span></div>
+      <p>The EN Publishing content above was retrieved through the
+        <a href="https://open5e.com" target="_blank" rel="noopener">Open5e</a> API
+        (<a href="https://open5e.com/api-docs" target="_blank" rel="noopener">api-docs</a>),
+        an open database of 5e-compatible game content. Thanks to the Open5e maintainers for
+        collecting and publishing it.</p>
+    </div>
+
+    <p style="color:var(--muted);font-size:.85rem;margin-top:.8rem">
+      Dungeons &amp; Dragons and D&amp;D are trademarks of Wizards of the Coast LLC.
+      Level Up: Advanced 5th Edition is a trademark of EN Publishing.
+      No trademark or product identity from any source is used or claimed here.
+    </p>
   </div>
 </div>
 
-<div class="footer-note">Uses content from the SRD 5.2 by Wizards of the Coast, licensed under CC-BY-4.0. Not affiliated with Wizards of the Coast.</div>
+<div class="footer-note">Uses SRD 5.2 content by Wizards of the Coast (CC BY 4.0) and Level Up: Advanced 5th Edition content by EN Publishing (CC BY 4.0 / OGL 1.0a), retrieved via Open5e. Full attribution under Settings. Not affiliated with any of these publishers.</div>
 </main>
 </div><!-- /app -->
 
@@ -273,7 +338,8 @@
 
 <div id="rollToast"><div class="what"></div><div class="total"></div><div class="detail"></div></div>
 
-<script src="js/data.js?v=67"></script>
-<script src="js/app.js?v=67"></script>
+<script src="js/data.js?v=71"></script>
+<script src="js/open5e.js?v=71"></script>
+<script src="js/app.js?v=71"></script>
 </body>
 </html>
