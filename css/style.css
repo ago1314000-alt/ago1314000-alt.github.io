@@ -211,6 +211,12 @@
   }
   button:hover { background: var(--btn-hover); }
   button.dice { flex: 0 0 auto; font-size: 1.05rem; line-height: 1; }
+  /* Beside a field, the dice button rises to the field's height rather than
+     sitting short in the middle of it */
+  .row > button.dice { align-self: stretch; }
+  /* Next to a multi-line box it stays anchored to the top instead of stretching
+     down the whole textarea */
+  .row:has(textarea) > button.dice { align-self: flex-start; }
   .big-btns { display: flex; gap: .6rem; margin-bottom: 1.1rem; }
   .big-btns button { flex: 1; padding: .7rem; font-weight: bold; }
   #btnRandomAll { background: var(--accent); color: #fff; border-color: var(--accent); }
