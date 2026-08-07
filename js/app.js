@@ -666,36 +666,75 @@ function computeHp() {
   }
 }
 
-// Conditions the character is currently under, as toggles. Active ones say what
-// they actually do to the dice, and the sheet's numbers follow suit.
-function condBlock() {
+// Conditions live behind a button in the action row rather than a permanent
+// grid of chips. The menu stays open while you toggle several at once.
+let condMenuOpen = false;
+function toggleCondMenu(e) {
+  if (e) e.stopPropagation();
+  condMenuOpen = !condMenuOpen;
+  renderSheet();
+}
+function closeCondMenu() {
+  if (!condMenuOpen) return;
+  condMenuOpen = false;
+  renderSheet();
+}
+// One-line summary of what a condition does to your own rolls
+function condEffect(n, long) {
+  const c = CONDITIONS[n], bits = [];
+  const names = long ? {atk:"attack rolls",chk:"ability checks",sav:"saving throws"}
+                     : {atk:"attacks",chk:"checks",sav:"saves"};
+  if (c.dis) bits.push((long?"Disadvantage on ":"dis. ") + Object.keys(c.dis).map(k=>names[k]).join(" and "));
+  if (c.adv) bits.push((long?"Advantage on ":"adv. ") + Object.keys(c.adv).map(k=>names[k]).join(" and "));
+  if (c.saveDis) bits.push((long?"Disadvantage on ":"dis. ") + c.saveDis.join(" and ") + " saves");
+  if (c.autoFail) bits.push(`${c.autoFail.join(" and ")} saves ${long?"fail automatically":"auto-fail"}`);
+  if (c.speed0) bits.push(long ? "Speed drops to 0" : "Speed 0");
+  if (c.incap) bits.push(long ? "no actions, and Concentration breaks" : "incapacitated");
+  return bits.join(long ? "; " : ", ");
+}
+// The button, and the drop-down it opens
+function condMenu() {
   const on = state.conditions || [];
-  const chips = CONDITION_NAMES.map(n=>{
-    const c = CONDITIONS[n];
-    const bits = [];
-    if (c.dis) bits.push("dis. " + Object.keys(c.dis).map(k=>({atk:"attacks",chk:"checks",sav:"saves"}[k])).join(" & "));
-    if (c.adv) bits.push("adv. " + Object.keys(c.adv).map(k=>({atk:"attacks",chk:"checks",sav:"saves"}[k])).join(" & "));
-    if (c.saveDis) bits.push("dis. " + c.saveDis.join("/") + " saves");
-    if (c.speed0) bits.push("Speed 0");
-    if (c.incap) bits.push("incapacitated");
-    return `<span class="cond-chip${on.includes(n)?" on":""}" onclick="toggleCondition('${n}')"
-      title="${(bits.join(", ")||"No direct effect on your own rolls")}${c.note?". "+c.note:""}">${n}</span>`;
+  const items = CONDITION_NAMES.map(n=>{
+    const active = on.includes(n);
+    const eff = condEffect(n);
+    return `<div class="cond-item${active?" on":""}" onclick="event.stopPropagation();toggleCondition('${n}')"
+      title="${CONDITIONS[n].note||""}">
+      <span class="tick">${active?"☑":"☐"}</span>
+      <span><b>${n}</b>${eff?` <small>${eff}</small>`:""}</span>
+    </div>`;
   }).join("");
-  const active = on.map(n=>{
-    const c = CONDITIONS[n];
-    const bits = [];
-    if (c.dis) bits.push("Disadvantage on " + Object.keys(c.dis).map(k=>({atk:"attack rolls",chk:"ability checks",sav:"saving throws"}[k])).join(" and "));
-    if (c.adv) bits.push("Advantage on " + Object.keys(c.adv).map(k=>({atk:"attack rolls",chk:"ability checks",sav:"saving throws"}[k])).join(" and "));
-    if (c.saveDis) bits.push(`Disadvantage on ${c.saveDis.join(" and ")} saves`);
-    if (c.autoFail) bits.push(`${c.autoFail.join(" and ")} saves fail automatically`);
-    if (c.speed0) bits.push("Speed drops to 0");
-    if (c.incap) bits.push("no actions, and Concentration breaks");
-    return `<div><span class="ref-link" onclick="refLookup('${n}')"><b>${n}</b></span>${bits.length?": "+bits.join("; ")+".":""} ${c.note||""}</div>`;
-  }).join("");
-  return `<div class="cond-box">
-    <div class="cond-head"><span class="ref-link" onclick="refLookup('Conditions')">Conditions</span></div>
-    <div class="cond-chips">${chips}</div>
-    ${active?`<div class="cond-active">${active}</div>`:""}
+  return `<span class="cond-wrap">
+    <button class="cond-btn${on.length?" on":""}" onclick="toggleCondMenu(event)"
+      title="${on.length?"Active: "+on.join(", "):"Apply a condition"}" aria-expanded="${condMenuOpen}">
+      🤢 Conditions${on.length?` · ${on.length}`:""} ${condMenuOpen?"▴":"▾"}</button>
+    ${condMenuOpen?`<div class="cond-menu" onclick="event.stopPropagation()">
+      <div class="cond-menu-head">
+        <span class="ref-link" onclick="refLookup('Conditions')">Conditions</span>
+        ${on.length?`<button class="gear-btn" onclick="clearConditions()">Clear all</button>`:""}
+      </div>
+      ${items}
+    </div>`:""}
+  </span>`;
+}
+function clearConditions() {
+  if (!(state.conditions||[]).length) return;
+  pushUndo("clearing all conditions");
+  const had = state.conditions.join(", ");
+  state.conditions = [];
+  logEvent("status", `No longer <b>${had}</b>`);
+  renderSheet(); persistLoaded();
+}
+// A slim banner keeps the active ones and their effects visible on the sheet
+function condSummary() {
+  const on = state.conditions || [];
+  if (!on.length) return "";
+  return `<div class="cond-summary">
+    ${on.map(n=>{
+      const eff = condEffect(n, true);
+      return `<div><span class="ref-link" onclick="refLookup('${n}')"><b>${n}</b></span>${eff?": "+eff+".":""} ${CONDITIONS[n].note||""}
+        <button class="gear-btn" title="Remove ${n}" onclick="toggleCondition('${n}')">✕</button></div>`;
+    }).join("")}
   </div>`;
 }
 
@@ -717,7 +756,9 @@ function purseBlock(canAct) {
   </div>`;
 }
 
-// Experience against the level table, when the player is tracking XP at all
+// Experience against the level table. Hidden on the sheet for now: the XP
+// field on the Create tab still records whatever the player types, and
+// everything below is ready to switch back on by calling xpBlock() again.
 function xpBlock(canAct) {
   const p = xpProgress();
   if (!p) return canAct ? `<div class="xp-box"><span style="color:var(--muted)">No <span class="ref-link" onclick="refLookup('Experience Points')">XP</span> recorded. Add some, or ignore this if your table uses milestones.</span>
@@ -929,6 +970,7 @@ function renderSheet() {
         <span style="border:1px solid var(--accent2);color:var(--accent2);border-radius:6px;padding:.3rem .6rem;font-weight:bold" title="This hero has been laid to rest">🪦 Retired · Dead</span>`:""}
         ${canAct?`<button class="roll-mode${rollMode==="adv"?" on":""}" onclick="setRollMode('adv')" title="Roll two d20s and keep the higher on every d20 test">⬆ ADV</button>
         <button class="roll-mode${rollMode==="dis"?" on dis":""}" onclick="setRollMode('dis')" title="Roll two d20s and keep the lower on every d20 test">⬇ DIS</button>
+        ${condMenu()}
         <button onclick="shortRest()" title="1+ hour: spend Hit Dice to heal">⛺ Short Rest</button>
         <button onclick="longRest()" title="8 hours: restore HP, spell slots, and half your Hit Dice">🌙 Long Rest</button>
         <button onclick="undoLast()" ${undoStack.length?"":"disabled"} title="${undoStack.length?`Undo ${undoStack[undoStack.length-1].label}`:"Nothing to undo"}">↶ Undo${undoStack.length?` <small>(${undoStack.length})</small>`:""}</button>`:""}
@@ -939,27 +981,17 @@ function renderSheet() {
     ${state.conc?`<div class="conc-banner">🌀 Concentrating on <b>${state.conc}</b> <button onclick="dropConc('dropped')" title="Stop concentrating">✕</button></div>`:""}
     ${subclassDue()?`<div class="warn-banner">⚠ You reached level ${SUBCLASS_LEVEL} without choosing a subclass. <span class="ref-link" onclick="openSubclassPicker()">Choose your ${state.cls} subclass</span> to pick up its features.</div>`:""}
     <div class="tagline">Level ${state.level} ${state.species||"?"} ${state.cls||"?"}${state.subclass?` <span class="ref-link" onclick="${isCustomSub()?"openSubclassPicker()":`refLookup('${escQ(state.subclass)}')`}" title="${isCustomSub()?"Your own subclass: click to edit it or add features":"What is this?"}">(${escHtml(state.subclass)}${isCustomSub()?" ✎":""})</span>`:""} · ${state.background||"no background"} · ${state.alignment||"unaligned"}${state.playerName?` · played by ${state.playerName.replace(/</g,"&lt;")}`:""}</div>
-    ${canAct && hp!=null?`<div class="quickbar">
-      <button class="hp-dmg" onclick="changeHp(-1)" title="Take 1 damage">−</button>
-      <span class="qb-hp${bloodied?" bloodied":""}">${state.curHp}/${hp}${state.tempHp?` +${state.tempHp}`:""}</span>
-      <button class="hp-heal" onclick="changeHp(1)" title="Heal 1" ${state.curHp>=hp?"disabled":""}>+</button>
-      <span class="qb-ac">AC ${ac}</span>
-      <span class="qb-right">
-        <button class="roll-mode${rollMode==="adv"?" on":""}" onclick="setRollMode('adv')" title="Advantage on every d20 test">⬆</button>
-        <button class="roll-mode${rollMode==="dis"?" on dis":""}" onclick="setRollMode('dis')" title="Disadvantage on every d20 test">⬇</button>
-        <button onclick="undoLast()" ${undoStack.length?"":"disabled"} title="${undoStack.length?`Undo ${undoStack[undoStack.length-1].label}`:"Nothing to undo"}">↶</button>
-      </span>
-    </div>`:""}
-    ${xpBlock(canAct)}
-    ${canAct?condBlock():""}
+    ${canAct?condSummary():""}
 
     <div class="vitals">
       <div class="vital"><div class="v">${ac}</div><div class="k">ARMOR CLASS</div><div style="font-size:.65rem;color:var(--muted)">${acNote}</div></div>
       <div class="vital${bloodied?" bloodied":""}"><div class="v">${hp!=null?`${state.curHp} / ${hp}`:"--"}${state.tempHp?` <small style="color:var(--good)">+${state.tempHp}</small>`:""}</div><div class="k">HIT POINTS${state.tempHp?" + TEMP":bloodied?` · <span class="ref-link" onclick="refLookup('Bloodied')">BLOODIED</span>`:""}</div>
-        ${hp!=null?`<div class="hp-tracker"><button class="hp-dmg" onclick="changeHp(-1)" title="Take damage">-1</button><button class="hp-dmg" onclick="changeHp(-5)">-5</button><button class="hp-heal" onclick="changeHp(1)" title="Heal" ${state.curHp>=hp?"disabled":""}>+1</button><button class="hp-heal" onclick="changeHp(5)" ${state.curHp>=hp?"disabled":""}>+5</button><button onclick="changeTempHp(1)" title="Add Temporary HP">+Temp</button>${state.tempHp?`<button onclick="changeTempHp(-1)" title="Remove Temporary HP">-Temp</button>`:""}</div>
-        <div class="hp-tracker"><input type="number" id="hpAmt" min="1" placeholder="17" title="Type any amount, then hit Damage or Heal">
+        ${hp!=null?`<div class="hp-tracker">
+          <input type="number" id="hpAmt" min="1" placeholder="17" title="Type any amount, then hit Damage or Heal">
           <button class="hp-dmg" onclick="hpFromInput(-1)" title="Take that much damage">💥 Damage</button>
-          <button class="hp-heal" onclick="hpFromInput(1)" title="Heal that much" ${state.curHp>=hp?"disabled":""}>❤️ Heal</button></div>`:""}
+          <button class="hp-heal" onclick="hpFromInput(1)" title="Heal that much" ${state.curHp>=hp?"disabled":""}>❤️ Heal</button>
+          <button onclick="changeTempHp(1)" title="Add Temporary HP">+Temp</button>${state.tempHp?`<button onclick="changeTempHp(-1)" title="Remove Temporary HP">-Temp</button>`:""}
+        </div>`:""}
         ${hp!=null && state.curHp===0 ? `<div class="death-saves">DEATH SAVES
           <span>✔ ${[1,2,3].map(i=>`<span class="pip" onclick="deathPip('S',${i})">${state.deathS>=i?"●":"○"}</span>`).join("")}</span>
           <span>✘ ${[1,2,3].map(i=>`<span class="pip" onclick="deathPip('F',${i})">${state.deathF>=i?"●":"○"}</span>`).join("")}</span>
@@ -970,8 +1002,6 @@ function renderSheet() {
       <div class="vital"><div class="v">${speedNow} ft</div><div class="k">SPEED</div>${speedNow!==baseSpeed?`<div style="font-size:.65rem;color:var(--accent2)">was ${baseSpeed} ft</div>`:""}</div>
       <div class="vital"><div class="v">+${profBonus}</div><div class="k">PROF. BONUS</div></div>
       <div class="vital"><div class="v">${c?`${state.level-state.hdUsed}/${state.level}× ${dieIcon(c.hitDie)}`:"--"}</div><div class="k"><span class="ref-link" onclick="refLookup('Hit Point Dice')">HIT DICE</span></div></div>
-      <div class="vital"><div class="v">${passivePerception}</div><div class="k"><span class="ref-link" onclick="refLookup('Passive Perception')">PASSIVE PERC.</span></div></div>
-      <div class="vital"><div class="v">${passive("Investigation")} / ${passive("Insight")}</div><div class="k"><span class="ref-link" onclick="refLookup('Passive Investigation')">PASS. INVEST / INSIGHT</span></div></div>
       <div class="vital rollable" onclick="toggleInspiration()" title="Toggle Heroic Inspiration"><div class="v">${state.inspiration?"★":"☆"}</div><div class="k">INSPIRATION</div></div>
     </div>
 
@@ -1043,6 +1073,20 @@ function renderSheet() {
     try { localStorage.setItem("dnd-srd-current", JSON.stringify(state)); } catch(err) {}
     persistLoaded();
   });
+  // The conditions menu hangs off a button whose position depends on how the
+  // action row wrapped, so nudge it back on screen if it would run off an edge
+  const cMenu = el.querySelector(".cond-menu");
+  if (cMenu) {
+    cMenu.style.left = "0"; cMenu.style.right = "auto";
+    if (cMenu.getBoundingClientRect().right > window.innerWidth - 8) {
+      cMenu.style.left = "auto"; cMenu.style.right = "0";
+    }
+    const box = cMenu.getBoundingClientRect();
+    if (box.left < 8) {
+      cMenu.style.right = "auto";
+      cMenu.style.left = (8 - cMenu.parentElement.getBoundingClientRect().left) + "px";
+    }
+  }
   // Filtering your own spell list shouldn't redraw the box out from under you
   const spellFilterEl = el.querySelector("#sheetSpellFilter");
   if (spellFilterEl) spellFilterEl.addEventListener("input", e=>{
@@ -2415,6 +2459,12 @@ function chooserPick(kind, name) {
   el.dispatchEvent(new Event("change"));
   refClose();
 }
+
+// Clicking anywhere outside the conditions menu, or pressing Escape, closes it
+document.addEventListener("click", e=>{
+  if (condMenuOpen && !(e.target.closest && e.target.closest(".cond-wrap"))) closeCondMenu();
+});
+document.addEventListener("keydown", e=>{ if (e.key==="Escape" && condMenuOpen) closeCondMenu(); });
 
 function refClose() { document.getElementById("refOverlay").classList.remove("open"); }
 document.addEventListener("click", e=>{ if (e.target.id==="refOverlay") refClose(); });

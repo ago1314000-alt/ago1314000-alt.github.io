@@ -20,9 +20,9 @@ The sheet is a live play surface, not a printout:
 
 - **Click anything to roll it**: abilities, saves, skills, initiative, weapon attacks, spell attacks. Results show the matching die icon in the toast and history
 - ⬆⬇ **Advantage and disadvantage** toggle that applies to every d20 test, showing both dice with the discarded one struck through
-- 🤢 **Conditions that actually do something**: tap a condition and the sheet applies it: Poisoned rolls your attacks and checks at disadvantage, Restrained drops your Speed to 0, Paralyzed flags the saves that auto-fail, and anything incapacitating breaks your concentration. Manual advantage and a condition's disadvantage cancel, exactly as the rules say
+- 🤢 **Conditions that actually do something**: a Conditions button drops down the full list to toggle, and the sheet applies what you pick: Poisoned rolls your attacks and checks at disadvantage, Restrained drops your Speed to 0, Paralyzed flags the saves that auto-fail, and anything incapacitating breaks your concentration. Manual advantage and a condition's disadvantage cancel, exactly as the rules say
 - ↶ **Undo** for any misclick, 25 steps deep: HP, spell slots, class resources, death saves, conditions, coins, attunement, gear, XP, rests, and whole level-ups (subclass, feat, ability points, and new spells all roll back together)
-- 💥 **Type any amount** to take or heal, instead of clicking −5 four times
+- 💥 **Type any amount** to take or heal, plus temporary HP tracking
 - ❤️‍🩹 **Bloodied** highlighting at half hit points, and buttons that grey out when there's nothing to spend, so no hit dice at full HP, no casting without a slot, no spending a resource you're out of
 - 🔆 **Class resources** tracked as spendable pips (Rage, Channel Divinity, Second Wind, Action Surge, Bardic Inspiration, Focus and Sorcery Points, Lay On Hands), refilled by the right rest
 - 🌀 **Concentration**: casting a concentration spell flags it, and taking damage prompts the CON save at the correct DC, breaking it on a failure
@@ -30,7 +30,6 @@ The sheet is a live play surface, not a printout:
 - ✨ **Cast spells** from the sheet: click a spell for its casting time, range, components and duration, a link to the full SRD text, cast options, and roll buttons. Spell attacks, save-based damage, and healing all roll for you; slots are tracked as clickable pips (full, half, and pact casters all supported)
 - 🎒 **Add equipment** as you loot it, from the SRD list, the **44 magic items**, or typed in freehand; weapons flow straight into your Attacks, duplicates stack with a count, and items requiring **Attunement** get a toggle that enforces the limit of three
 - 💰 A **purse** seeded from your starting gear, in all five coin types, with a running gold total
-- ✳️ **XP against the level table**: a progress bar, the amount still owed, and a nudge when you've earned the next level. Ignore it entirely if your table runs on milestones
 - 📝 A **Notes** box on the sheet that saves as you type
 - ❤️ Hit point, temp HP, and Heroic Inspiration tracking
 - ⛺🌙 **Short and Long Rest overlays** that spend hit dice, restore HP and spell slots, and handle interruptions. Nothing applies until you confirm, and casters can swap their prepared spells overnight (random or hand-picked)
@@ -52,7 +51,7 @@ The sheet is a live play surface, not a printout:
 - ⧉ **Duplicate** a hero before a risky level-up, and 🔗 **share** one as a link that carries the whole character in the URL itself, so nothing is uploaded anywhere
 - ⬇️⬆️ **Export / Import** as JSON to move your party between browsers or machines
 - 🌙 Modern dark mode by default, ☀️ parchment light mode in settings
-- 📱 Sidebar navigation on desktop and tablet, app-style bottom bar on phones, and a pinned HP/AC/advantage strip that follows you down the sheet
+- 📱 Sidebar navigation on desktop and tablet, app-style bottom bar on phones
 
 ## 🚀 Run It
 
