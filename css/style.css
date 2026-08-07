@@ -416,7 +416,7 @@
   /* Saved characters */
   .saved-card { border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: .8rem 1rem; margin-bottom: .7rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
   .saved-card .who b { font-size: 1.05rem; color: var(--accent); }
-  .saved-card .btns { display: flex; gap: .4rem; }
+  .saved-card .btns { display: flex; gap: .4rem; flex-wrap: wrap; }
   .btn-danger { color: #fff; background: var(--accent2); border-color: var(--accent2); }
   #btnSave, #btnSaveTop { background: #2f5d3a; color: #fff; border-color: #2f5d3a; font-weight: bold; width: 100%; padding: .6rem; margin-top: .8rem; }
   #btnSave:hover, #btnSaveTop:hover { background: #3d7a4c; }
@@ -461,6 +461,9 @@
   }
   .qr-banner .qr-label { font-size: .75rem; letter-spacing: 2px; text-transform: uppercase; opacity: .85; }
   .qr-banner.soft { background: var(--card); color: var(--ink); border-color: var(--line); }
+  /* The filled banner takes dark text on its accent fill in dark mode, but the
+     soft variant sits on a dark card and needs the normal ink colour back */
+  body.dark .qr-banner.soft { color: var(--ink); }
   .qr-three { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; margin-bottom: 1.2rem; }
   @media (max-width: 700px) { .qr-three { grid-template-columns: 1fr; } }
   .qr-num { display: flex; gap: .7rem; align-items: center; border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: .6rem .8rem; transition: all .15s ease; }
@@ -526,7 +529,10 @@
     ul.clean li { padding: .45rem 0; }
     ul.clean li.rollable:hover { padding-left: 0; }
     .qr-three { gap: .4rem; }
-    .saved-card .btns button { padding: .55rem .8rem; }
+    /* Five actions won't fit one phone-width row, so they take the full card
+       width and share it out over as many rows as they need */
+    .saved-card .btns { width: 100%; }
+    .saved-card .btns button { padding: .55rem .6rem; flex: 1 1 auto; }
     #rollToast {
       left: .6rem; right: .6rem;
       /* sit above the fixed bottom nav bar */

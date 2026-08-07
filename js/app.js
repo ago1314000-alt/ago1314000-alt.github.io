@@ -110,8 +110,12 @@ function toggleCondition(name) {
 // ---------- UNDO ----------
 // Misclicks happen constantly at the table, so every play-time change stashes
 // the fields it could touch and can be rolled back one step at a time.
+// Everything a play-time action or a level-up can change. Levelling touches
+// level, dieRolls, scores, subclass, feats, and spells, so undo has to carry
+// those too or "undo the level up" would leave the sheet half-advanced.
 const UNDO_KEYS = ["curHp","tempHp","maxHp","deathS","deathF","stable","slotsUsed","resUsed",
-                   "conditions","hdUsed","conc","coins","attuned","inspiration","gear","dropped"];
+                   "conditions","hdUsed","conc","coins","attuned","inspiration","gear","dropped",
+                   "level","dieRolls","scores","skills","spells","subclass","feats","xp"];
 let undoStack = [];
 function pushUndo(label) {
   const snap = {};
@@ -123,8 +127,18 @@ function undoLast() {
   const step = undoStack.pop();
   if (!step) return;
   UNDO_KEYS.forEach(k=>{ if (step.snap[k] !== null) state[k] = step.snap[k]; });
+  syncCreatorFields();
   logEvent("edit", `<b>Undid</b> ${step.label}`);
   renderSheet(); persistLoaded();
+}
+// Push restored state back into the creator's inputs, which otherwise keep
+// showing the values from before the undo
+function syncCreatorFields() {
+  ABILITIES.forEach(a=>{ const el = document.getElementById("ab_"+a); if (el) el.value = state.scores[a] ?? ""; });
+  const xp = document.getElementById("xpField");
+  if (xp) xp.value = state.xp || "";
+  renderSkillChoices();
+  renderSpellChoices();
 }
 
 // ---------- MONEY ----------
@@ -193,6 +207,7 @@ function addXp() {
   const el = document.getElementById("xpAmt");
   const n = parseInt(el && el.value, 10) || 0;
   if (!n) { if (el) el.focus(); return; }
+  pushUndo(`the +${n} XP`);
   const before = xpNum();
   state.xp = String(before + n);
   const f = document.getElementById("xpField");
@@ -1615,6 +1630,7 @@ function lvlCancel() {
 function lvlConfirm() {
   const gain = lvlHpGain();
   if (!pendingLvl || lvlBlocker()) return;
+  pushUndo(`the level up to ${pendingLvl.newLevel}`);
   state.level = pendingLvl.newLevel;
   state.dieRolls.push(gain);
   const asiText = Object.entries(pendingLvl.asi).map(([ab,n])=>`${ab} +${n}`).join(", ");
@@ -1994,6 +2010,7 @@ function restInterrupted(kind) {
 }
 
 function restFinish() {
+  pushUndo("the Short Rest");
   const spent = pendingRest.rolls.length;
   const healed = Math.min(pendingRest.rolls.reduce((a,r)=>a+r.gain,0), state.maxHp - state.curHp);
   state.curHp += healed;
@@ -2049,6 +2066,7 @@ function longRest() {
 function lrSpellMode(m) { pendingLR.spellMode = m; longRest(); }
 
 function longRestConfirm() {
+  pushUndo("the Long Rest");
   const healed = state.maxHp - state.curHp;
   const regain = Math.max(1, Math.floor(state.level/2));
   const hdBack = Math.min(state.hdUsed, regain);
@@ -2153,12 +2171,14 @@ function rollDeathSave() {
 }
 
 function downStabilize() {
+  pushUndo("stabilizing");
   state.stable = true;
   logEvent("status", `<b>Stabilized</b> (Medicine check or Spare the Dying)`);
   renderSheet(); persistLoaded();
 }
 
 function downDamage(n) {
+  pushUndo("the hit while down");
   const wasDying = state.deathF < 3;
   state.deathF = Math.min(3, state.deathF + n);
   state.stable = false;
