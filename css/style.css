@@ -426,16 +426,9 @@
   .md-t th, .md-t td { border: 1px solid var(--line); padding: .2rem .45rem; text-align: left; vertical-align: top; }
   .md-t th { background: var(--tab-bg); }
 
-  /* Bestiary */
-  .best-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .5rem; }
-  .best-row {
-    border: 1px solid var(--line); border-radius: 8px; background: var(--card);
-    padding: .5rem .7rem; cursor: pointer; transition: all .15s ease;
-  }
-  .best-row:hover { border-color: var(--accent); box-shadow: 0 3px 8px var(--shadow); transform: translateY(-2px); }
-  .best-n { font-weight: bold; color: var(--accent); }
-  .best-m { font-size: .78rem; color: var(--muted); }
-  .best-s { font-size: .8rem; margin-top: .15rem; }
+  /* Creature cards in the Reference open a full stat block */
+  .rule-card.clickable { cursor: pointer; }
+  .rule-card.clickable:hover { border-color: var(--accent); box-shadow: 0 3px 8px var(--shadow); }
 
   /* Attribution blocks in Settings */
   .attrib { border-left: 3px solid var(--accent); background: var(--card); border-radius: 0 8px 8px 0; padding: .5rem .8rem; margin: .6rem 0; }

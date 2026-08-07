@@ -2,7 +2,7 @@
 
 **▶️ Play it now: [auto-character-generator.github.io](https://auto-character-generator.github.io/)**
 
-A complete D&D character builder, live character sheet, bestiary, and rules companion for **levels 1-20**, built on the System Reference Document 5.2 (D&D 2024 rules) and EN Publishing's Level Up: Advanced 5th Edition. Plain HTML, CSS, and vanilla JavaScript: no server, no account, no build step. Your characters live in your browser.
+A complete D&D character builder, live character sheet, and rules companion for **levels 1-20**, built on the System Reference Document 5.2 (D&D 2024 rules) and EN Publishing's Level Up: Advanced 5th Edition. Plain HTML, CSS, and vanilla JavaScript: no server, no account, no build step. Your characters live in your browser.
 
 ---
 
@@ -39,9 +39,9 @@ The sheet is a live play surface, not a printout:
 
 ## 📚 Look Anything Up
 
-- 🔍 A **Reference** tab with **1,250+ searchable entries**: every spell, weapon, and piece of gear, all class features, subclasses, feats, magic items, and species traits, plus conditions, combat actions, spellcasting, and rests
+- 🔍 A **Reference** tab with **1,800+ searchable entries**: every spell, weapon, and piece of gear, all class features, subclasses, feats, magic items, and species traits, plus conditions, combat actions, spellcasting, and rests
 - 🏷️ **Source and category chips** with live counts filter the list and combine with the search box, so you can stay in the SRD or reach into the Level Up books
-- 🐉 A **Bestiary** of **586 creatures** from the Monstrous Menagerie: search by name, type, size, or trait, filter by challenge rating, and open a full stat block with rollable ability checks. The megabyte of stat blocks only loads when you open the tab
+- 🐉 **586 creatures** from the Monstrous Menagerie sit in the Reference as a Creature type: search them alongside everything else by name, type, size, or trait, and open a full stat block with rollable ability checks. The megabyte of stat blocks loads in the background the first time you open Reference
 - ℹ️ Nearly everything is clickable: sheet features, species traits, equipment, the level-up and rest overlays, and the Basics page all open in-place reference definitions
 - 🧭 A beginner-friendly **Basics** tab (the whole game on one page, with clickable dice-shaped icons)
 
@@ -50,9 +50,9 @@ The sheet is a live play surface, not a printout:
 - Characters save to browser localStorage and survive restarts and reboots
 - View, edit, and update saved characters; play-time changes (HP, slots, levels) persist automatically
 - ⧉ **Duplicate** a hero before a risky level-up, and 🔗 **share** one as a link that carries the whole character in the URL itself, so nothing is uploaded anywhere
-- ⬇️⬆️ **Export / Import** as JSON to move your party between browsers or machines
+- ⬇️⬆️ **Backup & Restore** under Settings writes every character to one dated JSON file and reads them back on any machine. Restoring adds to what is already there rather than replacing it
 - 🌙 Modern dark mode by default, ☀️ parchment light mode in settings
-- 📱 Sidebar navigation on desktop and tablet, app-style bottom bar on phones
+- 📱 Sidebar navigation on desktop and tablet, app-style bottom bar on phones. The sidebar switches on hover by default; Settings has a hover-or-click toggle
 
 ## 🚀 Run It
 

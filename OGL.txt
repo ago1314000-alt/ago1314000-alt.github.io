@@ -1,7 +1,8 @@
 OPEN GAME LICENSE Version 1.0a
 
 This notice covers the Open Game Content used by Auto Character Generator
-(https://auto-character-generator.github.io/): the creatures in the Bestiary,
+(https://auto-character-generator.github.io/): the creatures listed under
+the Reference tab,
 taken from Level Up: Monstrous Menagerie.
 
 All other content in this app comes from sources licensed under Creative

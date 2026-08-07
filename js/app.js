@@ -1176,14 +1176,47 @@ function renderSheet() {
 }
 
 // ---------- TABS ----------
+// The sidebar can switch on hover, which saves a click when you are skimming.
+// Touch screens have no hover, so the bottom bar always waits for a tap.
+const NAV_KEY = "dnd-srd-nav";
+let navMode = "hover";
+try { navMode = localStorage.getItem(NAV_KEY) || "hover"; } catch(e) {}
+const navHoverable = () => navMode === "hover" &&
+  window.matchMedia("(hover: hover) and (pointer: fine)").matches &&
+  window.matchMedia("(min-width: 601px)").matches;
+
+function setNavMode(m) {
+  navMode = m;
+  try { localStorage.setItem(NAV_KEY, m); } catch(e) {}
+  const on = 'background:var(--accent);color:#fff;border-color:var(--accent);font-weight:bold';
+  const dark = document.body.classList.contains("dark");
+  ["btnNavHover","btnNavClick"].forEach(id=>{
+    const el = document.getElementById(id);
+    if (el) el.style.cssText = "flex:1;" + ((id==="btnNavHover") === (m==="hover") ? on + (dark?";color:#06230f":"") : "");
+  });
+}
+
+function activateTab(b) {
+  document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".tabpage").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  document.getElementById("tab-"+b.dataset.tab).classList.add("active");
+}
+
 document.querySelectorAll(".tabs button").forEach(b=>{
+  // Hovering only swaps the view; anything with side effects still waits for
+  // the click handler below, and a brief delay stops a passing cursor from
+  // flipping through every tab on its way somewhere else
+  let hoverTimer = null;
+  b.addEventListener("mouseenter", ()=>{
+    if (!navHoverable() || b.classList.contains("active")) return;
+    hoverTimer = setTimeout(()=>{ if (navHoverable()) b.click(); }, 90);
+  });
+  b.addEventListener("mouseleave", ()=>{ clearTimeout(hoverTimer); });
   b.addEventListener("click", ()=>{
-    document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));
-    document.querySelectorAll(".tabpage").forEach(x=>x.classList.remove("active"));
-    b.classList.add("active");
-    document.getElementById("tab-"+b.dataset.tab).classList.add("active");
+    activateTab(b);
     if (b.dataset.tab==="saved") renderSavedList();
-    if (b.dataset.tab==="bestiary") loadBestiary();
+    if (b.dataset.tab==="rules") loadBestiary();
     if (b.dataset.tab==="create") {
       // Leaving a saved-character view: give the creator a fresh start and drop
       // the old sheet, which would otherwise sit there looking live while its
@@ -1443,37 +1476,65 @@ function checkSharedLink() {
   viewCharacter(ch.id);
 }
 
-// Export / import for moving characters between browsers or machines
-function exportCharacters() {
-  const data = JSON.stringify(loadStore(), null, 2);
+// ---------- BACKUP & RESTORE ----------
+// One JSON file holding every saved character. The wrapper carries enough to
+// recognise the file later; a plain array from an older export still restores.
+const BACKUP_FORMAT = "auto-character-generator-backup";
+function backupStatus(msg, good) {
+  const el = document.getElementById("backupStatus");
+  if (el) el.innerHTML = msg ? `<span style="color:var(--${good===false?"accent2":good?"good":"muted"})">${msg}</span>` : "";
+}
+function backupCharacters() {
+  const list = loadStore();
+  if (!list.length) { backupStatus("There are no saved characters to back up yet.", false); return; }
+  const stamp = new Date();
+  const pad = n => String(n).padStart(2,"0");
+  const payload = {
+    format: BACKUP_FORMAT, version: 1,
+    savedAt: stamp.toISOString(),
+    count: list.length,
+    characters: list
+  };
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([data], {type:"application/json"}));
-  a.download = "dnd-characters.json";
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"}));
+  a.download = `character-backup-${stamp.getFullYear()}-${pad(stamp.getMonth()+1)}-${pad(stamp.getDate())}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
+  backupStatus(`Backed up ${list.length} character${list.length===1?"":"s"} to ${a.download}.`, true);
 }
-function importCharacters(input) {
+function restoreCharacters(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = () => {
     try {
-      const incoming = JSON.parse(reader.result);
-      if (!Array.isArray(incoming)) throw new Error("not a list");
+      const raw = JSON.parse(reader.result);
+      // Accept both the wrapped backup and a bare array from an older export
+      const incoming = Array.isArray(raw) ? raw
+        : Array.isArray(raw && raw.characters) ? raw.characters : null;
+      if (!incoming) throw new Error("not a character backup");
       const list = loadStore();
       const ids = new Set(list.map(c=>c.id));
-      let added = 0;
+      let added = 0, skipped = 0;
       incoming.forEach(ch => {
-        if (!ch || !ch.cls) return;
-        if (ids.has(ch.id)) ch.id = Date.now() + Math.floor(Math.random()*1e6);
-        ids.add(ch.id); list.push(ch); added++;
+        if (!ch || !ch.cls) { skipped++; return; }
+        const copy = JSON.parse(JSON.stringify(ch));
+        if (copy.id == null || ids.has(copy.id)) copy.id = Date.now() + Math.floor(Math.random()*1e6);
+        ids.add(copy.id);
+        list.push(copy);
+        added++;
       });
       saveStore(list);
       renderSavedList(); updateSavedCount();
-      alert(`Imported ${added} character(s).`);
-    } catch(e) { alert("Could not read that file: it should be a dnd-characters.json export."); }
+      backupStatus(added
+        ? `Restored ${added} character${added===1?"":"s"}${skipped?`, skipped ${skipped} unreadable entr${skipped===1?"y":"ies"}`:""}. You now have ${list.length}.`
+        : "That file held no readable characters.", !!added);
+    } catch(e) {
+      backupStatus("Could not read that file. It should be a backup created by this app.", false);
+    }
     input.value = "";
   };
+  reader.onerror = () => { backupStatus("The file could not be read.", false); input.value = ""; };
   reader.readAsText(file);
 }
 
@@ -1525,95 +1586,61 @@ function renderRules(q) {
   let pool = RULES;
   if (ruleSrc) pool = pool.filter(r=>(r.src||SRC_SRD)===ruleSrc);
   if (ruleFilter) pool = pool.filter(r=>ruleCat(r)===ruleFilter);
-  const hits = !q ? pool : pool.filter(r =>
+  let hits = !q ? pool : pool.filter(r =>
     r.t.toLowerCase().includes(q) || r.d.toLowerCase().includes(q) || r.c.toLowerCase().includes(q));
   const hi = txt => q ? txt.replace(new RegExp("("+q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi"), "<mark>$1</mark>") : txt;
+  // Creatures sort by challenge; everything else keeps its natural order
+  if (ruleFilter === "Creature") hits = hits.slice().sort((a,b)=> a.cr - b.cr || a.t.localeCompare(b.t));
   const shown = hits.slice(0, RULE_CAP);
   const where = [ruleSrc, ruleFilter].filter(Boolean).join(" · ");
-  document.getElementById("rulesResults").innerHTML = hits.length
+  const note =
+    bestiaryState === "loading" ? `<div class="rule-more">Loading 586 creature stat blocks in the background...</div>` :
+    bestiaryState === "failed" ? `<div class="rule-more">Creature stat blocks could not be loaded. <span class="ref-link" onclick="bestiaryState='idle';loadBestiary()">Try again</span>.</div>` : "";
+  document.getElementById("rulesResults").innerHTML = note + (hits.length
     ? (hits.length > RULE_CAP
-        ? `<div class="rule-more">Showing the first ${RULE_CAP} of <b>${hits.length}</b> matches. Keep typing, or narrow it with the chips above.</div>` : "") +
+        ? `<div class="rule-more">Showing the first ${RULE_CAP} of <b>${hits.length}</b> matches${ruleFilter==="Creature"?", lowest challenge first":""}. Keep typing, or narrow it with the chips above.</div>` : "") +
       shown.map(r=>{
         const src = r.src || SRC_SRD;
-        return `<div class="rule-card"><div class="cat">${r.c}<span class="src-tag${src===SRC_SRD?"":" alt"}">${src}</span></div>
+        const open = r.creature ? ` class="rule-card clickable" onclick="creatureDetail('${escQ(r.creature)}')" title="Full stat block"` : ` class="rule-card"`;
+        return `<div${open}><div class="cat">${r.c}<span class="src-tag${src===SRC_SRD?"":" alt"}">${src}</span></div>
           <h4>${allDice(hi(r.t))}</h4><p>${allDice(hi(r.d))}</p>
+          ${r.creature?`<div style="font-size:.85rem;color:var(--accent)">Open the full stat block →</div>`:""}
           ${r.url?`<a href="${r.url}" target="_blank" rel="noopener" style="font-size:.85rem">Full text at ${src===SRC_SRD?"the SRD":"a5esrd.com"} ↗</a>`:""}</div>`;
       }).join("")
-    : `<div class="empty">Nothing matched${where?` in ${where}`:""}. Try another term${where?` or pick <span class="ref-link" onclick="setRuleSrc(null);setRuleFilter(null)">All</span>`:""}.</div>`;
+    : `<div class="empty">Nothing matched${where?` in ${where}`:""}. Try another term${where?` or pick <span class="ref-link" onclick="setRuleSrc(null);setRuleFilter(null)">All</span>`:""}.</div>`);
 }
 rulesInput.addEventListener("input", ()=>renderRules(rulesInput.value));
 
-// ---------- BESTIARY (Monstrous Menagerie, loaded on first visit) ----------
-// A megabyte of stat blocks has no business loading before you ask for it.
+// ---------- BESTIARY (Monstrous Menagerie) ----------
+// A megabyte of stat blocks has no business loading with the app, so it is
+// fetched in the background the first time the Reference tab is opened and
+// folded in as a Creature type when it lands.
 let bestiaryState = "idle";   // idle | loading | ready | failed
-let crFilter = null;
-const BEST_CAP = 60;
 const crLabel = cr => cr === 0.125 ? "1/8" : cr === 0.25 ? "1/4" : cr === 0.5 ? "1/2" : String(cr);
 
 function loadBestiary() {
   if (bestiaryState !== "idle") return;
   bestiaryState = "loading";
-  renderBestiary();
+  renderRuleCats();
   const s = document.createElement("script");
   s.src = "js/bestiary.js?v=" + (document.querySelector('script[src*="app.js"]').src.split("v=")[1] || "1");
-  s.onerror = () => { bestiaryState = "failed"; renderBestiary(); };
+  s.onerror = () => { bestiaryState = "failed"; renderRuleCats(); renderRules(rulesInput.value); };
   document.body.appendChild(s);
 }
 // bestiary.js calls this once it has defined A5E_CREATURES
 function onBestiaryLoaded() {
   bestiaryState = "ready";
-  renderCrChips();
-  renderBestiary();
-}
-
-function renderCrChips() {
-  const box = document.getElementById("crChips");
-  if (!box || bestiaryState !== "ready") { if (box) box.innerHTML = ""; return; }
-  const buckets = [
-    ["0-1", c=>c.cr <= 1], ["2-4", c=>c.cr >= 2 && c.cr <= 4], ["5-10", c=>c.cr >= 5 && c.cr <= 10],
-    ["11-16", c=>c.cr >= 11 && c.cr <= 16], ["17+", c=>c.cr >= 17]
-  ];
-  box.innerHTML = `<div class="chip-row"><span class="chip-lbl">Challenge</span>` +
-    `<span class="cat-chip${crFilter===null?" picked":""}" onclick="setCrFilter(null)">All <small>${A5E_CREATURES.length}</small></span>` +
-    buckets.map(([label,fn])=>{
-      const n = A5E_CREATURES.filter(fn).length;
-      return `<span class="cat-chip${crFilter===label?" picked":""}" onclick="setCrFilter('${label}')">CR ${label} <small>${n}</small></span>`;
-    }).join("") + `</div>`;
-}
-function setCrFilter(l) { crFilter = (crFilter === l) ? null : l; renderCrChips(); renderBestiary(); }
-
-function renderBestiary() {
-  const el = document.getElementById("bestResults");
-  if (!el) return;
-  if (bestiaryState === "loading") { el.innerHTML = `<div class="empty">Loading the bestiary...</div>`; return; }
-  if (bestiaryState === "failed") { el.innerHTML = `<div class="empty">The bestiary file could not be loaded. <span class="ref-link" onclick="bestiaryState='idle';loadBestiary()">Try again</span>.</div>`; return; }
-  if (bestiaryState !== "ready") { el.innerHTML = ""; return; }
-  const q = (document.getElementById("bestSearch").value||"").trim().toLowerCase();
-  const inBucket = c => {
-    if (!crFilter) return true;
-    if (crFilter === "0-1") return c.cr <= 1;
-    if (crFilter === "2-4") return c.cr >= 2 && c.cr <= 4;
-    if (crFilter === "5-10") return c.cr >= 5 && c.cr <= 10;
-    if (crFilter === "11-16") return c.cr >= 11 && c.cr <= 16;
-    return c.cr >= 17;
-  };
-  let hits = A5E_CREATURES.filter(inBucket);
-  if (q) hits = hits.filter(c =>
-    c.n.toLowerCase().includes(q) || (c.ty||"").toLowerCase().includes(q) ||
-    (c.sz||"").toLowerCase().includes(q) ||
-    (c.tr||[]).some(t=>t.n.toLowerCase().includes(q)) ||
-    (c.ac2||[]).some(t=>t.n.toLowerCase().includes(q)));
-  hits = hits.slice().sort((a,b)=> a.cr - b.cr || a.n.localeCompare(b.n));
-  const shown = hits.slice(0, BEST_CAP);
-  el.innerHTML = !hits.length
-    ? `<div class="empty">No creature matched. Try a name, a type like <i>dragon</i> or <i>undead</i>, a size, or a trait such as <i>pack tactics</i>.</div>`
-    : (hits.length > BEST_CAP ? `<div class="rule-more">Showing ${BEST_CAP} of <b>${hits.length}</b> creatures, lowest challenge first. Narrow it with the search box or the chips.</div>` : "") +
-      `<div class="best-grid">` + shown.map((c,i)=>`
-        <div class="best-row" onclick="creatureDetail('${escQ(c.n)}')" title="Full stat block">
-          <div class="best-n">${escHtml(c.n)}</div>
-          <div class="best-m">CR ${crLabel(c.cr)} · ${c.sz} ${c.ty}</div>
-          <div class="best-s">AC ${c.ac} · HP ${c.hp} · ${c.spd}</div>
-        </div>`).join("") + `</div>`;
+  A5E_CREATURES.forEach(c=>{
+    const bits = [`Challenge ${crLabel(c.cr)}${c.xp?` (${c.xp.toLocaleString()} XP)`:""}.`,
+      `${c.sz} ${c.ty}.`, `AC ${c.ac}.`, `HP ${c.hp}${c.hd?` (${c.hd})`:""}.`, `Speed ${c.spd}.`];
+    if (c.se) bits.push(`Senses: ${c.se}.`);
+    if (c.ri) bits.push(c.ri + ".");
+    const names = [...(c.tr||[]).map(t=>t.n), ...(c.ac2||[]).map(t=>t.n)];
+    if (names.length) bits.push(`Traits and actions: ${names.join(", ")}.`);
+    RULES.push({ c:"Creature", t:c.n, src:"Monstrous Menagerie", cr:c.cr, creature:c.n, d:bits.join(" ") });
+  });
+  renderRuleCats();
+  renderRules(rulesInput.value);
 }
 
 function creatureDetail(name) {
@@ -2846,17 +2873,23 @@ function applyTheme(theme) {
   document.getElementById("btnThemeDark").style.cssText = "flex:1;" + (theme==="dark" ? on : "");
   document.getElementById("btnThemeLight").style.cssText = "flex:1;" + (theme==="light" ? on : "");
 }
-document.getElementById("btnThemeDark").addEventListener("click", ()=>applyTheme("dark"));
-document.getElementById("btnThemeLight").addEventListener("click", ()=>applyTheme("light"));
+document.getElementById("btnThemeDark").addEventListener("click", ()=>{ applyTheme("dark"); setNavMode(navMode); });
+document.getElementById("btnThemeLight").addEventListener("click", ()=>{ applyTheme("light"); setNavMode(navMode); });
 applyTheme(localStorage.getItem(THEME_KEY) || "dark");
+
+document.getElementById("btnNavHover").addEventListener("click", ()=>setNavMode("hover"));
+document.getElementById("btnNavClick").addEventListener("click", ()=>setNavMode("click"));
+setNavMode(navMode);
+
+document.getElementById("btnBackup").addEventListener("click", backupCharacters);
+document.getElementById("btnRestore").addEventListener("click", ()=>document.getElementById("restoreFile").click());
+document.getElementById("restoreFile").addEventListener("change", e=>restoreCharacters(e.target));
 
 // Restore the in-progress character from the last visit
 try {
   const cur = JSON.parse(localStorage.getItem("dnd-srd-current"));
   if (cur && (cur.cls || cur.species || cur.name)) applyCharacter(cur);
 } catch(e) {}
-
-document.getElementById("bestSearch").addEventListener("input", renderBestiary);
 
 updateSavedCount();
 checkSharedLink();

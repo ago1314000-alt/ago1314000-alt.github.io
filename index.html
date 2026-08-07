@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Auto Character Generator (D&D SRD 5.2)</title>
-<link rel="stylesheet" href="css/style.css?v=71">
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=74">
+<link rel="stylesheet" href="css/style.css?v=74">
 </head>
 <body>
 <div class="app">
@@ -31,8 +32,6 @@
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg><span class="tab-label">Basics</span></button>
   <button data-tab="rules" title="Search spells, gear, features, and rules">
     <svg viewBox="0 0 24 24"><path d="M4 5h6a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4z"/><path d="M20 5h-6a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h6z"/></svg><span class="tab-label">Reference</span></button>
-  <button data-tab="bestiary" title="Monsters from the Monstrous Menagerie">
-    <svg viewBox="0 0 24 24"><path d="M4 11c0-3 2.5-5 5-5h6c2.5 0 5 2 5 5v3a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M8 6L6 3M16 6l2-3"/><circle cx="9.5" cy="12" r="1"/><circle cx="14.5" cy="12" r="1"/><path d="M10 16h4"/></svg><span class="tab-label">Bestiary</span></button>
   <button data-tab="settings" title="Settings">
     <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="7" cy="17" r="2"/></svg><span class="tab-label">Settings</span></button>
 </nav>
@@ -146,15 +145,8 @@
 
 <div class="tabpage maxw" id="tab-saved">
   <div class="panel">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap">
-      <h3 class="section" style="margin:0;border:none">Saved Characters</h3>
-      <div style="display:flex;gap:.4rem">
-        <button onclick="exportCharacters()" title="Download all characters as a JSON file">⬇ Export</button>
-        <button onclick="document.getElementById('importFile').click()" title="Import characters from a JSON export">⬆ Import</button>
-        <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importCharacters(this)">
-      </div>
-    </div>
-    <div style="color:var(--muted);font-size:.8rem;margin:.3rem 0 .8rem">Characters are stored in this browser and survive restarts. Use Export / Import to move them to another browser or computer.</div>
+    <h3 class="section" style="margin:0 0 .3rem;border:none">Saved Characters</h3>
+    <div style="color:var(--muted);font-size:.8rem;margin:.3rem 0 .8rem">Characters are stored in this browser and survive restarts. <b>Backup &amp; Restore</b> under Settings moves them to another browser or computer.</div>
     <div id="savedList"></div>
     <button onclick="addRandomCharacter()" style="width:100%;margin-top:.8rem;padding:.6rem;font-weight:bold" title="Roll up a complete random hero and save them">🎲 Add Random Character</button>
   </div>
@@ -243,19 +235,6 @@
   </div>
 </div>
 
-<div class="tabpage maxw" id="tab-bestiary">
-  <div class="panel">
-    <h3 class="section" style="margin-top:0">Bestiary</h3>
-    <div style="color:var(--muted);font-size:.9rem;margin-bottom:.6rem">
-      586 creatures from EN Publishing's <b>Monstrous Menagerie</b> for Level Up: Advanced 5th Edition.
-      Close enough to 5th edition to drop into a game, and a useful lookup either way.
-    </div>
-    <div id="crChips" class="cat-chips"></div>
-    <input type="text" id="bestSearch" placeholder="Search creatures by name, type, size, or trait... (e.g. dragon, undead, huge, pack tactics)">
-    <div id="bestResults"></div>
-  </div>
-</div>
-
 <div class="tabpage maxw" id="tab-settings">
   <div class="panel">
     <h3 class="section" style="margin-top:0">Settings</h3>
@@ -266,6 +245,31 @@
         <button id="btnThemeLight" style="flex:1">☀️ Light</button>
       </div>
     </div>
+
+    <div class="field">
+      <label>Navigation</label>
+      <div class="row" style="max-width:320px">
+        <button id="btnNavHover" style="flex:1" title="Point at a tab in the sidebar to switch to it">🖱 Hover</button>
+        <button id="btnNavClick" style="flex:1" title="Click a tab to switch to it">👆 Click</button>
+      </div>
+      <div style="color:var(--muted);font-size:.82rem;margin-top:.3rem">
+        Applies to the sidebar on desktop. Phones and tablets always wait for a tap, since there is no hover to read.
+      </div>
+    </div>
+
+    <h3 class="section">Backup &amp; Restore</h3>
+    <div style="color:var(--muted);font-size:.88rem;margin-bottom:.5rem">
+      Your characters live in this browser's storage, which clearing site data will wipe.
+      A backup writes every saved character to one file you can keep or carry to another
+      device. Restoring <b>adds</b> those characters to whatever is here already; nothing
+      is overwritten or removed.
+    </div>
+    <div class="row" style="max-width:420px">
+      <button id="btnBackup" style="flex:1" title="Download every saved character as one file">⬇ Backup characters</button>
+      <button id="btnRestore" style="flex:1" title="Add characters from a backup file">⬆ Restore from file</button>
+      <input type="file" id="restoreFile" accept=".json,application/json" style="display:none">
+    </div>
+    <div id="backupStatus" style="font-size:.85rem;margin-top:.5rem"></div>
 
     <h3 class="section">About</h3>
     <p style="margin:.2rem 0">Created by <a href="https://github.com/dangeratio" target="_blank" rel="noopener">dangeratio</a>.</p>
@@ -300,7 +304,7 @@
 
     <div class="attrib">
       <div class="attrib-h">Monstrous Menagerie <span class="lic">OGL 1.0a</span></div>
-      <p>The 586 creatures in the Bestiary. <b>Level Up: Monstrous Menagerie</b> &copy; 2021 EN Publishing,
+      <p>The 586 creatures under the Reference tab's Creature type. <b>Level Up: Monstrous Menagerie</b> &copy; 2021 EN Publishing,
         author Paul Hughes. Released under the Open Game License v1.0a only, so it is used here under
         that licence rather than CC BY.
         <a href="OGL.txt" target="_blank" rel="noopener">Read the Open Game License v1.0a and Section 15 copyright notice</a>.</p>
@@ -338,8 +342,8 @@
 
 <div id="rollToast"><div class="what"></div><div class="total"></div><div class="detail"></div></div>
 
-<script src="js/data.js?v=71"></script>
-<script src="js/open5e.js?v=71"></script>
-<script src="js/app.js?v=71"></script>
+<script src="js/data.js?v=74"></script>
+<script src="js/open5e.js?v=74"></script>
+<script src="js/app.js?v=74"></script>
 </body>
 </html>
