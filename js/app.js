@@ -8,8 +8,8 @@ const state = {
   tempHp:0, inspiration:false, deathS:0, deathF:0,
   slotsUsed:{}, hdUsed:0, stable:false, retired:false,
   resUsed:{}, conc:null, gear:[], dropped:[],
-  conditions:[], exhaustion:0, coins:{pp:0,gp:0,ep:0,sp:0,cp:0},
-  attuned:[], subclass:"", feats:[], combat:null
+  conditions:[], coins:{pp:0,gp:0,ep:0,sp:0,cp:0},
+  attuned:[], subclass:"", feats:[]
 };
 let sheetTargetId = "sheet";
 let sheetSpellFilter = "";
@@ -76,8 +76,6 @@ function scaleFeature(cls, f, lvl) {
 // helpers whether it should roll with Advantage or Disadvantage.
 function activeConds() { return (state.conditions||[]).map(n=>CONDITIONS[n]).filter(Boolean); }
 function hasCond(n) { return (state.conditions||[]).includes(n); }
-// Exhaustion is a flat -2 per level on every d20 test (SRD 5.2)
-function exhaustPenalty() { return -2 * (state.exhaustion||0); }
 // kind: "atk" (attack rolls), "chk" (ability checks), "sav" (saving throws).
 // ability narrows save-specific effects like Restrained's Disadvantage on DEX saves.
 function condRollMode(kind, ability) {
@@ -94,8 +92,7 @@ function condRollMode(kind, ability) {
 // Conditions that stop you acting also stop you concentrating
 function condIncapacitated() { return activeConds().some(c=>c.incap); }
 function condSpeed(base) {
-  if (activeConds().some(c=>c.speed0)) return 0;
-  return Math.max(0, base - 5*(state.exhaustion||0));
+  return activeConds().some(c=>c.speed0) ? 0 : base;
 }
 
 function toggleCondition(name) {
@@ -110,24 +107,11 @@ function toggleCondition(name) {
   }
   renderSheet(); persistLoaded();
 }
-function changeExhaustion(delta) {
-  pushUndo("the exhaustion change");
-  const before = state.exhaustion || 0;
-  state.exhaustion = Math.max(0, Math.min(6, before + delta));
-  if (state.exhaustion !== before) {
-    logEvent("status", state.exhaustion === 0
-      ? `<b>Exhaustion</b> shaken off entirely`
-      : `<b>Exhaustion level ${state.exhaustion}</b> · ${fmtMod(-2*state.exhaustion)} to every d20 test, Speed ${-5*state.exhaustion} ft${state.exhaustion>=6?" · this is fatal":""}`);
-    if (state.exhaustion >= 6) { state.curHp = 0; logEvent("status", `<b>Died of exhaustion</b> at level 6`); }
-  }
-  renderSheet(); persistLoaded();
-}
-
 // ---------- UNDO ----------
 // Misclicks happen constantly at the table, so every play-time change stashes
 // the fields it could touch and can be rolled back one step at a time.
 const UNDO_KEYS = ["curHp","tempHp","maxHp","deathS","deathF","stable","slotsUsed","resUsed",
-                   "conditions","exhaustion","hdUsed","conc","coins","attuned","inspiration","gear","dropped"];
+                   "conditions","hdUsed","conc","coins","attuned","inspiration","gear","dropped"];
 let undoStack = [];
 function pushUndo(label) {
   const snap = {};
@@ -140,25 +124,6 @@ function undoLast() {
   if (!step) return;
   UNDO_KEYS.forEach(k=>{ if (step.snap[k] !== null) state[k] = step.snap[k]; });
   logEvent("edit", `<b>Undid</b> ${step.label}`);
-  renderSheet(); persistLoaded();
-}
-
-// ---------- COMBAT ROUNDS ----------
-function startCombat() {
-  state.combat = { round: 1 };
-  logEvent("combat", `<b>Combat begins</b> · Round 1`);
-  renderSheet(); persistLoaded();
-}
-function nextRound() {
-  if (!state.combat) return;
-  state.combat.round++;
-  logEvent("combat", `<b>Round ${state.combat.round}</b>${state.conc?` · still concentrating on ${state.conc}`:""}`);
-  renderSheet(); persistLoaded();
-}
-function endCombat() {
-  if (!state.combat) return;
-  logEvent("combat", `<b>Combat ends</b> after ${state.combat.round} round${state.combat.round===1?"":"s"}`);
-  state.combat = null;
   renderSheet(); persistLoaded();
 }
 
@@ -551,8 +516,8 @@ document.getElementById("btnRandomAll").addEventListener("click", ()=>{
   state.slotsUsed={}; state.hdUsed=0; state.stable=false; state.retired=false;
   // Fresh heroes arrive fully rested: force HP to recompute from scratch
   state.maxHp=null; state.curHp=null; state.resUsed={}; state.conc=null; state.gear=[]; state.dropped=[];
-  state.conditions=[]; state.exhaustion=0; state.coins={pp:0,gp:0,ep:0,sp:0,cp:0};
-  state.attuned=[]; state.subclass=""; state.feats=[]; state.combat=null;
+  state.conditions=[]; state.coins={pp:0,gp:0,ep:0,sp:0,cp:0};
+  state.attuned=[]; state.subclass=""; state.feats=[];
   undoStack = [];
   Object.values(randomizers).forEach(f=>f());
   setScores(ABILITIES.map(()=>roll4d6()));
@@ -574,8 +539,8 @@ function clearCreator() {
   state.tempHp=0; state.inspiration=false; state.deathS=0; state.deathF=0;
   state.slotsUsed={}; state.hdUsed=0; state.stable=false; state.retired=false;
   state.resUsed={}; state.conc=null; state.gear=[]; state.dropped=[];
-  state.conditions=[]; state.exhaustion=0; state.coins={pp:0,gp:0,ep:0,sp:0,cp:0};
-  state.attuned=[]; state.subclass=""; state.feats=[]; state.combat=null;
+  state.conditions=[]; state.coins={pp:0,gp:0,ep:0,sp:0,cp:0};
+  state.attuned=[]; state.subclass=""; state.feats=[];
   undoStack = [];
   ABILITIES.forEach(a=>{ state.scores[a]=null; document.getElementById("ab_"+a).value=""; });
   document.getElementById("charName").value="";
@@ -604,7 +569,6 @@ function computeHp() {
 // they actually do to the dice, and the sheet's numbers follow suit.
 function condBlock() {
   const on = state.conditions || [];
-  const exhaustion = state.exhaustion || 0;
   const chips = CONDITION_NAMES.map(n=>{
     const c = CONDITIONS[n];
     const bits = [];
@@ -628,15 +592,7 @@ function condBlock() {
     return `<div><span class="ref-link" onclick="refLookup('${n}')"><b>${n}</b></span>${bits.length?": "+bits.join("; ")+".":""} ${c.note||""}</div>`;
   }).join("");
   return `<div class="cond-box">
-    <div class="cond-head"><span class="ref-link" onclick="refLookup('Conditions')">Conditions</span>
-      <span class="exh">
-        <span class="ref-link" onclick="refLookup('Exhaustion')">Exhaustion</span>
-        <button class="gear-btn" onclick="changeExhaustion(-1)" ${exhaustion?"":"disabled"} title="Recover a level">−</button>
-        <b class="${exhaustion?"lvl-on":""}">${exhaustion}</b>
-        <button class="gear-btn" onclick="changeExhaustion(1)" ${exhaustion>=6?"disabled":""} title="Gain a level">+</button>
-        ${exhaustion?`<small>${fmtMod(-2*exhaustion)} to every d20 test, −${5*exhaustion} ft Speed</small>`:""}
-      </span>
-    </div>
+    <div class="cond-head"><span class="ref-link" onclick="refLookup('Conditions')">Conditions</span></div>
     <div class="cond-chips">${chips}</div>
     ${active?`<div class="cond-active">${active}</div>`:""}
   </div>`;
@@ -721,17 +677,14 @@ function renderSheet() {
   const allSkillProfs = new Set(state.skills);
   if (bg) bg.skills.forEach(s=>allSkillProfs.add(s));
 
-  // Exhaustion is a flat penalty on every d20 test, so it is folded into the
-  // numbers shown on the sheet rather than applied invisibly at roll time
-  const exh = exhaustPenalty();
   const skillMod = s => state.scores[SKILLS[s]]!=null
     ? mod(state.scores[SKILLS[s]]) + (allSkillProfs.has(s)?profBonus:0) : null;
-  const passive = s => 10 + (skillMod(s) ?? 0) + exh;
+  const passive = s => 10 + (skillMod(s) ?? 0);
   const passivePerception = passive("Perception");
 
   const saveRows = ABILITIES.map(a=>{
     const isProf = c && c.saves.includes(a);
-    const m = state.scores[a]!=null ? mod(state.scores[a]) + (isProf?profBonus:0) + exh : null;
+    const m = state.scores[a]!=null ? mod(state.scores[a]) + (isProf?profBonus:0) : null;
     const auto = activeConds().some(x=>(x.autoFail||[]).includes(a));
     const roll = m!=null ? `class="rollable" onclick="rollD20('${ABILITY_NAMES[a]} Save',${m},'sav','${a}')" title="Click to roll"` : "";
     return `<li ${roll}>${isProf?'<span class="prof">●</span>':'○'} ${ABILITY_NAMES[a]} ${m!=null?fmtMod(m):"--"}${auto?' <small style="color:var(--accent2)" title="A condition makes this save fail automatically">auto-fail</small>':""}</li>`;
@@ -740,7 +693,7 @@ function renderSheet() {
   const skillRows = ALL_SKILLS.map(s=>{
     const ab = SKILLS[s];
     const isProf = allSkillProfs.has(s);
-    const m = state.scores[ab]!=null ? mod(state.scores[ab]) + (isProf?profBonus:0) + exh : null;
+    const m = state.scores[ab]!=null ? mod(state.scores[ab]) + (isProf?profBonus:0) : null;
     const roll = m!=null ? `class="rollable" onclick="rollD20('${s}',${m},'chk')" title="Click to roll"` : "";
     return `<li ${roll}>${isProf?'<span class="prof">●</span>':'○'} ${s} <small style="color:var(--muted)">(${ab})</small> ${m!=null?fmtMod(m):"--"}</li>`;
   }).join("");
@@ -774,7 +727,7 @@ function renderSheet() {
           const wd = WEAPONS[w];
           const abMod = wd.rng ? dexMod : wd.fin ? Math.max(strMod,dexMod) : strMod;
           const [die, type] = wd.dmg.split(" ");
-          attacks.push({name:w, bonus:abMod+profBonus+exh, dice:die, type, dmgMod:abMod,
+          attacks.push({name:w, bonus:abMod+profBonus, dice:die, type, dmgMod:abMod,
             dmg:`${wd.dmg}${abMod?` ${abMod>0?"+":""}${abMod}`:""}`});
         }
       });
@@ -782,10 +735,10 @@ function renderSheet() {
     if (state.cls==="Monk") {
       const maMod = Math.max(strMod, dexMod);
       const maDie = SCALING.martialDie(state.level);
-      attacks.push({name:"Unarmed Strike", bonus:maMod+profBonus+exh, dice:`1d${maDie}`, type:"bludgeoning", dmgMod:maMod,
+      attacks.push({name:"Unarmed Strike", bonus:maMod+profBonus, dice:`1d${maDie}`, type:"bludgeoning", dmgMod:maMod,
         dmg:`1d${maDie} bludgeoning${maMod?` ${maMod>0?"+":""}${maMod}`:""}`});
     } else {
-      attacks.push({name:"Unarmed Strike", bonus:strMod+profBonus+exh, dice:null, type:"bludgeoning", dmgMod:Math.max(1,1+strMod), dmg:`${Math.max(1,1+strMod)} bludgeoning`});
+      attacks.push({name:"Unarmed Strike", bonus:strMod+profBonus, dice:null, type:"bludgeoning", dmgMod:Math.max(1,1+strMod), dmg:`${Math.max(1,1+strMod)} bludgeoning`});
     }
   }
 
@@ -833,7 +786,7 @@ function renderSheet() {
     <h3 class="section">Spellcasting (${ABILITY_NAMES[castAb]})</h3>
     ${focusOk ? "" : `<div class="warn-banner">⚠ No spellcasting focus carried. Add a ${refLink("Arcane Focus","focus")}${state.cls==="Wizard"?" or your Spellbook":""} in Equipment to cast spells.</div>`}
     <ul class="clean">
-      <li>Spell Save DC <b>${8+profBonus+castMod}</b> · <span class="rollable" onclick="attackRoll('Spell Attack',${profBonus+castMod+exh},null,'spell',0)" title="Click to roll" style="color:var(--accent)">Spell Attack ${fmtMod(profBonus+castMod+exh)} 🎲</span></li>
+      <li>Spell Save DC <b>${8+profBonus+castMod}</b> · <span class="rollable" onclick="attackRoll('Spell Attack',${profBonus+castMod},null,'spell',0)" title="Click to roll" style="color:var(--accent)">Spell Attack ${fmtMod(profBonus+castMod)} 🎲</span></li>
       ${slotRows}
       ${chosenSpells.length>8?`<li><input type="text" id="sheetSpellFilter" placeholder="Filter your spells..." value="${sheetSpellFilter.replace(/"/g,'&quot;')}" style="padding:.25rem .4rem;font-size:.85rem"></li>`:""}
       ${SPELL_LEVELS.map(lv=>{
@@ -859,27 +812,21 @@ function renderSheet() {
         <span style="border:1px solid var(--accent2);color:var(--accent2);border-radius:6px;padding:.3rem .6rem;font-weight:bold" title="This hero has been laid to rest">🪦 Retired · Dead</span>`:""}
         ${canAct?`<button class="roll-mode${rollMode==="adv"?" on":""}" onclick="setRollMode('adv')" title="Roll two d20s and keep the higher on every d20 test">⬆ ADV</button>
         <button class="roll-mode${rollMode==="dis"?" on dis":""}" onclick="setRollMode('dis')" title="Roll two d20s and keep the lower on every d20 test">⬇ DIS</button>
-        ${state.combat
-          ? `<button onclick="nextRound()" title="Advance to the next round of combat">▶ Round ${state.combat.round}</button>
-             <button onclick="endCombat()" title="Combat is over">✖ End Combat</button>`
-          : `<button onclick="startCombat()" title="Start counting rounds; history entries get a round number">⚔ Start Combat</button>`}
         <button onclick="shortRest()" title="1+ hour: spend Hit Dice to heal">⛺ Short Rest</button>
         <button onclick="longRest()" title="8 hours: restore HP, spell slots, and half your Hit Dice">🌙 Long Rest</button>
         <button onclick="undoLast()" ${undoStack.length?"":"disabled"} title="${undoStack.length?`Undo ${undoStack[undoStack.length-1].label}`:"Nothing to undo"}">↶ Undo${undoStack.length?` <small>(${undoStack.length})</small>`:""}</button>`:""}
         ${canLevel?`<button onclick="levelUp()" style="font-weight:bold" title="Advance to level ${state.level+1}">⬆ Level Up</button>`:""}
-        <button onclick="window.print()" class="no-print" title="Print this sheet, or save it as a PDF">🖨 Print</button>
       </div>
     </div>
     ${rollModeLabel()?`<div class="mode-banner${rollMode==="dis"?" dis":""}">Rolling with ${rollModeLabel()} · <span onclick="setRollMode('${rollMode}')" style="cursor:pointer;text-decoration:underline">back to normal</span></div>`:""}
-    ${state.combat?`<div class="mode-banner">⚔️ In combat · <b>Round ${state.combat.round}</b> · <span onclick="nextRound()" style="cursor:pointer;text-decoration:underline">next round</span> · <span onclick="endCombat()" style="cursor:pointer;text-decoration:underline">end</span></div>`:""}
-    ${state.conc?`<div class="conc-banner">🌀 Concentrating on <b>${state.conc}</b>${state.combat?` <small>since round ${state.concRound||state.combat.round}</small>`:""} <button onclick="dropConc('dropped')" title="Stop concentrating">✕</button></div>`:""}
+    ${state.conc?`<div class="conc-banner">🌀 Concentrating on <b>${state.conc}</b> <button onclick="dropConc('dropped')" title="Stop concentrating">✕</button></div>`:""}
     ${subclassDue()?`<div class="warn-banner">⚠ You reached level ${SUBCLASS_LEVEL} without choosing a subclass. <span class="ref-link" onclick="openSubclassPicker()">Choose your ${state.cls} subclass</span> to pick up its features.</div>`:""}
     <div class="tagline">Level ${state.level} ${state.species||"?"} ${state.cls||"?"}${state.subclass?` <span class="ref-link" onclick="refLookup('${escQ(state.subclass)}')">(${state.subclass})</span>`:""} · ${state.background||"no background"} · ${state.alignment||"unaligned"}${state.playerName?` · played by ${state.playerName.replace(/</g,"&lt;")}`:""}</div>
     ${canAct && hp!=null?`<div class="quickbar">
       <button class="hp-dmg" onclick="changeHp(-1)" title="Take 1 damage">−</button>
       <span class="qb-hp${bloodied?" bloodied":""}">${state.curHp}/${hp}${state.tempHp?` +${state.tempHp}`:""}</span>
       <button class="hp-heal" onclick="changeHp(1)" title="Heal 1" ${state.curHp>=hp?"disabled":""}>+</button>
-      <span class="qb-ac">AC ${ac}${state.combat?` · R${state.combat.round}`:""}</span>
+      <span class="qb-ac">AC ${ac}</span>
       <span class="qb-right">
         <button class="roll-mode${rollMode==="adv"?" on":""}" onclick="setRollMode('adv')" title="Advantage on every d20 test">⬆</button>
         <button class="roll-mode${rollMode==="dis"?" on dis":""}" onclick="setRollMode('dis')" title="Disadvantage on every d20 test">⬇</button>
@@ -902,7 +849,7 @@ function renderSheet() {
           ${state.deathS>=3?"<b style='color:var(--good)'>STABLE</b>":state.deathF>=3?"<b style='color:var(--accent2)'>DEAD</b>":""}
         </div>`:""}
       </div>
-      <div class="vital rollable" onclick="rollD20('Initiative',${dexMod+exh},'chk')" title="Click to roll initiative"><div class="v">${fmtMod(dexMod+exh)}</div><div class="k">INITIATIVE 🎲</div></div>
+      <div class="vital rollable" onclick="rollD20('Initiative',${dexMod},'chk')" title="Click to roll initiative"><div class="v">${fmtMod(dexMod)}</div><div class="k">INITIATIVE 🎲</div></div>
       <div class="vital"><div class="v">${speedNow} ft</div><div class="k">SPEED</div>${speedNow!==baseSpeed?`<div style="font-size:.65rem;color:var(--accent2)">was ${baseSpeed} ft</div>`:""}</div>
       <div class="vital"><div class="v">+${profBonus}</div><div class="k">PROF. BONUS</div></div>
       <div class="vital"><div class="v">${c?`${state.level-state.hdUsed}/${state.level}× ${dieIcon(c.hitDie)}`:"--"}</div><div class="k"><span class="ref-link" onclick="refLookup('Hit Point Dice')">HIT DICE</span></div></div>
@@ -914,12 +861,8 @@ function renderSheet() {
     <div class="statgrid">
       ${ABILITIES.map(a=>{
         const s = state.scores[a];
-        // The modifier shown is what a check actually rolls with, Exhaustion included
-        const roll = s!=null ? `class="stat rollable" onclick="rollD20('${ABILITY_NAMES[a]} Check',${mod(s)+exh},'chk')" title="Click to roll an ability check${exh?` (includes ${fmtMod(exh)} from Exhaustion)`:""}"` : 'class="stat"';
-        // While exhausted the big number is the check modifier, so the raw ability
-        // modifier (still what damage and AC use) is spelled out underneath
-        return `<div ${roll}><div class="nm">${a}</div><div class="mod">${s!=null?fmtMod(mod(s)+exh):"--"}</div>
-          <div class="scr">${s!=null?s:"--"}${s!=null&&exh?` <span style="color:var(--accent2)">· mod ${fmtMod(mod(s))}</span>`:""}</div></div>`;
+        const roll = s!=null ? `class="stat rollable" onclick="rollD20('${ABILITY_NAMES[a]} Check',${mod(s)},'chk')" title="Click to roll an ability check"` : 'class="stat"';
+        return `<div ${roll}><div class="nm">${a}</div><div class="mod">${s!=null?fmtMod(mod(s)):"--"}</div><div class="scr">${s!=null?s:"--"}</div></div>`;
       }).join("")}
     </div>
 
@@ -966,7 +909,7 @@ function renderSheet() {
     <h3 class="section" style="cursor:pointer;user-select:none" onclick="toggleRollLog()" title="Rolls, level-ups, edits, rests, and status changes">📜 History ${showRollLog?"▾":"▸"} <small style="color:var(--muted)">(${histLog.length})</small></h3>
     ${showRollLog ? `
       <ul class="clean">${histLog.length ? histLog.map(r=>
-        `<li>${HIST_ICONS[r.type]||"·"} ${r.text}${r.round?` <small style="color:var(--accent)">· round ${r.round}</small>`:""}${r.who?` <small style="color:var(--muted)">· ${r.who}</small>`:""} <small style="color:var(--muted)">${r.at}</small></li>`).join("")
+        `<li>${HIST_ICONS[r.type]||"·"} ${r.text}${r.who?` <small style="color:var(--muted)">· ${r.who}</small>`:""} <small style="color:var(--muted)">${r.at}</small></li>`).join("")
         : '<li style="color:var(--muted)">Nothing yet: rolls, level-ups, rests, edits, and dramatic events will be recorded here.</li>'}</ul>
       ${histLog.length?`<button onclick="clearRollLog()" style="margin-top:.4rem;font-size:.8rem">Clear history</button>`:""}` : ""}`;
 
@@ -1045,7 +988,6 @@ function charDiff(o, n) {
   listDiff("Conditions", o.conditions, n.conditions);
   listDiff("Attunement", o.attuned, n.attuned);
   listDiff("Feats", (o.feats||[]).map(f=>f.n), (n.feats||[]).map(f=>f.n));
-  if ((o.exhaustion||0) !== (n.exhaustion||0)) d.push(`Exhaustion: ${o.exhaustion||0} → ${n.exhaustion||0}`);
   ["traits","ideals","bonds","flaws","notes"].forEach(k=>{
     if ((o[k]||"") !== (n[k]||"")) d.push(`${k[0].toUpperCase()+k.slice(1)} edited`);
   });
@@ -1094,10 +1036,10 @@ function applyCharacter(ch) {
   state.retired = !!ch.retired;
   state.resUsed = {...(ch.resUsed||{})}; state.conc = ch.conc || null;
   state.gear = [...(ch.gear||[])]; state.dropped = [...(ch.dropped||[])];
-  state.conditions = [...(ch.conditions||[])]; state.exhaustion = ch.exhaustion||0;
+  state.conditions = [...(ch.conditions||[])];
   state.coins = {...{pp:0,gp:0,ep:0,sp:0,cp:0}, ...(ch.coins||{})};
   state.attuned = [...(ch.attuned||[])]; state.subclass = ch.subclass||"";
-  state.feats = (ch.feats||[]).map(f=>({...f})); state.combat = ch.combat ? {...ch.combat} : null;
+  state.feats = (ch.feats||[]).map(f=>({...f}));
   undoStack = [];
   document.getElementById("rpTraits").value = state.traits;
   document.getElementById("rpIdeals").value = state.ideals;
@@ -1330,10 +1272,9 @@ let toastTimer = null;
 let histLog = [];
 try { histLog = JSON.parse(localStorage.getItem("dnd-srd-history")) || []; } catch(e) {}
 let showRollLog = false;
-const HIST_ICONS = { roll:"🎲", level:"⬆️", edit:"✏️", rest:"⛺", longrest:"🌙", status:"💀", heal:"❤️", cast:"✨", resource:"🔆", gear:"🎒", combat:"⚔️", xp:"✳️" };
+const HIST_ICONS = { roll:"🎲", level:"⬆️", edit:"✏️", rest:"⛺", longrest:"🌙", status:"💀", heal:"❤️", cast:"✨", resource:"🔆", gear:"🎒", xp:"✳️" };
 function logEvent(type, text) {
-  histLog.unshift({type, text, who: state.name || "",
-    round: state.combat ? state.combat.round : null, at: new Date().toLocaleString()});
+  histLog.unshift({type, text, who: state.name || "", at: new Date().toLocaleString()});
   if (histLog.length > 200) histLog.length = 200;
   try { localStorage.setItem("dnd-srd-history", JSON.stringify(histLog)); } catch(e) {}
   if (showRollLog) renderSheet();
@@ -1839,8 +1780,15 @@ function renderGearModal() {
       </div>
     </div>
     <div class="lvl-actions"><button onclick="gearClose()">Close</button></div>`;
+  // Re-rendering the modal rebuilds the input, which drops the caret back to the
+  // start and makes typing come out reversed; put it back at the end.
   const s = document.getElementById("gearSearch");
-  if (s) s.addEventListener("input", e=>{ gearFilter = e.target.value; renderGearModal(); document.getElementById("gearSearch").focus(); });
+  if (s) s.addEventListener("input", e=>{
+    gearFilter = e.target.value;
+    renderGearModal();
+    const again = document.getElementById("gearSearch");
+    if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
+  });
   const cu = document.getElementById("gearCustom");
   if (cu) cu.addEventListener("keydown", e=>{ if (e.key==="Enter") addCustomGear(); });
 }
@@ -1910,7 +1858,6 @@ function startConcentration(spellName) {
     logEvent("cast", `Concentration on <b>${state.conc}</b> ends (started ${spellName})`);
   }
   state.conc = spellName;
-  state.concRound = state.combat ? state.combat.round : null;
 }
 function dropConc(reason) {
   if (!state.conc) return;
@@ -1928,7 +1875,7 @@ function concCheck(damage) {
 function concSaveMod() {
   const c = state.cls ? CLASSES[state.cls] : null;
   const prof = 2 + Math.floor((state.level-1)/4);
-  return (state.scores.CON!=null ? mod(state.scores.CON) : 0) + (c && c.saves.includes("CON") ? prof : 0) + exhaustPenalty();
+  return (state.scores.CON!=null ? mod(state.scores.CON) : 0) + (c && c.saves.includes("CON") ? prof : 0);
 }
 function renderConcModal() {
   if (!pendingConc) return;
@@ -2077,7 +2024,6 @@ function longRest() {
       <div>· ${refLink("Hit Points")} restored to maximum${healed?` (<b>+${healed}</b>, back to ${state.maxHp})`:" (already full)"}${state.tempHp?`, Temporary HP fades`:""}</div>
       ${isCaster?`<div>· All ${refLink("Spell Slots")} refreshed</div>`:""}
       <div>· ${refLink("Hit Point Dice")}: regain half your total (min 1)${state.hdUsed?` · recovers <b>${hdBack}</b> of your ${state.hdUsed} spent`:" · none spent"}</div>
-      ${state.exhaustion?`<div>· One level of ${refLink("Exhaustion")} lifts (${state.exhaustion} → ${state.exhaustion-1})</div>`:""}
       ${(state.deathS||state.deathF)?`<div>· ${refLink("Death Saving Throws")} reset</div>`:""}
       <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem">Only one Long Rest per 24 hours. An hour of combat or strenuous activity causes a ${refLink("Rest Interruption")}.</div>
     </div>
@@ -2111,11 +2057,7 @@ function longRestConfirm() {
   state.deathS = 0; state.deathF = 0; state.stable = false;
   const resBack = refillResources("long");
   if (state.conc) { state.conc = null; }
-  // A full night's rest lifts one level of Exhaustion (SRD 5.2)
-  const exhBefore = state.exhaustion || 0;
-  if (exhBefore) state.exhaustion = exhBefore - 1;
   let spellNote = resBack.length ? `, restored ${resBack.join(", ")}` : "";
-  if (exhBefore) spellNote += `, Exhaustion down to ${state.exhaustion}`;
   if (pendingLR && pendingLR.spellMode === "random") {
     randomizeSpells();
     spellNote += `, prepared a new set of spells (${state.spells.join(", ")})`;
@@ -2200,13 +2142,10 @@ function rollDeathSave() {
   pushUndo("the death saving throw");
   const r = d20Roll("sav");
   const d = r.v;
-  // Exhaustion penalises every d20 test, death saves included
-  const pen = exhaustPenalty();
-  const total = d + pen;
-  logRoll(`Death Save${r.mode?` (${r.mode})`:""}`, d20Detail(r, pen), total);
+  logRoll(`Death Save${r.mode?` (${r.mode})`:""}`, d20Detail(r, 0), d);
   if (d === 20) { revive(1, "a natural 20 on the Death Save"); return; }
   if (d === 1) state.deathF = Math.min(3, state.deathF + 2);
-  else if (total >= 10) state.deathS = Math.min(3, state.deathS + 1);
+  else if (d >= 10) state.deathS = Math.min(3, state.deathS + 1);
   else state.deathF = Math.min(3, state.deathF + 1);
   if (state.deathS >= 3) { state.stable = true; logEvent("status", `<b>Stabilized</b>: three Death Save successes`); }
   if (state.deathF >= 3) logEvent("status", `<b>Died</b>: three Death Save failures`);

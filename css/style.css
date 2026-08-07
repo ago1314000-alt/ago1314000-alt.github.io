@@ -94,6 +94,43 @@
     width: 100%;
   }
   textarea { resize: vertical; }
+
+  /* Native form controls, brought in line with the rest of the app.
+     The popup list a browser draws for a <select> is only partly ours to style:
+     option colors and the checked highlight land in Chromium and Firefox, so the
+     list at least follows the theme instead of falling back to stark OS colors. */
+  select {
+    appearance: none; -webkit-appearance: none;
+    padding-right: 1.9rem; cursor: pointer;
+    background-repeat: no-repeat;
+    background-position: right .6rem center;
+    background-size: .7rem;
+    /* chevron tinted to match --muted in each theme */
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%236b6152' stroke-width='2' stroke-linecap='round'/></svg>");
+  }
+  body.dark select {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%239aa0a6' stroke-width='2' stroke-linecap='round'/></svg>");
+  }
+  select:hover, input[type=text]:hover, input[type=number]:hover, textarea:hover { border-color: var(--accent); }
+  select:focus, input[type=text]:focus, input[type=number]:focus, textarea:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+  select option {
+    background: var(--panel); color: var(--ink);
+    padding: .4rem .5rem;
+  }
+  /* The placeholder row reads as a hint, not a choice */
+  select option[value=""] { color: var(--muted); font-style: italic; }
+  /* Chromium and Firefox both take the highlight from a gradient, not background-color */
+  select option:checked, select option:hover {
+    background: linear-gradient(var(--accent), var(--accent));
+    color: #fff; font-weight: bold;
+  }
+  body.dark select option:checked, body.dark select option:hover { color: #06230f; }
+  /* Checkboxes and number spinners pick up the theme accent too */
+  input[type=checkbox], input[type=radio], input[type=number] { accent-color: var(--accent); }
+
   a { color: var(--accent); }
   a:hover { text-decoration: none; }
   /* Modal overlays (level up, rests, dying) */
@@ -219,13 +256,8 @@
   /* Conditions */
   .cond-box { border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: .5rem .6rem; margin-bottom: 1rem; }
   .cond-head {
-    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem;
     font-size: .7rem; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: .4rem;
   }
-  .cond-head .exh { display: inline-flex; align-items: center; gap: .3rem; text-transform: none; letter-spacing: 0; }
-  .cond-head .exh b { min-width: 1.1rem; text-align: center; font-size: .95rem; }
-  .cond-head .exh b.lvl-on { color: var(--accent2); }
-  .cond-head .exh small { color: var(--accent2); }
   .cond-chips { display: flex; flex-wrap: wrap; gap: .3rem; }
   .cond-chip {
     border: 1px solid var(--line); border-radius: 999px; padding: .12rem .55rem;
