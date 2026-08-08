@@ -576,12 +576,19 @@
   .hp-tracker input { width: 4rem; padding: .15rem .3rem; font-size: .8rem; text-align: center; }
   /* Ability score stepper on the Create tab, using the same buttons as
      equipment. The native spinners would double up, so they are hidden. */
-  .ab-row { display: flex; gap: .3rem; align-items: stretch; }
-  .ab-row input { text-align: center; min-width: 0; }
+  .ab-row { display: flex; gap: .25rem; align-items: stretch; }
+  /* The shared field rule gives inputs .5rem of side padding. In a box this
+     narrow that left the content area at zero and clipped the score away
+     entirely, so the padding goes and a floor keeps the digits room. */
+  .ab-row input {
+    flex: 1 1 auto; min-width: 2rem;
+    padding-left: 0; padding-right: 0;
+    text-align: center;
+  }
   .ab-row input::-webkit-outer-spin-button,
   .ab-row input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   .ab-row input { -moz-appearance: textfield; appearance: textfield; }
-  .ab-row .gear-btn { flex: 0 0 auto; padding: .1rem .5rem; }
+  .ab-row .gear-btn { flex: 0 0 auto; padding: .1rem .35rem; }
 
   /* Mobile: fixed bottom navigation bar */
   @media (max-width: 600px) {
