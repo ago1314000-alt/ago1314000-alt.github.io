@@ -379,15 +379,24 @@
      so Settings stays pinned to the bottom of the rail */
   .tab-list { flex: 1; overflow-y: auto; padding: 8px; }
   .tabs-foot { border-top: 1px solid var(--line); padding: 8px; }
-  .tabs button {
+  .tabs button, .tabs .nav-link {
     display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
     padding: 8px 10px; margin-top: 2px; border: none; border-radius: 5px; background: transparent;
     font-weight: 400; font-size: .92rem; color: var(--muted); white-space: nowrap;
   }
   .tab-list button:first-child, .tabs-foot button { margin-top: 0; }
-  .tabs button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
-  /* The gear is a far busier path than the other marks and clots at stroke-width 2 */
-  .tabs button svg.ic-gear { stroke-width: 1.7; }
+  .tabs button svg, .tabs .nav-link svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+  /* Marks with inner detail (the gear, the two sister-site logos) clot at stroke-width 2 */
+  .tabs svg.ic-gear, .tabs svg.ic-fine { stroke-width: 1.7; }
+  /* A group of outbound links, set off by a quiet label the way Auto Roll
+     Tables sets off its Tools group */
+  .tab-group {
+    font-size: .68rem; text-transform: uppercase; letter-spacing: .09em;
+    color: var(--muted); padding: 14px 10px 5px; white-space: nowrap;
+  }
+  .tabs .nav-link { text-decoration: none; }
+  .tabs .nav-link .ext { margin-left: auto; width: 12px; height: 12px; opacity: .65; }
+  .tabs .nav-link:hover { background: var(--tab-hover); color: var(--ink); }
   .tabs button:hover:not(.active) { background: var(--tab-hover); color: var(--ink); }
   .tabs button.active { background: var(--tab-bg); color: var(--ink); font-weight: 600; }
   .tabs button.active svg { stroke: var(--accent); }
@@ -624,8 +633,10 @@
       height: auto; overflow: visible; border-right: none;
     }
     /* The rail's list and foot dissolve so their buttons become direct children
-       of the bar and share it out evenly, Settings last as before */
+       of the bar and share it out evenly, Settings last as before. The outbound
+       links stay out of it: five tabs already fill a phone-width row. */
     .tab-list, .tabs-foot { display: contents; }
+    .tab-group, .tabs .nav-link { display: none; }
     .tabs button {
       flex: 1; flex-direction: column; gap: .2rem; justify-content: center;
       padding: .3rem 0; margin-top: 0; font-size: .62rem; font-weight: 600; border-radius: 8px;
