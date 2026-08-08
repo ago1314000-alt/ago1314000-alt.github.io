@@ -14,6 +14,15 @@ feature bullets, the file-structure note in "Run It", and any counts
   when editing index.html from scripts (emoji corruption risk with
   PowerShell Get-Content/Set-Content; use [IO.File] with UTF8 no-BOM).
 
+## Installable app (PWA)
+- `manifest.webmanifest`, `sw.js`, and `assets/icon-*.png` make Chrome offer
+  "Install" and let the app run offline. All three need HTTPS, so none of it
+  works from a file:// open; use a local server to test.
+- Regenerate icons with `node tools/make-icons.js` if the mark changes.
+- Bump `VERSION` in `sw.js` on any deploy that should drop the old cache.
+- The worker is network-first for the page and cache-first for everything
+  else, which is safe because css/js carry a `?v=N` that changes per deploy.
+
 ## Conventions
 - Plain HTML/CSS/vanilla JS only; no frameworks, no build step for the app
   itself (the data generators under tools/ are run by hand, not at deploy).

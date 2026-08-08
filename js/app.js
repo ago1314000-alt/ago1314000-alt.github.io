@@ -2940,8 +2940,30 @@ try {
   if (cur && (cur.cls || cur.species || cur.name)) applyCharacter(cur);
 } catch(e) {}
 
+// ---------- INSTALLABLE APP ----------
+// The service worker is what lets Chrome offer "Install", and it keeps the
+// app working with no connection. It needs a secure context, so it is skipped
+// when the page is opened straight off the filesystem.
+if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("sw.js").catch(()=>{ /* offline support is optional */ });
+  });
+}
+
+// The manifest's shortcuts open a specific tab, e.g. #create. Only read on
+// load, never written, so it cannot collide with the #c= share links.
+const HASH_TABS = { basics:"quickref", create:"create", characters:"saved", reference:"rules", settings:"settings" };
+function openTabFromHash() {
+  const key = (location.hash || "").replace(/^#/, "").toLowerCase();
+  const tab = HASH_TABS[key];
+  if (!tab) return;
+  const b = document.querySelector(`.tabs button[data-tab="${tab}"]`);
+  if (b) b.click();
+}
+
 updateSavedCount();
 checkSharedLink();
+openTabFromHash();
 renderRuleCats();
 renderRules("");
 renderSkillChoices();

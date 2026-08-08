@@ -1,0 +1,22 @@
+{
+  "name": "Character Generator",
+  "short_name": "Characters",
+  "description": "Build D&D characters and play from a live sheet: levels 1-20, a searchable reference, and a bestiary. Works offline.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0e0f11",
+  "theme_color": "#0e0f11",
+  "categories": ["games", "utilities"],
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "Create a character", "url": "./#create", "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192" }] },
+    { "name": "My characters", "url": "./#characters", "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
