@@ -68,6 +68,7 @@
       display: grid; grid-template-columns: 1fr 1fr;
       column-gap: 1.75rem; align-items: start;
     }
+    #tab-create .panel > .page-title,
     #tab-create .panel > .big-btns,
     #tab-create .panel > button,
     #tab-create .panel > h3.section { grid-column: 1 / -1; }
@@ -83,6 +84,11 @@
     border-radius: 8px; padding: 1.25rem;
     box-shadow: 0 2px 6px var(--shadow);
   }
+  /* Every tab opens with the same heading, left aligned, so no page starts
+     without saying what it is */
+  .page-title { margin: 0 0 1rem; }
+  .page-title h2 { margin: 0; color: var(--accent); font-variant: small-caps; letter-spacing: 1px; }
+  .page-sub { color: var(--muted); font-style: italic; font-size: .9rem; }
   .field { margin-bottom: .9rem; }
   .field label { display: block; font-weight: bold; font-size: .85rem; margin-bottom: .25rem; }
   .row { display: flex; gap: .4rem; align-items: center; }

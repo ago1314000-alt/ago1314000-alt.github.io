@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Auto Character Generator (D&D SRD 5.2)</title>
-<link rel="icon" type="image/svg+xml" href="favicon.svg?v=81">
-<link rel="stylesheet" href="css/style.css?v=81">
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=82">
+<link rel="stylesheet" href="css/style.css?v=82">
 </head>
 <body>
 <div class="app">
@@ -50,6 +50,10 @@
 <div class="tabpage" id="tab-create">
 <div class="layout">
   <div class="panel">
+    <div class="page-title">
+      <h2>Create a Character</h2>
+      <div class="page-sub">Roll the whole thing at once, roll any single choice, or pick it all by hand</div>
+    </div>
     <div class="big-btns">
       <button id="btnRandomAll">🎲 Randomize All</button>
       <button id="btnClear">Clear</button>
@@ -145,8 +149,11 @@
 
 <div class="tabpage maxw" id="tab-saved">
   <div class="panel">
-    <h3 class="section" style="margin:0 0 .3rem;border:none">Saved Characters</h3>
-    <div style="color:var(--muted);font-size:.8rem;margin:.3rem 0 .8rem">Characters are stored in this browser and survive restarts. <b>Backup &amp; Restore</b> under Settings moves them to another browser or computer.</div>
+    <div class="page-title">
+      <h2>Your Characters</h2>
+      <div class="page-sub">View a sheet to play from it, or edit one to change how it was built</div>
+    </div>
+    <div style="color:var(--muted);font-size:.8rem;margin:0 0 .8rem">Characters are stored in this browser and survive restarts. <b>Backup &amp; Restore</b> under Settings moves them to another browser or computer.</div>
     <div id="savedList"></div>
     <button onclick="addRandomCharacter()" style="width:100%;margin-top:.8rem;padding:.6rem;font-weight:bold" title="Roll up a complete random hero and save them">🎲 Add Random Character</button>
   </div>
@@ -155,9 +162,9 @@
 
 <div class="tabpage maxw active" id="tab-quickref">
   <div class="panel">
-    <div style="text-align:center;margin-bottom:1rem">
-      <h2 style="margin:0;color:var(--accent);font-variant:small-caps;letter-spacing:1px">The Basics</h2>
-      <div style="color:var(--muted);font-style:italic;font-size:.9rem">Everything you need for your very first game of Dungeons &amp; Dragons, on one page</div>
+    <div class="page-title">
+      <h2>The Basics</h2>
+      <div class="page-sub">Everything you need for your very first game of Dungeons &amp; Dragons, on one page</div>
     </div>
 
     <div class="qr-banner">
@@ -230,6 +237,10 @@
 
 <div class="tabpage maxw" id="tab-rules">
   <div class="panel">
+    <div class="page-title">
+      <h2>Reference</h2>
+      <div class="page-sub">Every spell, feature, item, creature, and rule the app knows, in one search</div>
+    </div>
     <div id="ruleCats" class="cat-chips"></div>
     <input type="text" id="rulesSearch" placeholder="Search spells, gear, features, species, rules... (e.g. Fireball, Chain Mail, Sneak Attack, Darkvision, grappled)">
     <div id="rulesResults"></div>
@@ -238,7 +249,10 @@
 
 <div class="tabpage maxw" id="tab-settings">
   <div class="panel">
-    <h3 class="section" style="margin-top:0">Settings</h3>
+    <div class="page-title">
+      <h2>Settings</h2>
+      <div class="page-sub">Appearance, navigation, backups, and where the game content comes from</div>
+    </div>
     <div class="field">
       <label>Theme</label>
       <div class="row" style="max-width:320px">
@@ -343,8 +357,8 @@
 
 <div id="rollToast"><div class="what"></div><div class="total"></div><div class="detail"></div></div>
 
-<script src="js/data.js?v=81"></script>
-<script src="js/open5e.js?v=81"></script>
-<script src="js/app.js?v=81"></script>
+<script src="js/data.js?v=82"></script>
+<script src="js/open5e.js?v=82"></script>
+<script src="js/app.js?v=82"></script>
 </body>
 </html>
