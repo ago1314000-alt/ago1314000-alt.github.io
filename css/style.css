@@ -396,7 +396,7 @@
     width: 1.6em; height: 1.6em; vertical-align: -.45em; display: inline-block;
   }
   .die-ico polygon, .die-ico rect {
-    fill: none; stroke: currentColor; stroke-width: 4; stroke-linejoin: round;
+    fill: none; stroke: currentColor; stroke-width: 3.6; stroke-linejoin: round;
   }
   .die-ico text {
     fill: currentColor; stroke: none; font-weight: bold; text-anchor: middle; font-family: inherit;
@@ -517,7 +517,8 @@
   .qr-dice svg:hover { transform: translateY(-3px) scale(1.06); }
   .qr-dice svg .shape { fill: var(--card); stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; }
   .qr-dice svg:hover .shape { fill: var(--accent); }
-  .qr-dice svg text { fill: var(--accent); font-family: Georgia, serif; font-weight: bold; font-size: 13px; text-anchor: middle; }
+  /* Size comes from each die's own font-size attribute, scaled by the viewBox */
+  .qr-dice svg text { fill: var(--accent); font-family: Georgia, serif; font-weight: bold; text-anchor: middle; }
   .qr-dice svg:hover text { fill: #fff; }
   .qr-dice svg.d20die { width: 68px; height: 68px; }
   .qr-dice svg .halo { fill: none; stroke: #c9a227; stroke-width: 2; }

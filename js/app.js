@@ -91,17 +91,23 @@ const state = {
 let sheetTargetId = "sheet";
 let sheetSpellFilter = "";
 
-// Inline die icon with the die name inside the shape, like the Dice of Fate
+// Inline die icon: the die's silhouette with its number inside, matching the
+// Dice of Fate on the Basics tab. Outline only, with no interior lines, so
+// each shape has to be distinct on its own; that is why a d6 is a square
+// rather than a cube, whose outline would be a hexagon like the d20's.
+// Dropping the "d" prefix is what lets the number stay readable down to 16px.
+const DIE_SHAPES = {
+  4:  { shape:'<polygon points="32,5 60,55 4,55"/>',                   y:50, f:26 },
+  6:  { shape:'<rect x="9" y="9" width="46" height="46" rx="3"/>',     y:44, f:30 },
+  8:  { shape:'<polygon points="32,2 60,32 32,62 4,32"/>',             y:42, f:28 },
+  10: { shape:'<polygon points="32,2 60,28 32,62 4,28"/>',             y:38, f:25 },
+  12: { shape:'<polygon points="58.6,40.7 48.5,54.6 32,60 15.5,54.6 5.4,40.7 5.4,23.3 15.5,9.4 32,4 48.5,9.4 58.6,23.3"/>', y:41, f:27 },
+  20: { shape:'<polygon points="32,3 57.1,17.5 57.1,46.5 32,61 6.9,46.5 6.9,17.5"/>', y:41, f:27 }
+};
 function dieIcon(sides) {
-  const cfg = {
-    4:{shape:'<polygon points="32,8 58,54 6,54"/>', y:48, f:19},
-    6:{shape:'<rect x="13" y="13" width="38" height="38"/>', y:38, f:19},
-    8:{shape:'<polygon points="32,5 59,32 32,59 5,32"/>', y:38, f:17},
-    10:{shape:'<polygon points="32,5 57,25 49,57 15,57 7,25"/>', y:41, f:16},
-    12:{shape:'<polygon points="32,7 58,26 48,58 16,58 6,26"/>', y:41, f:16},
-    20:{shape:'<polygon points="32,8 53,20 53,44 32,56 11,44 11,20"/>', y:38, f:16}
-  }[sides] || {shape:'<polygon points="32,8 53,20 53,44 32,56 11,44 11,20"/>', y:38, f:15};
-  return `<svg class="die-ico" viewBox="0 0 64 64" role="img" aria-label="d${sides}">${cfg.shape}<text x="32" y="${cfg.y}" font-size="${cfg.f}">d${sides}</text></svg>`;
+  // An unfamiliar die (d100 and friends) borrows the d20 outline
+  const cfg = DIE_SHAPES[sides] || { ...DIE_SHAPES[20], f: String(sides).length > 2 ? 20 : 27 };
+  return `<svg class="die-ico" viewBox="0 0 64 64" role="img" aria-label="d${sides}">${cfg.shape}<text x="32" y="${cfg.y}" font-size="${cfg.f}">${sides}</text></svg>`;
 }
 // Replace every dice mention in a string with the labeled shape: "2d6" -> 2x [d6 icon]
 function allDice(str) {

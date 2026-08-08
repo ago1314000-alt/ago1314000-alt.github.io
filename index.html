@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Auto Character Generator (D&D SRD 5.2)</title>
-<link rel="icon" type="image/svg+xml" href="favicon.svg?v=74">
-<link rel="stylesheet" href="css/style.css?v=74">
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=77">
+<link rel="stylesheet" href="css/style.css?v=77">
 </head>
 <body>
 <div class="app">
@@ -24,12 +24,12 @@
     </span>
     <span class="brand-name">Auto Character Generator</span>
   </div>
-  <button class="active" data-tab="create" title="Build a new character">
+  <button class="active" data-tab="quickref" title="Beginner quick reference">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg><span class="tab-label">Basics</span></button>
+  <button data-tab="create" title="Build a new character">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg><span class="tab-label">Create</span></button>
   <button data-tab="saved" title="Your saved characters">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5"/></svg><span class="tab-label">Characters <span id="savedCount"></span></span></button>
-  <button data-tab="quickref" title="Beginner quick reference">
-    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg><span class="tab-label">Basics</span></button>
   <button data-tab="rules" title="Search spells, gear, features, and rules">
     <svg viewBox="0 0 24 24"><path d="M4 5h6a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4z"/><path d="M20 5h-6a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h6z"/></svg><span class="tab-label">Reference</span></button>
   <button data-tab="settings" title="Settings">
@@ -47,7 +47,7 @@
   </svg></span>Auto Character Generator</h1>
 <div class="sub">Based on the System Reference Document 5.2 (D&D 2024 rules, CC-BY-4.0). Levels 1-20. Data is saved in your browser.</div>
 
-<div class="tabpage active" id="tab-create">
+<div class="tabpage" id="tab-create">
 <div class="layout">
   <div class="panel">
     <div class="big-btns">
@@ -153,7 +153,7 @@
   <div class="panel sheet" id="savedSheet" style="margin-top:1rem;display:none"></div>
 </div>
 
-<div class="tabpage maxw" id="tab-quickref">
+<div class="tabpage maxw active" id="tab-quickref">
   <div class="panel">
     <div style="text-align:center;margin-bottom:1rem">
       <h2 style="margin:0;color:var(--accent);font-variant:small-caps;letter-spacing:1px">The Basics</h2>
@@ -203,19 +203,20 @@
 
     <div class="qr-dice-title"><span>The Dice of Fate</span></div>
     <div class="qr-dice">
+      <!-- Silhouettes match dieIcon() in app.js; keep the two in step -->
       <svg viewBox="0 0 64 64" onclick="rollDie(4)" role="button" aria-label="Roll a d4" title="Roll a d4">
-        <polygon class="shape" points="32,8 58,54 6,54"/><text x="32" y="47">D4</text></svg>
+        <polygon class="shape" points="32,5 60,55 4,55"/><text x="32" y="50" font-size="26">4</text></svg>
       <svg viewBox="0 0 64 64" onclick="rollDie(6)" role="button" aria-label="Roll a d6" title="Roll a d6">
-        <rect class="shape" x="13" y="13" width="38" height="38"/><text x="32" y="37">D6</text></svg>
+        <rect class="shape" x="9" y="9" width="46" height="46" rx="3"/><text x="32" y="44" font-size="30">6</text></svg>
       <svg viewBox="0 0 64 64" onclick="rollDie(8)" role="button" aria-label="Roll a d8" title="Roll a d8">
-        <polygon class="shape" points="32,5 59,32 32,59 5,32"/><text x="32" y="37">D8</text></svg>
+        <polygon class="shape" points="32,2 60,32 32,62 4,32"/><text x="32" y="42" font-size="28">8</text></svg>
       <svg viewBox="0 0 64 64" onclick="rollDie(10)" role="button" aria-label="Roll a d10" title="Roll a d10">
-        <polygon class="shape" points="32,5 57,25 49,57 15,57 7,25"/><text x="32" y="42">D10</text></svg>
+        <polygon class="shape" points="32,2 60,28 32,62 4,28"/><text x="32" y="38" font-size="25">10</text></svg>
       <svg viewBox="0 0 64 64" onclick="rollDie(12)" role="button" aria-label="Roll a d12" title="Roll a d12">
-        <polygon class="shape" points="32,7 58,26 48,58 16,58 6,26"/><text x="32" y="42">D12</text></svg>
+        <polygon class="shape" points="58.6,40.7 48.5,54.6 32,60 15.5,54.6 5.4,40.7 5.4,23.3 15.5,9.4 32,4 48.5,9.4 58.6,23.3"/><text x="32" y="41" font-size="27">12</text></svg>
       <svg viewBox="0 0 64 64" class="d20die" onclick="rollDie(20)" role="button" aria-label="Roll a d20" title="Roll a d20">
         <circle class="halo" cx="32" cy="32" r="30"/>
-        <polygon class="shape" points="32,8 53,20 53,44 32,56 11,44 11,20"/><text x="32" y="37">D20</text></svg>
+        <polygon class="shape" points="32,3 57.1,17.5 57.1,46.5 32,61 6.9,46.5 6.9,17.5"/><text x="32" y="41" font-size="27">20</text></svg>
     </div>
     <div class="qr-caption">The d20 does 90% of the work; the rest are mostly for damage. Your DM will always say which to roll. (Click a die to roll it!)</div>
 
@@ -342,8 +343,8 @@
 
 <div id="rollToast"><div class="what"></div><div class="total"></div><div class="detail"></div></div>
 
-<script src="js/data.js?v=74"></script>
-<script src="js/open5e.js?v=74"></script>
-<script src="js/app.js?v=74"></script>
+<script src="js/data.js?v=77"></script>
+<script src="js/open5e.js?v=77"></script>
+<script src="js/app.js?v=77"></script>
 </body>
 </html>
