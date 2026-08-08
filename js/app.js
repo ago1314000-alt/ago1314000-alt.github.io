@@ -96,13 +96,18 @@ let sheetSpellFilter = "";
 // each shape has to be distinct on its own; that is why a d6 is a square
 // rather than a cube, whose outline would be a hexagon like the d20's.
 // Dropping the "d" prefix is what lets the number stay readable down to 16px.
+// The baselines below are measured, not guessed: each one puts the middle of
+// the digits' ink on the shape's optical centre. They assume the lining
+// figures the CSS font stack provides. A serif face like Georgia uses
+// old-style figures, where 4 drops below the baseline and 10/12/20 sit at
+// x-height, which is what made the numbers look uneven and floor-bound.
 const DIE_SHAPES = {
-  4:  { shape:'<polygon points="32,5 60,55 4,55"/>',                   y:50, f:26 },
-  6:  { shape:'<rect x="9" y="9" width="46" height="46" rx="3"/>',     y:44, f:30 },
-  8:  { shape:'<polygon points="32,2 60,32 32,62 4,32"/>',             y:42, f:28 },
-  10: { shape:'<polygon points="32,2 60,28 32,62 4,28"/>',             y:38, f:25 },
-  12: { shape:'<polygon points="58.6,40.7 48.5,54.6 32,60 15.5,54.6 5.4,40.7 5.4,23.3 15.5,9.4 32,4 48.5,9.4 58.6,23.3"/>', y:41, f:27 },
-  20: { shape:'<polygon points="32,3 57.1,17.5 57.1,46.5 32,61 6.9,46.5 6.9,17.5"/>', y:41, f:27 }
+  4:  { shape:'<polygon points="32,5 60,55 4,55"/>',                   y:45,   f:26 },
+  6:  { shape:'<rect x="9" y="9" width="46" height="46" rx="3"/>',     y:42.5, f:30 },
+  8:  { shape:'<polygon points="32,2 60,32 32,62 4,32"/>',             y:42,   f:28 },
+  10: { shape:'<polygon points="32,2 60,28 32,62 4,28"/>',             y:39.5, f:27 },
+  12: { shape:'<polygon points="58.6,40.7 48.5,54.6 32,60 15.5,54.6 5.4,40.7 5.4,23.3 15.5,9.4 32,4 48.5,9.4 58.6,23.3"/>', y:41.5, f:27 },
+  20: { shape:'<polygon points="32,3 57.1,17.5 57.1,46.5 32,61 6.9,46.5 6.9,17.5"/>', y:41.5, f:27 }
 };
 function dieIcon(sides) {
   // An unfamiliar die (d100 and friends) borrows the d20 outline
