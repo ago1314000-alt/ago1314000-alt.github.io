@@ -1223,6 +1223,16 @@ function setNavMode(m) {
   });
 }
 
+// The footer's attribution link opens Settings and scrolls to the credits,
+// so the full licence text stays one click from every page
+function showAttribution(e) {
+  if (e) e.preventDefault();
+  const tab = document.querySelector('.tabs button[data-tab="settings"]');
+  if (tab) tab.click();
+  const target = document.getElementById("attribution");
+  if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function activateTab(b) {
   document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));
   document.querySelectorAll(".tabpage").forEach(x=>x.classList.remove("active"));

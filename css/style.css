@@ -334,6 +334,7 @@
   .prof { color: var(--accent); font-weight: bold; }
   .empty { color: var(--muted); text-align: center; padding: 3rem 1rem; font-style: italic; }
   .footer-note { color: var(--muted); font-size: .8rem; margin-top: 1.5rem; text-align: center; }
+  .footer-note .sep { opacity: .5; margin: 0 .15rem; }
 
   /* Tabs */
   /* App shell: sidebar navigation on desktop and tablet.
