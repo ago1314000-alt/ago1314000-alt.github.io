@@ -1,5 +1,9 @@
 // Renders the app icons from the same d20 mark used by favicon.svg and the
-// sidebar brand: an accent disc with the d20 silhouette knocked out of it.
+// sidebar brand: the die drawn as an open outline in the accent colour.
+// The plate behind it stays opaque here, unlike the favicon: Android masks
+// a maskable icon to a shape and iOS composites the home-screen icon on
+// black, so a transparent install icon comes out sitting on a dark plate
+// either way. Better to choose the plate than inherit one.
 // Run by hand:  node tools/make-icons.js
 const fs = require("fs");
 const path = require("path");
@@ -11,10 +15,10 @@ fs.mkdirSync(OUT, { recursive: true });
 const ACCENT = [0x22, 0xc5, 0x5e];   // --accent in dark mode
 const BG     = [0x0e, 0x0f, 0x11];   // --bg in dark mode
 
-// The mark, in the 40x40 space favicon.svg uses
-const C = { x: 20, y: 20, r: 19 };
-const HEX = [[20,6],[32.1,13],[32.1,27],[20,34],[7.9,27],[7.9,13]];
-const STROKE = 2.4;
+// The mark, in the 40x40 space favicon.svg uses. Same points and stroke as
+// the polygon in favicon.svg; keep the two in step.
+const HEX = [[20,2],[35.6,11],[35.6,29],[20,38],[4.4,29],[4.4,11]];
+const STROKE = 4;
 
 // distance from a point to a line segment
 function distSeg(px, py, ax, ay, bx, by) {
@@ -35,7 +39,7 @@ function distHex(px, py) {
   return d;
 }
 
-// One icon. `markScale` is how much of the canvas the disc fills, leaving the
+// One icon. `markScale` is how much of the canvas the mark fills, leaving the
 // rest as padding: maskable icons need their content inside a safe circle.
 function render(size, markScale, transparentBg) {
   const SS = 4;                        // supersample for smooth edges
@@ -50,9 +54,7 @@ function render(size, markScale, transparentBg) {
         for (let sx = 0; sx < SS; sx++) {
           const wx = originX + ((x + (sx+0.5)/SS) / size) * span;
           const wy = originY + ((y + (sy+0.5)/SS) / size) * span;
-          const inDisc = Math.hypot(wx-C.x, wy-C.y) <= C.r;
-          const onHex  = distHex(wx, wy) <= STROKE/2;
-          if (inDisc && !onHex) hit++;          // disc minus the knockout
+          if (distHex(wx, wy) <= STROKE/2) hit++;   // on the die's outline
         }
       }
       const a = hit / (SS*SS);
