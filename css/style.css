@@ -86,8 +86,10 @@
   .field { margin-bottom: .9rem; }
   .field label { display: block; font-weight: bold; font-size: .85rem; margin-bottom: .25rem; }
   .row { display: flex; gap: .4rem; align-items: center; }
-  /* Beside a multi-line box, the dice button sits at the top rather than centered */
-  .row:has(textarea) { align-items: flex-start; }
+  /* Rows holding a multi-line box align to the top. Marked with a class
+     rather than :has(), which older iPad Safari does not support. */
+  .row.row-top { align-items: flex-start; }
+  .row.row-top > textarea { margin: 0; vertical-align: top; }
   select, input[type=text], input[type=number], input[type=file], textarea {
     flex: 1; padding: .45rem .5rem; font-family: inherit; font-size: .95rem;
     border: 1px solid var(--line); border-radius: 5px; background: var(--card); color: var(--ink);
@@ -99,17 +101,23 @@
      The popup list a browser draws for a <select> is only partly ours to style:
      option colors and the checked highlight land in Chromium and Firefox, so the
      list at least follows the theme instead of falling back to stark OS colors. */
+  /* The chevron is written as one background shorthand so colour, image,
+     no-repeat, position and size are always set together. Set as separate
+     longhands, Safari on iPad kept the image but dropped the repeat and size,
+     tiling a field-height chevron across the whole control. The SVG also
+     carries explicit width and height, so it can never be auto-sized to the
+     field, and the position uses the four-value form Safari understands. */
   select {
     appearance: none; -webkit-appearance: none;
     padding-right: 1.9rem; cursor: pointer;
-    background-repeat: no-repeat;
-    background-position: right .6rem center;
-    background-size: .7rem;
-    /* chevron tinted to match --muted in each theme */
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%236b6152' stroke-width='2' stroke-linecap='round'/></svg>");
+    background: var(--card)
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%236b6152' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+      no-repeat right 0.6rem top 50% / 11px 7px;
   }
   body.dark select {
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%239aa0a6' stroke-width='2' stroke-linecap='round'/></svg>");
+    background: var(--card)
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%239aa0a6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+      no-repeat right 0.6rem top 50% / 11px 7px;
   }
   select:hover, input[type=text]:hover, input[type=number]:hover, textarea:hover { border-color: var(--accent); }
   select:focus, input[type=text]:focus, input[type=number]:focus, textarea:focus {
@@ -216,7 +224,7 @@
   .row > button.dice { align-self: stretch; }
   /* Next to a multi-line box it stays anchored to the top instead of stretching
      down the whole textarea */
-  .row:has(textarea) > button.dice { align-self: flex-start; }
+  .row.row-top > button.dice { align-self: flex-start; }
   .big-btns { display: flex; gap: .6rem; margin-bottom: 1.1rem; }
   .big-btns button { flex: 1; padding: .7rem; font-weight: bold; }
   #btnRandomAll { background: var(--accent); color: #fff; border-color: var(--accent); }
@@ -541,8 +549,14 @@
   .hp-tracker { display: flex; align-items: center; gap: .35rem; justify-content: center; margin-top: .3rem; flex-wrap: wrap; }
   .hp-tracker button { padding: .15rem .5rem; font-size: .8rem; font-weight: bold; }
   .hp-tracker input { width: 4rem; padding: .15rem .3rem; font-size: .8rem; text-align: center; }
-  .hp-dmg { color: var(--accent2); }
-  .hp-heal { color: var(--good); }
+  /* Ability score stepper on the Create tab, using the same buttons as
+     equipment. The native spinners would double up, so they are hidden. */
+  .ab-row { display: flex; gap: .3rem; align-items: stretch; }
+  .ab-row input { text-align: center; min-width: 0; }
+  .ab-row input::-webkit-outer-spin-button,
+  .ab-row input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .ab-row input { -moz-appearance: textfield; appearance: textfield; }
+  .ab-row .gear-btn { flex: 0 0 auto; padding: .1rem .5rem; }
 
   /* Mobile: fixed bottom navigation bar */
   @media (max-width: 600px) {

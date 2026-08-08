@@ -458,7 +458,23 @@ fillSelect("selAlignment", ALIGNMENTS);
 const abDiv = document.getElementById("abilityInputs");
 abDiv.innerHTML = ABILITIES.map(a=>`
   <div class="ab"><label>${a}</label>
-  <input type="number" min="3" max="20" id="ab_${a}" placeholder="--"></div>`).join("");
+    <div class="ab-row">
+      <button class="gear-btn" onclick="bumpScore('${a}',-1)" title="Lower ${a}" tabindex="-1">−</button>
+      <input type="number" min="1" max="30" id="ab_${a}" placeholder="--">
+      <button class="gear-btn" onclick="bumpScore('${a}',1)" title="Raise ${a}" tabindex="-1">+</button>
+    </div>
+  </div>`).join("");
+
+// The +/- beside each ability score. The range is 1-30 rather than the old
+// 3-20 so the magic items that set a score above 20 can be recorded.
+function bumpScore(ab, delta) {
+  const el = document.getElementById("ab_" + ab);
+  const cur = parseInt(el.value, 10);
+  const next = Math.max(1, Math.min(30, (isNaN(cur) ? 10 : cur) + delta));
+  el.value = next;
+  state.scores[ab] = next;
+  renderSheet();
+}
 
 // ---------- SKILL CHOICES ----------
 function renderSkillChoices() {
@@ -1075,10 +1091,10 @@ function renderSheet() {
       <div class="vital"><div class="v">${ac}</div><div class="k">ARMOR CLASS</div><div style="font-size:.65rem;color:var(--muted)">${acNote}</div></div>
       <div class="vital${bloodied?" bloodied":""}"><div class="v">${hp!=null?`${state.curHp} / ${hp}`:"--"}${state.tempHp?` <small style="color:var(--good)">+${state.tempHp}</small>`:""}</div><div class="k">HIT POINTS${state.tempHp?" + TEMP":bloodied?` · <span class="ref-link" onclick="refLookup('Bloodied')">BLOODIED</span>`:""}</div>
         ${hp!=null?`<div class="hp-tracker">
-          <input type="number" id="hpAmt" min="1" placeholder="17" title="Type any amount, then hit Damage or Heal">
-          <button class="hp-dmg" onclick="hpFromInput(-1)" title="Take that much damage">💥 Damage</button>
-          <button class="hp-heal" onclick="hpFromInput(1)" title="Heal that much" ${state.curHp>=hp?"disabled":""}>❤️ Heal</button>
-          <button onclick="changeTempHp(1)" title="Add Temporary HP">+Temp</button>${state.tempHp?`<button onclick="changeTempHp(-1)" title="Remove Temporary HP">-Temp</button>`:""}
+          <button class="gear-btn" onclick="hpFromInput(-1)" title="Take damage: the amount typed, or 1">−</button>
+          <input type="number" id="hpAmt" min="1" placeholder="1" title="Amount to take or heal; leave it blank for 1">
+          <button class="gear-btn" onclick="hpFromInput(1)" title="Heal: the amount typed, or 1" ${state.curHp>=hp?"disabled":""}>+</button>
+          <button class="gear-btn" onclick="changeTempHp(1)" title="Add Temporary HP">+Temp</button>${state.tempHp?`<button class="gear-btn" onclick="changeTempHp(-1)" title="Remove Temporary HP">−Temp</button>`:""}
         </div>`:""}
         ${hp!=null && state.curHp===0 ? `<div class="death-saves">DEATH SAVES
           <span>✔ ${[1,2,3].map(i=>`<span class="pip" onclick="deathPip('S',${i})">${state.deathS>=i?"●":"○"}</span>`).join("")}</span>
@@ -1783,11 +1799,11 @@ function rollDie(sides) {
   toastTimer = setTimeout(()=>toast.classList.remove("show"), 3500);
 }
 
-// Damage or healing typed into the box beside the HP buttons
+// Damage or healing from the box between the − and + buttons. An empty box
+// means 1, so the buttons work as a plain step when nothing is typed.
 function hpFromInput(sign) {
   const el = document.getElementById("hpAmt");
-  const n = Math.abs(parseInt(el && el.value, 10) || 0);
-  if (!n) { if (el) el.focus(); return; }
+  const n = Math.abs(parseInt(el && el.value, 10) || 0) || 1;
   changeHp(sign * n);
 }
 
