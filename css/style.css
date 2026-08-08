@@ -341,8 +341,12 @@
   .tabs {
     display: flex; flex-direction: column; gap: 2px;
     width: 232px; flex-shrink: 0;
-    position: sticky; top: 1rem;
-    height: calc(100vh - 3rem);
+    position: sticky; top: 0;
+    /* Negative margins cancel the body padding so the rail reaches the top,
+       left, and bottom edges of the window: its right rule then runs the full
+       height and the brand rule starts hard against the left edge. */
+    margin: -1.5rem 0 -1.5rem -1.5rem;
+    height: 100vh;
     overflow-y: auto;
     padding: 8px;
     border-right: 1px solid var(--line);
