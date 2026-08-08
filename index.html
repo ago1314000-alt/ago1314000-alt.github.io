@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>charactergenerator.github.io</title>
-<link rel="icon" type="image/svg+xml" href="favicon.svg?v=87">
-<link rel="manifest" href="manifest.webmanifest?v=87">
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=88">
+<link rel="manifest" href="manifest.webmanifest?v=88">
 <meta name="theme-color" content="#0e0f11" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f4efe6" media="(prefers-color-scheme: light)">
 <meta name="description" content="Build D&amp;D characters and play from a live sheet: levels 1-20, a searchable reference, and a bestiary. Works offline.">
@@ -13,8 +13,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Characters">
-<link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=87">
-<link rel="stylesheet" href="css/style.css?v=87">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=88">
+<link rel="stylesheet" href="css/style.css?v=88">
 </head>
 <body>
 <div class="app">
@@ -33,16 +33,23 @@
     </span>
     <span class="brand-name">Character Generator</span>
   </div>
-  <button class="active" data-tab="quickref" title="Beginner quick reference">
-    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg><span class="tab-label">Basics</span></button>
-  <button data-tab="create" title="Build a new character">
-    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg><span class="tab-label">Create</span></button>
-  <button data-tab="saved" title="Your saved characters">
-    <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5"/></svg><span class="tab-label">Characters <span id="savedCount"></span></span></button>
-  <button data-tab="rules" title="Search spells, gear, features, and rules">
-    <svg viewBox="0 0 24 24"><path d="M4 5h6a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4z"/><path d="M20 5h-6a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h6z"/></svg><span class="tab-label">Reference</span></button>
-  <button data-tab="settings" title="Settings">
-    <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="7" cy="17" r="2"/></svg><span class="tab-label">Settings</span></button>
+  <div class="tab-list">
+    <button class="active" data-tab="quickref" title="Beginner quick reference">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg><span class="tab-label">Basics</span></button>
+    <button data-tab="create" title="Build a new character">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg><span class="tab-label">Create</span></button>
+    <button data-tab="saved" title="Your saved characters">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5"/></svg><span class="tab-label">Characters <span id="savedCount"></span></span></button>
+    <button data-tab="rules" title="Search spells, gear, features, and rules">
+      <svg viewBox="0 0 24 24"><path d="M4 5h6a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4z"/><path d="M20 5h-6a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h6z"/></svg><span class="tab-label">Reference</span></button>
+  </div>
+  <!-- Settings sits in its own ruled-off block at the foot of the rail. On a
+       phone the block is display:contents, so the button falls back into the
+       bottom bar in its usual last position. -->
+  <div class="tabs-foot">
+    <button data-tab="settings" title="Settings">
+      <svg class="ic-gear" viewBox="0 0 24 24"><path d="M12 15 a3 3 0 1 0 0-6 a3 3 0 0 0 0 6 M19.4 15 a1.65 1.65 0 0 0 .33 1.82 l.06.06 a2 2 0 1 1-2.83 2.83 l-.06-.06 a1.65 1.65 0 0 0-1.82-.33 a1.65 1.65 0 0 0-1 1.51 V21 a2 2 0 1 1-4 0 v-.09 A1.65 1.65 0 0 0 9 19.4 a1.65 1.65 0 0 0-1.82.33 l-.06.06 a2 2 0 1 1-2.83-2.83 l.06-.06 a1.65 1.65 0 0 0 .33-1.82 a1.65 1.65 0 0 0-1.51-1 H3 a2 2 0 1 1 0-4 h.09 A1.65 1.65 0 0 0 4.6 9 a1.65 1.65 0 0 0-.33-1.82 l-.06-.06 a2 2 0 1 1 2.83-2.83 l.06.06 a1.65 1.65 0 0 0 1.82.33 H9 a1.65 1.65 0 0 0 1-1.51 V3 a2 2 0 1 1 4 0 v.09 a1.65 1.65 0 0 0 1 1.51 a1.65 1.65 0 0 0 1.82-.33 l.06-.06 a2 2 0 1 1 2.83 2.83 l-.06.06 a1.65 1.65 0 0 0-.33 1.82 V9 a1.65 1.65 0 0 0 1.51 1 H21 a2 2 0 1 1 0 4 h-.09 a1.65 1.65 0 0 0-1.51 1 Z"/></svg><span class="tab-label">Settings</span></button>
+  </div>
 </nav>
 <main class="content">
 <h1><span class="brand-logo" aria-hidden="true">
@@ -56,140 +63,150 @@
   </svg></span>Character Generator</h1>
 <div class="sub">Based on the System Reference Document 5.2 (D&D 2024 rules, CC-BY-4.0). Levels 1-20. Data is saved in your browser.</div>
 
-<div class="tabpage" id="tab-create">
-<div class="layout">
-  <div class="panel">
-    <div class="page-title">
-      <h2>Create a Character</h2>
-      <div class="page-sub">Roll the whole thing at once, roll any single choice, or pick it all by hand</div>
-    </div>
-    <div class="big-btns">
-      <button id="btnRandomAll">🎲 Randomize All</button>
-      <button id="btnClear">Clear</button>
-    </div>
+<div class="tabpage maxw" id="tab-create">
+  <div class="page-title">
+    <h2>Create a Character</h2>
+    <div class="page-sub">Roll the whole thing at once, roll any single choice, or pick it all by hand</div>
+  </div>
+  <div class="big-btns">
+    <button id="btnRandomAll">🎲 Randomize All</button>
+    <button id="btnClear">Clear</button>
+  </div>
 
-    <button id="btnSaveTop">💾 Save Character</button>
+  <button id="btnSaveTop">💾 Save Character</button>
 
-    <div class="field">
-      <label>Character Name</label>
-      <div class="row">
-        <input type="text" id="charName" placeholder="Enter a name...">
-        <button class="dice" data-rand="name" title="Random name">🎲</button>
+  <div class="mod-grid">
+    <section class="panel">
+      <h3 class="mod-h">Identity</h3>
+      <div class="field">
+        <label>Character Name</label>
+        <div class="row">
+          <input type="text" id="charName" placeholder="Enter a name...">
+          <button class="dice" data-rand="name" title="Random name">🎲</button>
+        </div>
       </div>
-    </div>
 
-    <div class="field">
-      <label><span class="ref-link" onclick="refChooser('class')">Class</span></label>
-      <div class="row">
-        <select id="selClass"></select>
-        <button class="dice" data-rand="class" title="Random class">🎲</button>
+      <div class="field">
+        <label><span class="ref-link" onclick="refChooser('class')">Class</span></label>
+        <div class="row">
+          <select id="selClass"></select>
+          <button class="dice" data-rand="class" title="Random class">🎲</button>
+        </div>
       </div>
-    </div>
 
-    <div class="field">
-      <label><span class="ref-link" onclick="refChooser('species')">Species</span></label>
-      <div class="row">
-        <select id="selSpecies"></select>
-        <button class="dice" data-rand="species" title="Random species">🎲</button>
+      <div class="field">
+        <label><span class="ref-link" onclick="refChooser('species')">Species</span></label>
+        <div class="row">
+          <select id="selSpecies"></select>
+          <button class="dice" data-rand="species" title="Random species">🎲</button>
+        </div>
       </div>
-    </div>
 
-    <div class="field">
-      <label><span class="ref-link" onclick="refChooser('background')">Background</span></label>
-      <div class="row">
-        <select id="selBackground"></select>
-        <button class="dice" data-rand="background" title="Random background">🎲</button>
+      <div class="field">
+        <label><span class="ref-link" onclick="refChooser('background')">Background</span></label>
+        <div class="row">
+          <select id="selBackground"></select>
+          <button class="dice" data-rand="background" title="Random background">🎲</button>
+        </div>
       </div>
-    </div>
 
-    <div class="field">
-      <label><span class="ref-link" onclick="refChooser('alignment')">Alignment</span></label>
-      <div class="row">
-        <select id="selAlignment"></select>
-        <button class="dice" data-rand="alignment" title="Random alignment">🎲</button>
+      <div class="field" style="margin-bottom:0">
+        <label><span class="ref-link" onclick="refChooser('alignment')">Alignment</span></label>
+        <div class="row">
+          <select id="selAlignment"></select>
+          <button class="dice" data-rand="alignment" title="Random alignment">🎲</button>
+        </div>
       </div>
-    </div>
+    </section>
 
-    <h3 class="section">Ability Scores</h3>
-    <div class="method-row">
-      <button id="btnRoll4d6">🎲 Roll 4d6 drop lowest</button>
-      <button id="btnStandard">Standard Array</button>
-      <button id="btnOptimize" title="Assign best scores to this class's key abilities">Optimize for Class</button>
-    </div>
-    <div class="abilities" id="abilityInputs"></div>
+    <section class="panel">
+      <h3 class="mod-h">Ability Scores</h3>
+      <div class="method-row">
+        <button id="btnRoll4d6">🎲 Roll 4d6 drop lowest</button>
+        <button id="btnStandard">Standard Array</button>
+        <button id="btnOptimize" title="Assign best scores to this class's key abilities">Optimize for Class</button>
+      </div>
+      <div class="abilities" id="abilityInputs"></div>
+    </section>
 
-    <h3 class="section">Skill Proficiencies (from Class)</h3>
-    <div class="method-row">
-      <button id="btnRandSkills">🎲 Random skills</button>
-    </div>
-    <div id="skillChoices" style="font-size:.85rem;"></div>
+    <section class="panel">
+      <h3 class="mod-h">Skill Proficiencies <small>from Class</small></h3>
+      <div class="method-row">
+        <button id="btnRandSkills">🎲 Random skills</button>
+      </div>
+      <div id="skillChoices" style="font-size:.85rem;"></div>
+    </section>
 
-    <div id="spellSection" style="display:none">
-      <h3 class="section">Spells</h3>
+    <section class="panel span-all" id="spellSection" style="display:none">
+      <h3 class="mod-h">Spells</h3>
       <div class="method-row">
         <button id="btnRandSpells">🎲 Random spells</button>
       </div>
       <input type="text" id="spellSearch" placeholder="Filter spells..." style="margin-bottom:.4rem">
       <div id="spellChoices" style="font-size:.85rem;max-height:300px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;padding:.5rem;background:var(--card)"></div>
-    </div>
+    </section>
 
-    <h3 class="section">Personality &amp; Notes</h3>
-    <div class="field"><label>Player Name <small style="color:var(--muted);font-weight:normal">/ XP</small></label>
-      <div class="row">
-        <input type="text" id="playerName" placeholder="Player name...">
-        <input type="text" id="xpField" placeholder="XP" style="max-width:80px">
+    <section class="panel span-all">
+      <h3 class="mod-h">Personality &amp; Notes</h3>
+      <div class="rp-grid">
+        <div class="field"><label>Player Name <small style="color:var(--muted);font-weight:normal">/ XP</small></label>
+          <div class="row">
+            <input type="text" id="playerName" placeholder="Player name...">
+            <input type="text" id="xpField" placeholder="XP" style="max-width:80px">
+          </div>
+        </div>
+        <div class="field"><label>Personality Traits</label>
+          <div class="row row-top"><textarea id="rpTraits" rows="2"></textarea><button class="dice" data-rp="traits" title="Random trait">🎲</button></div></div>
+        <div class="field"><label>Ideals</label>
+          <div class="row row-top"><textarea id="rpIdeals" rows="2"></textarea><button class="dice" data-rp="ideals" title="Random ideal">🎲</button></div></div>
+        <div class="field"><label>Bonds</label>
+          <div class="row row-top"><textarea id="rpBonds" rows="2"></textarea><button class="dice" data-rp="bonds" title="Random bond">🎲</button></div></div>
+        <div class="field"><label>Flaws</label>
+          <div class="row row-top"><textarea id="rpFlaws" rows="2"></textarea><button class="dice" data-rp="flaws" title="Random flaw">🎲</button></div></div>
+        <div class="field" style="margin-bottom:0"><label>Backstory &amp; Notes</label>
+          <div class="row row-top"><textarea id="rpNotes" rows="4" placeholder="Appearance, allies, treasure, campaign notes..."></textarea></div></div>
       </div>
-    </div>
-    <div class="field"><label>Personality Traits</label>
-      <div class="row row-top"><textarea id="rpTraits" rows="2"></textarea><button class="dice" data-rp="traits" title="Random trait">🎲</button></div></div>
-    <div class="field"><label>Ideals</label>
-      <div class="row row-top"><textarea id="rpIdeals" rows="2"></textarea><button class="dice" data-rp="ideals" title="Random ideal">🎲</button></div></div>
-    <div class="field"><label>Bonds</label>
-      <div class="row row-top"><textarea id="rpBonds" rows="2"></textarea><button class="dice" data-rp="bonds" title="Random bond">🎲</button></div></div>
-    <div class="field"><label>Flaws</label>
-      <div class="row row-top"><textarea id="rpFlaws" rows="2"></textarea><button class="dice" data-rp="flaws" title="Random flaw">🎲</button></div></div>
-    <div class="field"><label>Backstory &amp; Notes</label>
-      <div class="row row-top"><textarea id="rpNotes" rows="4" placeholder="Appearance, allies, treasure, campaign notes..."></textarea></div></div>
-
-    <button id="btnSave">💾 Save Character</button>
+    </section>
   </div>
-</div>
+
+  <button id="btnSave">💾 Save Character</button>
 </div><!-- /tab-create -->
 
 <div class="tabpage maxw" id="tab-saved">
-  <div class="panel">
-    <div class="page-title">
-      <h2>Your Characters</h2>
-      <div class="page-sub">View a sheet to play from it, or edit one to change how it was built</div>
-    </div>
+  <div class="page-title">
+    <h2>Your Characters</h2>
+    <div class="page-sub">View a sheet to play from it, or edit one to change how it was built</div>
+  </div>
+  <section class="panel">
     <div style="color:var(--muted);font-size:.8rem;margin:0 0 .8rem">Characters are stored in this browser and survive restarts. <b>Backup &amp; Restore</b> under Settings moves them to another browser or computer.</div>
     <div id="savedList"></div>
     <button onclick="addRandomCharacter()" style="width:100%;margin-top:.8rem;padding:.6rem;font-weight:bold" title="Roll up a complete random hero and save them">🎲 Add Random Character</button>
-  </div>
-  <div class="panel sheet" id="savedSheet" style="margin-top:1rem;display:none"></div>
+  </section>
+  <section class="panel sheet" id="savedSheet" style="display:none"></section>
 </div>
 
 <div class="tabpage maxw active" id="tab-quickref">
-  <div class="panel">
-    <div class="page-title">
-      <h2>The Basics</h2>
-      <div class="page-sub">Everything you need for your very first game of Dungeons &amp; Dragons, on one page</div>
-    </div>
+  <div class="page-title">
+    <h2>The Basics</h2>
+    <div class="page-sub">Everything you need for your very first game of Dungeons &amp; Dragons, on one page</div>
+  </div>
 
-    <div class="qr-banner">
-      <div class="qr-label">The Golden Rule</div>
-      <b>Describe what you want to do. The DM tells you what to roll. That is the whole game.</b>
-    </div>
+  <div class="qr-banner">
+    <div class="qr-label">The Golden Rule</div>
+    <b>Describe what you want to do. The DM tells you what to roll. That is the whole game.</b>
+  </div>
 
+  <section class="panel">
     <div style="text-align:center;font-variant:small-caps;letter-spacing:1px;margin-bottom:.5rem;color:var(--muted)">Know these three numbers on your sheet</div>
     <div class="qr-three">
       <div class="qr-num"><span class="abbr">AC</span><span><b class="ref-link" onclick="refLookup('Armor Class')">Armor Class</b><small>How hard you are to hit</small></span></div>
       <div class="qr-num"><span class="abbr">HP</span><span><b class="ref-link" onclick="refLookup('Hit Points and Hit Point Dice')">Hit Points</b><small>Your health: at 0, you fall</small></span></div>
       <div class="qr-num"><span class="abbr">SPD</span><span><b class="ref-link" onclick="refLookup('Speed')">Speed</b><small>How far you move each turn</small></span></div>
     </div>
+  </section>
 
-    <div class="twocol">
-      <div class="qr-sec">
+  <div class="twocol mod-row">
+      <section class="panel qr-sec">
         <div class="qr-h">At Any Time</div>
         <h4><span class="ref-link" onclick="refLookup('Ability Checks')">Ability Checks</span></h4>
         <p>The DM says <i>"make a <span class="ref-link" onclick="refLookup('Skills (all 18)')">Perception</span> check."</i> Roll the <b>d20</b>, add the number next to that skill on your sheet. Higher is better. A natural <b>20</b> is glorious; a natural <b>1</b> is trouble.</p>
@@ -199,8 +216,8 @@
         <p><b>Advantage:</b> roll two d20s, keep the <b>higher</b>.<br><b>Disadvantage:</b> roll two, keep the <b>lower</b>.</p>
         <h4><span class="ref-link" onclick="refLookup('Spellcasting Basics')">Spellcasters</span></h4>
         <p>Your spells say what to roll. When in doubt, read the spell aloud; the DM will sort it out. See also <span class="ref-link" onclick="refLookup('Concentration')">Concentration</span> and <span class="ref-link" onclick="refLookup('Spell Slots')">Spell Slots</span>.</p>
-      </div>
-      <div class="qr-sec">
+      </section>
+      <section class="panel qr-sec">
         <div class="qr-h">In Combat</div>
         <h4><span class="ref-link" onclick="refLookup('Initiative')">Initiative</span></h4>
         <p>Combat starts? Roll <b>d20 + your Initiative number</b>. That sets the turn order.</p>
@@ -214,9 +231,10 @@
         <p>Roll <b>d20 + attack bonus</b> vs. their <b class="ref-link" onclick="refLookup('Armor Class')">AC</b>. If you meet or beat it, roll your <b class="ref-link" onclick="refLookup('Weapon Properties')">damage die</b>. Done. A natural 20 is a <span class="ref-link" onclick="refLookup('Critical Hit')">Critical Hit</span>!</p>
         <h4><span class="ref-link" onclick="refLookup('Death Saving Throws')">At 0 Hit Points</span></h4>
         <p>You fall <span class="ref-link" onclick="refLookup('Unconscious')">unconscious</span>, <i>not dead</i>. The DM will walk you through <span class="ref-link" onclick="refLookup('Death Saving Throws')">what happens next</span>.</p>
-      </div>
-    </div>
+      </section>
+  </div>
 
+  <section class="panel">
     <div class="qr-dice-title"><span>The Dice of Fate</span></div>
     <div class="qr-dice">
       <!-- Silhouettes match dieIcon() in app.js; keep the two in step -->
@@ -235,33 +253,36 @@
         <polygon class="shape" points="32,3 57.1,17.5 57.1,46.5 32,61 6.9,46.5 6.9,17.5"/><text x="32" y="41.5" font-size="27">20</text></svg>
     </div>
     <div class="qr-caption">The d20 does 90% of the work; the rest are mostly for damage. Your DM will always say which to roll. (Click a die to roll it!)</div>
+  </section>
 
-    <div class="qr-banner soft">
-      <div class="qr-label" style="color:var(--accent);opacity:1">You Cannot Play Wrong</div>
-      Ask questions anytime. Every player at the table was new once. It is always okay to say: <i>"I'm not sure what to do; what are my options?"</i>
-      <div style="margin-top:.4rem;color:var(--muted);font-style:italic;font-size:.85rem">Everything else, the Dungeon Master handles. Your job is to have fun. Roll for adventure!</div>
-    </div>
+  <div class="qr-banner soft">
+    <div class="qr-label" style="color:var(--accent);opacity:1">You Cannot Play Wrong</div>
+    Ask questions anytime. Every player at the table was new once. It is always okay to say: <i>"I'm not sure what to do; what are my options?"</i>
+    <div style="margin-top:.4rem;color:var(--muted);font-style:italic;font-size:.85rem">Everything else, the Dungeon Master handles. Your job is to have fun. Roll for adventure!</div>
   </div>
 </div>
 
 <div class="tabpage maxw" id="tab-rules">
-  <div class="panel">
-    <div class="page-title">
-      <h2>Reference</h2>
-      <div class="page-sub">Every spell, feature, item, creature, and rule the app knows, in one search</div>
-    </div>
+  <div class="page-title">
+    <h2>Reference</h2>
+    <div class="page-sub">Every spell, feature, item, creature, and rule the app knows, in one search</div>
+  </div>
+  <section class="panel">
     <div id="ruleCats" class="cat-chips"></div>
     <input type="text" id="rulesSearch" placeholder="Search spells, gear, features, species, rules... (e.g. Fireball, Chain Mail, Sneak Attack, Darkvision, grappled)">
-    <div id="rulesResults"></div>
-  </div>
+  </section>
+  <!-- results are their own cards, so they stand alone rather than in a box -->
+  <div id="rulesResults"></div>
 </div>
 
 <div class="tabpage maxw" id="tab-settings">
-  <div class="panel">
-    <div class="page-title">
-      <h2>Settings</h2>
-      <div class="page-sub">Appearance, navigation, backups, and where the game content comes from</div>
-    </div>
+  <div class="page-title">
+    <h2>Settings</h2>
+    <div class="page-sub">Appearance, navigation, backups, and where the game content comes from</div>
+  </div>
+
+  <section class="panel">
+    <h3 class="mod-h">Appearance</h3>
     <div class="field">
       <label>Theme</label>
       <div class="row" style="max-width:320px">
@@ -270,7 +291,7 @@
       </div>
     </div>
 
-    <div class="field">
+    <div class="field" style="margin-bottom:0">
       <label>Navigation</label>
       <div class="row" style="max-width:320px">
         <button id="btnNavHover" style="flex:1" title="Point at a tab in the sidebar to switch to it">🖱 Hover</button>
@@ -280,8 +301,10 @@
         Applies to the sidebar on desktop. Phones and tablets always wait for a tap, since there is no hover to read.
       </div>
     </div>
+  </section>
 
-    <h3 class="section">Backup &amp; Restore</h3>
+  <section class="panel">
+    <h3 class="mod-h">Backup &amp; Restore</h3>
     <div style="color:var(--muted);font-size:.88rem;margin-bottom:.5rem">
       Your characters live in this browser's storage, which clearing site data will wipe.
       A backup writes every saved character to one file you can keep or carry to another
@@ -294,12 +317,16 @@
       <input type="file" id="restoreFile" accept=".json,application/json" style="display:none">
     </div>
     <div id="backupStatus" style="font-size:.85rem;margin-top:.5rem"></div>
+  </section>
 
-    <h3 class="section">About</h3>
+  <section class="panel">
+    <h3 class="mod-h">About</h3>
     <p style="margin:.2rem 0">Created by <a href="https://github.com/dangeratio" target="_blank" rel="noopener">dangeratio</a>.</p>
     <p style="margin:.2rem 0">Report issues at <a href="https://github.com/charactergenerator/charactergenerator.github.io/issues" target="_blank" rel="noopener">GitHub</a>.</p>
+  </section>
 
-    <h3 class="section" id="attribution">Sources &amp; Attribution</h3>
+  <section class="panel" id="attribution">
+    <h3 class="mod-h">Sources &amp; Attribution</h3>
     <p style="margin:.2rem 0 .6rem;color:var(--muted);font-size:.9rem">
       This tool is built from freely licensed game content. Every source below is credited as its
       licence requires. This app is not affiliated with, endorsed, or sponsored by any of these publishers.
@@ -348,7 +375,7 @@
       Level Up: Advanced 5th Edition is a trademark of EN Publishing.
       No trademark or product identity from any source is used or claimed here.
     </p>
-  </div>
+  </section>
 </div>
 
 <div class="footer-note">Created by <a href="https://github.com/dangeratio" target="_blank" rel="noopener">dangeratio</a> <span class="sep">|</span> report issues at <a href="https://github.com/charactergenerator/charactergenerator.github.io/issues" target="_blank" rel="noopener">github</a> <span class="sep">|</span> <a href="#attribution" onclick="showAttribution(event)">sources &amp; attribution</a></div>
@@ -366,8 +393,8 @@
 
 <div id="rollToast"><div class="what"></div><div class="total"></div><div class="detail"></div></div>
 
-<script src="js/data.js?v=87"></script>
-<script src="js/open5e.js?v=87"></script>
-<script src="js/app.js?v=87"></script>
+<script src="js/data.js?v=88"></script>
+<script src="js/open5e.js?v=88"></script>
+<script src="js/app.js?v=88"></script>
 </body>
 </html>

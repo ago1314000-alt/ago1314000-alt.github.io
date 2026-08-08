@@ -58,32 +58,39 @@
   }
   h1 { margin: 0 0 .25rem; color: var(--accent); font-variant: small-caps; letter-spacing: 1px; }
   .sub { color: var(--muted); margin-bottom: 1.25rem; font-size: .95rem; }
-  .layout { display: grid; grid-template-columns: 380px 1fr; gap: 1.5rem; max-width: 1400px; margin: 0 auto; }
-  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
-  /* The create tab is the form alone; the sheet lives on the Characters tab */
-  #tab-create .layout { grid-template-columns: 1fr; max-width: none; }
-  /* Wide screens: flow the form into columns instead of one long narrow strip */
-  @media (min-width: 950px) {
-    #tab-create .panel {
-      display: grid; grid-template-columns: 1fr 1fr;
-      column-gap: 1.75rem; align-items: start;
-    }
-    #tab-create .panel > .page-title,
-    #tab-create .panel > .big-btns,
-    #tab-create .panel > button,
-    #tab-create .panel > h3.section { grid-column: 1 / -1; }
-    /* Spells is its own block, never sharing a row with the skill list */
-    #tab-create .panel > #spellSection { grid-column: 1 / -1; }
-    #tab-create #spellChoices { max-height: 320px; }
-  }
-  @media (min-width: 1400px) {
-    #tab-create .panel { grid-template-columns: repeat(3, 1fr); }
-  }
+  /* Pages are built from modules rather than one page-wide box: the heading and
+     any page-level actions sit on the background, and each block of content is
+     its own card. Nothing wraps a whole tab. */
   .panel {
     background: var(--panel); border: 1px solid var(--line);
     border-radius: 8px; padding: 1.25rem;
     box-shadow: 0 2px 6px var(--shadow);
   }
+  .tabpage > .panel { margin-bottom: 1rem; }
+  /* Module heading: the card says what it is without needing a page box */
+  .mod-h {
+    margin: 0 0 .8rem; font-size: 1.05rem; color: var(--accent);
+    font-variant: small-caps; letter-spacing: .5px;
+    border-bottom: 1px solid var(--line); padding-bottom: .3rem;
+  }
+  .mod-h small { font-weight: normal; color: var(--muted); font-size: .75rem; letter-spacing: 0; }
+  /* Modules pack into as many columns as the width allows; a module marked
+     span-all always takes a row to itself */
+  .mod-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem; align-items: start;
+  }
+  .mod-grid > .panel { margin-bottom: 0; }
+  .mod-grid > .span-all { grid-column: 1 / -1; }
+  /* Personality is a full-width module, so its fields share the width out */
+  .rp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 1.25rem; }
+  /* Blocks that carried their own bottom margin inside the old page box would
+     leave a gap under the last line of a module, so it goes at the edge */
+  .panel > .qr-three:last-child,
+  .panel > .qr-caption:last-child,
+  .panel > #rulesSearch:last-child { margin-bottom: 0; }
+  .panel > .qr-dice-title:first-child { margin-top: 0; }
+  .twocol.mod-row { margin-bottom: 1rem; }
   /* Every tab opens with the same heading, left aligned, so no page starts
      without saying what it is */
   .page-title { margin: 0 0 1rem; }
@@ -342,11 +349,12 @@
      the content area carries its own max width instead. */
   .app { display: flex; gap: 1.5rem; align-items: flex-start; }
   .content { flex: 1; min-width: 0; max-width: 1400px; }
-  /* Sidebar structure follows the DM Tools shell: a full-height rail with a
-     rule down its right edge, a ruled-off brand block at the top, and tight
-     8px padding around the list. Colours, icons, and weights stay ours. */
+  /* Sidebar structure follows the Auto Roll Tables shell: a full-height rail
+     with a rule down its right edge, a ruled-off brand block at the top, the
+     scrolling list in the middle, and a ruled-off foot holding Settings.
+     Colours, icons, and weights stay ours. */
   .tabs {
-    display: flex; flex-direction: column; gap: 2px;
+    display: flex; flex-direction: column;
     width: 232px; flex-shrink: 0;
     position: sticky; top: 0;
     /* Negative margins cancel the body padding so the rail reaches the top,
@@ -354,30 +362,34 @@
        height and the brand rule starts hard against the left edge. */
     margin: -1.5rem 0 -1.5rem -1.5rem;
     height: 100vh;
-    overflow-y: auto;
-    padding: 8px;
+    overflow: hidden;
     border-right: 1px solid var(--line);
   }
   .brand {
     display: flex; align-items: center; gap: 10px;
-    font-weight: bold; font-size: .98rem; color: var(--ink);
-    padding: 14px 12px;
-    /* bleed past the rail's padding so the rule spans its full width */
-    margin: -8px -8px 8px;
+    font-weight: 600; font-size: 1.02rem; letter-spacing: .01em; color: var(--ink);
+    padding: 13px 12px;
     border-bottom: 1px solid var(--line);
   }
-  .brand-name { line-height: 1.2; }
+  .brand-name { line-height: 1.2; white-space: nowrap; }
   /* Circle in the accent color with the ampersand knocked out to the page behind it */
   .brand-logo { display: inline-flex; width: 30px; height: 30px; flex-shrink: 0; color: var(--accent); }
   .brand-logo svg { width: 100%; height: 100%; display: block; }
+  /* The list takes the space between brand and foot and scrolls on its own,
+     so Settings stays pinned to the bottom of the rail */
+  .tab-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .tabs-foot { border-top: 1px solid var(--line); padding: 8px; }
   .tabs button {
     display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
-    padding: 7px 10px; border: none; border-radius: 5px; background: transparent;
-    font-weight: 600; font-size: .92rem; color: var(--muted); white-space: nowrap;
+    padding: 8px 10px; margin-top: 2px; border: none; border-radius: 5px; background: transparent;
+    font-weight: 400; font-size: .92rem; color: var(--muted); white-space: nowrap;
   }
+  .tab-list button:first-child, .tabs-foot button { margin-top: 0; }
   .tabs button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+  /* The gear is a far busier path than the other marks and clots at stroke-width 2 */
+  .tabs button svg.ic-gear { stroke-width: 1.7; }
   .tabs button:hover:not(.active) { background: var(--tab-hover); color: var(--ink); }
-  .tabs button.active { background: var(--tab-bg); color: var(--ink); }
+  .tabs button.active { background: var(--tab-bg); color: var(--ink); font-weight: 600; }
   .tabs button.active svg { stroke: var(--accent); }
   /* The sidebar brand replaces the page heading on larger screens */
   h1, .sub { display: none; }
@@ -598,8 +610,9 @@
     h1 .brand-logo { width: 30px; height: 30px; }
     .app { display: block; }
     #savedCount { display: none; }
-    .layout { gap: .8rem; }
     .panel { padding: .85rem; }
+    .tabpage > .panel { margin-bottom: .8rem; }
+    .mod-grid { gap: .8rem; }
     .brand { display: none; }
     .tabs {
       position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 90;
@@ -610,9 +623,12 @@
       /* the desktop rail's full-height rule and scrolling have no place here */
       height: auto; overflow: visible; border-right: none;
     }
+    /* The rail's list and foot dissolve so their buttons become direct children
+       of the bar and share it out evenly, Settings last as before */
+    .tab-list, .tabs-foot { display: contents; }
     .tabs button {
       flex: 1; flex-direction: column; gap: .2rem; justify-content: center;
-      padding: .3rem 0; font-size: .62rem; font-weight: 600; border-radius: 8px;
+      padding: .3rem 0; margin-top: 0; font-size: .62rem; font-weight: 600; border-radius: 8px;
       white-space: normal;
     }
     .tabs button svg { width: 22px; height: 22px; }
@@ -657,7 +673,7 @@
     .tabs, .brand, h1, .footer-note, .overlay, #rollToast,
     .no-print, .hp-tracker, .cond-menu, .xp-add, .purse-row + .purse-row,
     button, .gear-btn, .attune-btn, #sheetSpellFilter,
-    #tab-create .col-left, .tabpage:not(.active) { display: none !important; }
+    .tabpage:not(.active) { display: none !important; }
     .app, .content { display: block; max-width: none; }
     .panel { border: none; box-shadow: none; padding: 0; background: #fff; }
     .vitals { position: static; box-shadow: none; margin: 0 0 .5rem; padding: 0; }

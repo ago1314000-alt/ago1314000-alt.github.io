@@ -52,7 +52,8 @@ The sheet is a live play surface, not a printout:
 - ⧉ **Duplicate** a hero before a risky level-up, and 🔗 **share** one as a link that carries the whole character in the URL itself, so nothing is uploaded anywhere
 - ⬇️⬆️ **Backup & Restore** under Settings writes every character to one dated JSON file and reads them back on any machine. Restoring adds to what is already there rather than replacing it
 - 🌙 Modern dark mode by default, ☀️ parchment light mode in settings
-- 📱 Sidebar navigation on desktop and tablet, app-style bottom bar on phones. The sidebar switches on hover by default; Settings has a hover-or-click toggle
+- 📱 Sidebar navigation on desktop and tablet, app-style bottom bar on phones. Settings sits in its own block at the foot of the sidebar. The sidebar switches on hover by default; Settings has a hover-or-click toggle
+- 🧱 Every page is built from modules: the heading sits on the page and each block of content is its own card, rather than one box wrapping the whole tab
 - 📲 **Installable**: Chrome offers an Install button in the address bar, and iOS can Add to Home Screen. It then opens in its own window with no browser chrome, and works with no connection at all
 
 ## 🚀 Run It
