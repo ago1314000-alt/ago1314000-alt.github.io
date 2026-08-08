@@ -1579,7 +1579,19 @@ const rulesInput = document.getElementById("rulesSearch");
 
 // Category chips: everything before the "·" in an entry's category, so all the
 // per-level spell buckets collapse into one "Spell" filter
-const ruleCat = r => r.c.split(" · ")[0];
+// Nineteen type chips was more scrolling than sorting, so the ones that all
+// describe a character fold into Character and magic items join Equipment.
+// Only the chips merge: each card still shows its own specific category, so a
+// Condition or an Origin Feat still says so.
+const CAT_MERGE = {
+  "Spellcasting":"Character", "Alignment":"Character", "Species":"Character",
+  "Combat":"Character", "Class":"Character", "Subclass":"Character",
+  "Action":"Character", "Rules":"Character", "Condition":"Character",
+  "Species Trait":"Character", "Background":"Character", "Feat":"Character",
+  "Feature":"Character",
+  "Magic Item":"Equipment"
+};
+const ruleCat = r => { const base = r.c.split(" · ")[0]; return CAT_MERGE[base] || base; };
 let ruleFilter = null;
 let ruleSrc = null;
 // Long lists are capped so a bare search doesn't build thousands of cards

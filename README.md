@@ -1,4 +1,4 @@
-# 🎲 Auto Character Generator
+# 🎲 Character Sheet
 
 **▶️ Play it now: [auto-character-generator.github.io](https://auto-character-generator.github.io/)**
 
@@ -40,7 +40,7 @@ The sheet is a live play surface, not a printout:
 ## 📚 Look Anything Up
 
 - 🔍 A **Reference** tab with **1,800+ searchable entries**: every spell, weapon, and piece of gear, all class features, subclasses, feats, magic items, and species traits, plus conditions, combat actions, spellcasting, and rests
-- 🏷️ **Source and category chips** with live counts filter the list and combine with the search box, so you can stay in the SRD or reach into the Level Up books
+- 🏷️ **Source and type chips** with live counts filter the list and combine with the search box, so you can stay in the SRD or reach into the Level Up books. Types condense to Spell, Creature, Character, Equipment, and Rest; each card still names its own kind
 - 🐉 **586 creatures** from the Monstrous Menagerie sit in the Reference as a Creature type: search them alongside everything else by name, type, size, or trait, and open a full stat block with rollable ability checks. The megabyte of stat blocks loads in the background the first time you open Reference
 - ℹ️ Nearly everything is clickable: sheet features, species traits, equipment, the level-up and rest overlays, and the Basics page all open in-place reference definitions
 - 🧭 A beginner-friendly **Basics** tab (the whole game on one page, with clickable dice-shaped icons)

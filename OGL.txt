@@ -1,6 +1,6 @@
 OPEN GAME LICENSE Version 1.0a
 
-This notice covers the Open Game Content used by Auto Character Generator
+This notice covers the Open Game Content used by Character Sheet
 (https://auto-character-generator.github.io/): the creatures listed under
 the Reference tab,
 taken from Level Up: Monstrous Menagerie.
@@ -33,6 +33,6 @@ Level Up: Advanced 5th Edition Adventurer’s Guide Copyright 2021, EN Publishin
 Level Up: Advanced 5th Edition Monstrous Menagerie Copyright 2021, EN Publishing; Author Paul Hughes.
 Level Up: Advanced 5th Edition Dungeon Delver’s Guide Copyright 2023, EN Publishing.
 Level Up: Advanced 5th Edition Gate Pass Gazette Copyright 2022, EN Publishing.
-Auto Character Generator Copyright 2026, dangeratio.
+Character Sheet Copyright 2026, dangeratio.
 
 END OF LICENSE
