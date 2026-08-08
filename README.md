@@ -1,6 +1,6 @@
 # 🎲 Character Generator
 
-**▶️ Play it now: [auto-character-generator.github.io](https://auto-character-generator.github.io/)**
+**▶️ Play it now: [charactergenerator.github.io](https://charactergenerator.github.io/)**
 
 A complete D&D character builder, live character sheet, and rules companion for **levels 1-20**, built on the System Reference Document 5.2 (D&D 2024 rules) and EN Publishing's Level Up: Advanced 5th Edition. Plain HTML, CSS, and vanilla JavaScript: no server, no account, no build step. Your characters live in your browser.
 
@@ -56,7 +56,7 @@ The sheet is a live play surface, not a printout:
 
 ## 🚀 Run It
 
-Visit **[auto-character-generator.github.io](https://auto-character-generator.github.io/)**, or clone and open `index.html` in any browser. Structure: `index.html` (markup), `css/style.css` (both themes), `js/data.js` (SRD content), `js/open5e.js` (Level Up spells, feats, backgrounds, conditions, and the Marshal), `js/bestiary.js` (creatures, loaded on demand), `js/app.js` (app logic). No dependencies; works offline once loaded.
+Visit **[charactergenerator.github.io](https://charactergenerator.github.io/)**, or clone and open `index.html` in any browser. Structure: `index.html` (markup), `css/style.css` (both themes), `js/data.js` (SRD content), `js/open5e.js` (Level Up spells, feats, backgrounds, conditions, and the Marshal), `js/bestiary.js` (creatures, loaded on demand), `js/app.js` (app logic). No dependencies; works offline once loaded.
 
 ## 📄 License
 

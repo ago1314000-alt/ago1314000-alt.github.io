@@ -7,7 +7,7 @@ feature bullets, the file-structure note in "Run It", and any counts
 (reference entries, spell coverage, level range).
 
 ## Deploys
-- The site is GitHub Pages from this repo (auto-character-generator.github.io).
+- The site is GitHub Pages from this repo (charactergenerator.github.io).
 - Publishing = commit and push to main. Nothing else to do.
 - Bump the `?v=N` query on the css/js links in index.html on every deploy
   that changes those files (cache busting). Use safe UTF-8 file handling

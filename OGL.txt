@@ -1,7 +1,7 @@
 OPEN GAME LICENSE Version 1.0a
 
 This notice covers the Open Game Content used by Character Generator
-(https://auto-character-generator.github.io/): the creatures listed under
+(https://charactergenerator.github.io/): the creatures listed under
 the Reference tab,
 taken from Level Up: Monstrous Menagerie.
 
